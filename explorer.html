@@ -39,8 +39,9 @@
   .theme-icon { font-size:12px; color:var(--mut); }
   .theme-select { font:inherit; font-size:10.5px; color:var(--mut); border:1px solid var(--line); border-radius:99px; background:var(--surface, var(--color-surface)); padding:2px 9px; outline:none; cursor:pointer; }
   .theme-select:hover { border-color:var(--line-strong, var(--color-line-strong)); color:var(--ink); }
-  .favicon { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:3px; overflow:hidden; background:var(--color-favicon-bg); border:1px solid rgba(0,0,0,.06); flex:0 0 auto; font-size:9px; font-weight:600; color:var(--mut); }
-  .favicon.inline { width:13px; height:13px; font-size:7px; border-radius:2px; vertical-align:-2px; margin-right:3px; }
+  .favicon { position:relative; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:3px; overflow:hidden; background:var(--color-favicon-bg); border:1px solid rgba(0,0,0,.06); flex:0 0 auto; font-size:9px; font-weight:600; color:var(--mut); vertical-align:-3px; }
+  .favicon .fl { position:absolute; inset:0; display:grid; place-items:center; }
+  .favicon.inline { width:13px; height:13px; font-size:7px; border-radius:2px; vertical-align:-2px; margin-right:3px; align-self:center; }
   .favicon img { width:100%; height:100%; display:block; }
   .motion-badge { color:var(--entity-motion); font-weight:600; }
   .video-badge { color:var(--entity-video); font-weight:600; }
@@ -110,6 +111,9 @@
   .capture-meta { min-width:0; max-width:118px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--mut); font-size:8.7px; font-variant-numeric:tabular-nums; }
   .row-arrow { flex:0 0 auto; color:var(--mut); font-size:12px; }
   .grad-prev { flex:0 0 26px; height:16px; border-radius:2px; }
+  .term-highlight { color:var(--violet); }
+  .font-src { font:8.5px/1.45 ui-monospace,Menlo,monospace; color:var(--mut); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:-2px 0 6px; }
+  .font-src b { font-weight:600; color:var(--faint); }
   .chip { display:inline-block; font-size:11px; border:1px solid var(--line); border-radius:99px; padding:2px 11px; margin:0 5px 5px 0; cursor:pointer; background:none; color:var(--ink); }
   .chip:hover { border-color:var(--color-line-strong); background:var(--soft); }
   .shot-wrap { position:relative; min-height:80px; margin:0 0 10px; overflow:hidden; border:1px solid var(--line); border-radius:4px; background:var(--soft); background-size:100% 100%; }
@@ -167,7 +171,26 @@
   #cap-hover .hp span { flex:1; }
   #cap-hover .htags { font-size:9.5px; color:var(--violet); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   @media (max-width:760px) { #cap-hover { display:none !important; } }
+  #lb { position:fixed; inset:0; z-index:2000; display:none; }
+  #lb.on { display:block; }
+  .lb-backdrop { position:absolute; inset:0; background:rgba(9,11,14,.88); opacity:0; transition:opacity .25s ease; }
+  #lb.on .lb-backdrop { opacity:1; }
+  .lb-stage { position:fixed; overflow:hidden; border-radius:6px; background:#000; box-shadow:0 24px 90px rgba(0,0,0,.55); will-change:transform,width,height; transition:transform .32s cubic-bezier(.2,.7,.2,1), width .32s cubic-bezier(.2,.7,.2,1), height .32s cubic-bezier(.2,.7,.2,1), left .32s cubic-bezier(.2,.7,.2,1), top .32s cubic-bezier(.2,.7,.2,1), opacity .2s ease; }
+  .lb-media { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; }
+  .lb-media.on { opacity:1; }
+  #lb.lb-morph .lb-media { object-fit:cover; }
+  .lb-close, .lb-nav { position:fixed; z-index:2001; display:grid; place-items:center; width:38px; height:38px; border:0; border-radius:50%; background:rgba(255,255,255,.08); color:#fff; font-size:18px; cursor:pointer; }
+  .lb-close:hover, .lb-nav:hover { background:rgba(255,255,255,.2); }
+  .lb-close { top:16px; right:18px; font-size:13px; }
+  .lb-prev { top:50%; left:18px; transform:translateY(-50%); }
+  .lb-next { top:50%; right:18px; transform:translateY(-50%); }
+  .lb-cap { position:fixed; left:0; right:0; bottom:18px; z-index:2001; text-align:center; font-size:11px; color:rgba(255,255,255,.9); display:flex; flex-direction:column; gap:2px; align-items:center; pointer-events:none; }
+  .lb-cap .lb-title { font-size:12.5px; font-weight:600; max-width:70vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lb-cap .lb-sub { font-size:10px; color:rgba(255,255,255,.65); }
+  .lb-count { position:fixed; top:16px; left:18px; z-index:2001; font-size:10px; color:rgba(255,255,255,.6); font-variant-numeric:tabular-nums; }
+  .capture-thumb, .shot-wrap img, .motion-player video { cursor:zoom-in; }
 </style>
+<style id="font-faces"></style>
 </head>
 <body>
 
@@ -435,6 +458,44 @@ function downloadText(filename, content){
 }
 const __rawCache = new Map();
 let __rawSeq = 0;
+const fontSrc = { byFam: new Map(), faces: 0 };
+function initFontSources(g){
+  const facesEl = document.getElementById("font-faces");
+  if (!facesEl) return;
+  const css = [];
+  const seen = new Set();
+  for (const rows of Object.values(g || {})) {
+    for (const r of rows) {
+      if (!r || !r.url || seen.has(r.url)) continue;
+      seen.add(r.url);
+      const key = norm(r.family || "");
+      if (!fontSrc.byFam.has(key)) fontSrc.byFam.set(key, []);
+      const face = "fudge-src-" + (++fontSrc.faces);
+      const entry = Object.assign({}, r, { face });
+      fontSrc.byFam.get(key).push(entry);
+      css.push("@font-face{font-family:'" + face + "';src:url('" + r.url.replace(/["'\\]/g, "") + "') format('" + (r.format || "woff2") + "');font-weight:100 900;font-display:swap}");
+    }
+  }
+  facesEl.textContent = css.join("");
+}
+function specimenFace(fam){
+  const e = specimenSrc(fam);
+  return e ? e.face : null;
+}
+function specimenSrc(fam){
+  const list = fontSrc.byFam.get(norm(fam || ""));
+  if (!list || !list.length) return null;
+  return list.find(r => r.format === "woff2") || list[0];
+}
+function specimenCss(fam, fallbackStack){
+  const face = specimenFace(fam);
+  return "font-family:" + (face ? "'" + face + "', " : "") + (fallbackStack || "'" + String(fam || "").replace(/["'<>]/g, "") + "',sans-serif");
+}
+function srcLine(fam){
+  const e = specimenSrc(fam);
+  if (!e) return "";
+  return '<div class="font-src" title="' + esc(e.url) + '"><b>src</b> ' + esc(e.url.replace(/^https?:\/\//,"").replace(/\/[^/]+\.[a-z0-9]+$/i,"/…")) + " · " + esc(e.format || "") + "</div>";
+}
 function sectionRaw(key, cid){
   if (key === "colors") return D_.color_roles.filter(r => r[0] === cid);
   if (key === "backgrounds") return D_.backgrounds.filter(r => r[0] === cid);
@@ -486,7 +547,7 @@ function capRow(cp, meta, note){
   const sub = (note ? note + " " : "") + esc(cp[1].replace("https://","")) + (cp[2] && cp[2] !== "/" ? " · " + esc(cp[2]) : "");
   const m = meta || fmtDate(cp[4]) + " · " + (idx.colorsByCap.get(id)||[]).length + " colors · " + (idx.fontsByCap.get(id)||[]).length + " fonts · " + (idx.termsByCap.get(id)||[]).length + " terms";
   return '<button class="capture-row" onclick="hop(\'capture\',' + id + ',\'' + esc(cp[3].slice(0,34)) + '\')">' +
-    '<span class="capture-thumb" style="background-image:' + capFallback(cp) + '">' +
+    '<span class="capture-thumb" data-capture="' + id + '" style="background-image:' + capFallback(cp) + '" onclick="event.stopPropagation();openLightbox(this,' + id + ')">' +
     '<img loading="lazy" decoding="async" src="' + esc(cp[5]) + '" alt="" onload="this.classList.add(\'loaded\')" onerror="this.classList.add(\'missing\')">' +
     (idx.videoByCap.has(id) ? '<span class="video-badge">V</span>' : "") +
     (idx.motionByCap.has(id) ? '<span class="motion-badge">▶</span>' : "") +
@@ -561,7 +622,7 @@ function vMotion(c){
   const cap = idx.cById.get(cid);
   return head(c, Math.round(dur/1000) + "s") +
     '<div class="cbody">' +
-    '<div class="sec"><div class="motion-player" style="aspect-ratio:' + w + '/' + h + '"><video controls muted loop playsinline autoplay preload="metadata" poster="' + esc(cap ? cap[5] : "") + '" src="' + esc(obj) + '"></video></div>' +
+    '<div class="sec"><div class="motion-player" style="aspect-ratio:' + w + '/' + h + '"><video data-capture="' + cid + '" controls muted loop playsinline autoplay preload="metadata" poster="' + esc(cap ? cap[5] : "") + '" src="' + esc(obj) + '" onclick="openLightbox(this,' + cid + ')"></video></div>' +
     '<div class="media-meta"><span>WebM</span><span>' + (dur/1000).toFixed(1) + "s</span><span>" + w + " × " + h + '</span><span>' + (bytes/1048576).toFixed(2) + " MB</span></div></div>" +
     (cap ? '<div class="sec"><h4>capture</h4><div class="associated-capture">' + capRow(cap, "capture #" + cid) + "</div></div>" : "") +
     '<p class="prose">Recorded motion for ' + L.cap(cid, cap ? cap[3] : "capture " + cid) + ".</p>" +
@@ -649,7 +710,7 @@ function vHome(c){
     '<div class="hs"><h3>Rich captures</h3><div class="hint">colors + fonts + type roles + terms</div>' +
       rowsHtml(rich, cp => capRow(cp)) + "</div>" +
     '<div class="hs"><h3>Most used terms</h3><div class="hint">by resolved captures</div>' +
-      rowsHtml(topTerms, ([tid, caps]) => '<button class="hsrow" onclick="hop(\'term\',\'' + escId(tid) + '\',\'' + esc(String(termLabel(tid)).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(tid)) + '</span><span class="s">' + caps.length + " caps</span></button>") + "</div>" +
+      rowsHtml(topTerms, ([tid, caps]) => '<button class="hsrow" onclick="hop(\'term\',\'' + escId(tid) + '\',\'' + esc(String(termLabel(tid)).slice(0,34)) + '\')"><span class="t"><span class="term-highlight">' + esc(termLabel(tid)) + '</span></span><span class="s">' + caps.length + " caps</span></button>") + "</div>" +
     '<div class="hs"><h3>Largest domains</h3><div class="hint">by captures</div>' +
       rowsHtml(topDomains, ([origin, caps]) => '<button class="hsrow" onclick="hop(\'domain\',\'' + escId(origin) + '\',\'' + esc(origin.replace("https://","").slice(0,34)) + '\')"><span class="t">' + favicon(origin) + ' ' + esc(origin.replace("https://","")) + '</span><span class="s">' + caps.length + " caps</span></button>") + "</div>" +
     '<div class="hs"><h3>Motion captures <button class="section-open" onclick="hop(\'browse\',\'motion\',\'motion\')">open ›</button></h3><div class="hint">recorded WebM · by duration</div>' +
@@ -750,9 +811,9 @@ function vCapture(c){
     '<div class="cbody">' +
     '<p class="prose">' + L.cap(id, "Capture #" + id) + " of " + L.dom(cp[1]) + " at " + L.browse("path", cp[2], cp[2] || "/") + ", captured " + fmtDateTime(cp[4]) + "." + "</p>" +
     '<div class="sec">' + (motion
-      ? '<div class="motion-player" style="aspect-ratio:' + motion[5] + '/' + motion[6] + '"><video controls muted loop playsinline autoplay preload="metadata" poster="' + esc(cp[5]) + '" src="' + esc(motion[1]) + '"></video></div>' +
+      ? '<div class="motion-player" style="aspect-ratio:' + motion[5] + '/' + motion[6] + '"><video data-capture="' + id + '" controls muted loop playsinline autoplay preload="metadata" poster="' + esc(cp[5]) + '" src="' + esc(motion[1]) + '" onclick="openLightbox(this,' + id + ')"></video></div>' +
         '<div class="media-meta"><span>WebM</span><span>' + (motion[4]/1000).toFixed(1) + "s</span><span>" + motion[5] + " × " + motion[6] + '</span><span>' + (motion[3]/1048576).toFixed(2) + " MB</span></div>"
-      : '<div class="shot-wrap" style="background-image:' + capFallback(cp) + '"><div class="shot-fallback">preview unavailable</div><img class="shot" loading="lazy" decoding="async" src="' + esc(cp[5]) + '" alt="" onload="this.classList.add(\'loaded\')" onerror="this.style.display=\'none\';this.previousElementSibling.style.display=\'block\'"></div>') + "</div>" +
+      : '<div class="shot-wrap" style="background-image:' + capFallback(cp) + '"><div class="shot-fallback">preview unavailable</div><img class="shot" data-capture="' + id + '" loading="lazy" decoding="async" src="' + esc(cp[5]) + '" alt="" onclick="openLightbox(this,' + id + ')" onload="this.classList.add(\'loaded\')" onerror="this.style.display=\'none\';this.previousElementSibling.style.display=\'block\'"></div>') + "</div>" +
     KV([
       ["id", '<span class="mono">#' + id + "</span>", true],
       ["domain", L.dom(cp[1]), false],
@@ -792,7 +853,8 @@ function vSection(c){
       const m = famResolve(fam);
       const famCss = String(fam||"").replace(/["'<>]/g,"");
       return '<div class="row" style="cursor:default"><span class="t">' + L.term("typography.role." + role, role) + " · " + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + "</span></div>" +
-        '<div class="type-sample" style="font-family:\'' + famCss + '\',sans-serif;font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">Aa — Structure, meaning, interface.</div>';
+        '<div class="type-sample" style="' + specimenCss(fam, "'" + famCss + "',sans-serif") + ';font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">Aa — Structure, meaning, interface.</div>' +
+        (srcLine(fam) || "");
     });
   } else if (key === "text") {
     const texts = idx.textByCap.get(id) || [];
@@ -855,19 +917,26 @@ function vSection(c){
 function vTerm(c){
   const tid = c.id;
   const caps = idx.capsByTerm.get(tid) || [];
+  const facetId = termFacet(tid);
   const structUses = [];
   for (const [cid, rows] of idx.structuresByCap) rows.forEach((r, i) => { if (r[3] === tid) structUses.push([cid, i]); });
+  const siblings = Object.keys(D_.terms).filter(t => termFacet(t) === facetId && t !== tid).sort();
   return head(c, caps.length + " captures") +
     '<div class="cbody">' +
-    '<p class="prose">' + L.term(tid) + " belongs to " + L.facet(termFacet(tid)) + ". " + esc(termDef(tid)) + " Used by <b>" + caps.length + " captures</b>." + "</p>" +
+    '<p class="prose"><span class="term-highlight">' + esc(termLabel(tid)) + '</span> belongs to ' + L.facet(facetId) + ". " + esc(termDef(tid)) + "</p>" +
+    KV([
+      ["term id", '<span class="mono">' + esc(tid) + '</span>', true],
+      ["facet", L.facet(facetId), false],
+      ["captures", caps.length.toLocaleString(), true]
+    ]) +
     '<div class="sec"><h4>captures <span class="n">' + caps.length + '</span></h4>' +
     (caps.length ? rowsHtml(caps, ([cid, conf]) => {
       const cp = idx.cById.get(cid);
       return capRow(cp, Math.round(conf*100) + "%", termValueNote(cid, tid));
-    }, 60) : '<div class="empty">no captures resolved to this term</div>') + "</div>" +
-    '<div class="sec"><h4>other terms in ' + esc(termFacet(tid)) + '</h4>' +
-      rowsHtml(Object.keys(D_.terms).filter(t => termFacet(t) === termFacet(tid) && t !== tid).sort(), ot =>
-        '<button class="row" onclick="hop(\'term\',\'' + escId(ot) + '\',\'' + esc(String(termLabel(ot)).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(ot)) + '</span><span class="s">' + (idx.capsByTerm.get(ot)||[]).length + " caps</span></button>") + "</div>" +
+    }, 80) : '<div class="empty">no captures resolved to this term</div>') + "</div>" +
+    '<div class="sec"><h4>other terms in ' + esc(facetId.replace(/_/g," ")) + ' <span class="n">' + siblings.length + '</span><button class="section-open" onclick="hop(\'facet\',\'' + escId(facetId) + '\',\'' + esc(facetId) + '\')">open ›</button></h4>' +
+      rowsHtml(siblings, ot =>
+        '<button class="row" onclick="hop(\'term\',\'' + escId(ot) + '\',\'' + esc(String(termLabel(ot)).slice(0,34)) + '\')"><span class="t"><span class="term-highlight">' + esc(termLabel(ot)) + '</span></span><span class="s">' + (idx.capsByTerm.get(ot)||[]).length + " caps</span></button>", 40) + "</div>" +
     (structUses.length ? '<div class="sec"><h4>resolved structures <span class="n">' + structUses.length + '</span></h4>' + rowsHtml(structUses, ([cid, i]) => {
       const cp = idx.cById.get(cid);
       return '<button class="row" onclick="hop(\'structure\',\'' + cid + ":" + i + '\',\'' + esc((cp?cp[3]:"").slice(0,34)) + '\')"><span class="t">' + esc(cp ? cp[3] : "capture " + cid) + '</span><span class="s">' + (cp ? cp[1].replace("https://","") : "") + "</span></button>";
@@ -880,11 +949,15 @@ function vFacet(c){
   const tids = Object.keys(D_.terms).filter(t => D_.terms[t][2] === fid).sort((a,b) => termLabel(a).localeCompare(termLabel(b)));
   return head(c, tids.length + " terms") +
     '<div class="cbody">' +
-    '<p class="prose">' + L.facet(fid) + " — " + tids.length + " terms. Open a term to see its measured values across captures." + "</p>" +
-    '<div class="sec"><h4>terms</h4>' +
+    '<p class="prose"><span class="term-highlight">' + esc(fid.replace(/_/g," ")) + '</span> — ' + tids.length + " terms in the ontology. Open a term to see its measured values across captures." + "</p>" +
+    KV([
+      ["facet id", '<span class="mono">' + esc(fid) + '</span>', true],
+      ["terms", String(tids.length), true]
+    ]) +
+    '<div class="sec"><h4>controlled terms</h4>' +
     rowsHtml(tids, tid =>
-      '<button class="row" onclick="hop(\'term\',\'' + escId(tid) + '\',\'' + esc(String(termLabel(tid)).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(tid)) +
-      '</span><span class="s">' + (idx.capsByTerm.get(tid)||[]).length + " captures</span></button>") + "</div>" +
+      '<button class="row" title="' + esc(termDef(tid)) + '" onclick="hop(\'term\',\'' + escId(tid) + '\',\'' + esc(String(termLabel(tid)).slice(0,34)) + '\')"><span class="t"><span class="term-highlight">' + esc(termLabel(tid)) +
+      '</span></span><span class="s">' + (idx.capsByTerm.get(tid)||[]).length + " captures</span></button>") + "</div>" +
     foot() + "</div>";
 }
 
@@ -909,8 +982,8 @@ function vFamily(c){
   return head(c, rels.length + " releases") +
     '<div class="cbody">' +
     '<p class="prose">' + L.fam(f[0], f[1]) + (dg ? " by " + L.designer(dg[0], dg[1]) : "") + (v ? ", sold by " + L.vendor(v[0], v[1]) : "") + ". " + rels.length + " releases." + "</p>" +
-    '<div class="font-specimen" style="font-family:\'' + famCss + '\',sans-serif">' + esc(f[1]) + '</div>' +
-    '<div class="font-meta">Aa Bb Cc · 0123456789</div>' +
+    '<div class="font-specimen" style="' + specimenCss(f[1], "'" + famCss + "',sans-serif") + '">' + esc(f[1]) + '</div>' +
+    '<div class="font-meta">Aa Bb Cc · 0123456789' + (srcLine(f[1]) ? " · " + srcLine(f[1]).replace(/^<div class="font-src"/, '<span class="font-src" style="margin:0;display:inline"').replace(/<\/div>$/, "</span>") : "") + '</div>' +
     (dupes.length ? '<div class="sec"><h4>possible duplicates <span class="n">same name · ' + dupes.length + '</span></h4><div class="hint">' + esc(f[1]) + " appears " + (dupes.length + 1) + " times in the catalogue. The corpus alias table (family → canonical) exists but holds no reviewed links yet — these are same-name candidates.</div>" +
       rowsHtml(dupes, x => '<button class="row" onclick="hop(\'family\',' + x[0] + ',\'' + esc(x[1].slice(0,34)) + '\')"><span class="t">' + esc(x[1]) + '</span><span class="s">#' + x[0] + (idx.relCount.get(x[0]) ? " · " + idx.relCount.get(x[0]) + " releases" : "") + "</span></button>", 12) + "</div>" : "") +
     (sameDg.length ? '<div class="sec"><h4>other families by ' + esc(dg[1].slice(0,26)) + '</h4>' + rowsHtml(sameDg, x =>
@@ -1078,6 +1151,114 @@ colsEl.addEventListener("pointerout", e => { if (e.target.closest(".row, .captur
 colsEl.addEventListener("scroll", () => hvEl.classList.remove("open"), true);
 window.addEventListener("resize", () => hvEl.classList.remove("open"));
 
+/* ---------- lightbox ---------- */
+
+const lb = document.createElement("div");
+lb.id = "lb";
+lb.innerHTML =
+  '<div class="lb-backdrop"></div>' +
+  '<span class="lb-count"></span>' +
+  '<button class="lb-close" aria-label="Close">✕</button>' +
+  '<button class="lb-nav lb-prev" aria-label="Previous">‹</button>' +
+  '<button class="lb-nav lb-next" aria-label="Next">›</button>' +
+  '<div class="lb-stage"><img class="lb-media lb-img" alt=""><video class="lb-media lb-video" controls playsinline preload="metadata" muted loop></video></div>' +
+  '<div class="lb-cap"><span class="lb-title"></span><span class="lb-sub"></span></div>';
+document.body.appendChild(lb);
+let lbIds = [], lbIdx = 0, lbOpen = false;
+const lbEl = { stage: lb.querySelector(".lb-stage"), img: lb.querySelector(".lb-img"), vid: lb.querySelector(".lb-video"), close: lb.querySelector(".lb-close"), prev: lb.querySelector(".lb-prev"), next: lb.querySelector(".lb-next"), cap: lb.querySelector(".lb-cap"), title: lb.querySelector(".lb-title"), sub: lb.querySelector(".lb-sub"), count: lb.querySelector(".lb-count") };
+function lbCollect(){ lbIds = [...document.querySelectorAll("[data-capture]")].map(e => String(e.dataset.capture)); }
+function lbFinalRect(id, arOverride){
+  const m = idx.motionByCap.get(Number(id));
+  const ar = arOverride || (m ? Math.max(0.3, m[5] / m[6]) : 1.6);
+  const maxW = Math.min(innerWidth * 0.9, 1280), maxH = innerHeight * 0.82;
+  let w = maxW, h = w / ar;
+  if (h > maxH){ h = maxH; w = h * ar; }
+  return { x: (innerWidth - w) / 2, y: (innerHeight - h) / 2, w, h };
+}
+function lbApplyRect(r){ const s = lbEl.stage.style; s.left = r.x + "px"; s.top = r.y + "px"; s.width = r.w + "px"; s.height = r.h + "px"; }
+function lbLoad(id){
+  const cp = idx.cById.get(Number(id));
+  const m = idx.motionByCap.get(Number(id));
+  const img = lbEl.img, vid = lbEl.vid;
+  img.classList.remove("on"); img.removeAttribute("src");
+  vid.classList.remove("on"); vid.pause(); vid.removeAttribute("src"); vid.load();
+  if (m) {
+    vid.poster = cp ? cp[5] : "";
+    vid.src = m[1];
+    img.src = cp ? cp[5] : "";
+    vid.onloadedmetadata = () => {
+      if (vid.classList.contains("on") && vid.videoWidth && vid.videoHeight) {
+        lbApplyRect(lbFinalRect(id, vid.videoWidth / vid.videoHeight));
+      }
+    };
+    vid.classList.add("on");
+    vid.play().catch(() => {});
+  } else {
+    img.onload = () => {
+      if (!img.classList.contains("on")) return;
+      const ar = (img.naturalWidth && img.naturalHeight) ? img.naturalWidth / img.naturalHeight : 1.6;
+      lbApplyRect(lbFinalRect(id, ar));
+    };
+    img.src = cp ? cp[5] : "";
+    img.classList.add("on");
+  }
+  lbEl.title.textContent = cp ? cp[3] : "capture " + id;
+  lbEl.sub.textContent = cp ? cp[1].replace("https://","") + (cp[2] && cp[2] !== "/" ? " · " + cp[2] : "") + " · " + fmtDate(cp[4]) : "";
+  lbEl.count.textContent = (lbIdx + 1) + " / " + lbIds.length;
+}
+function openLightbox(el, id){
+  if (!idx.cById.has(Number(id))) return;
+  lbCollect();
+  lbIdx = lbIds.indexOf(String(id)); if (lbIdx < 0){ lbIds.unshift(String(id)); lbIdx = 0; }
+  lb.classList.add("on");
+  const r = el.getBoundingClientRect();
+  const f = lbFinalRect(id);
+  const s = lbEl.stage;
+  s.style.transition = "none";
+  lbApplyRect(f);
+  const dx = r.left - f.x + (r.width - f.w) / 2, dy = r.top - f.y + (r.height - f.h) / 2;
+  const sx = r.width / f.w, sy = r.height / f.h;
+  s.style.transform = "translate(" + dx + "px," + dy + "px) scale(" + sx + "," + sy + ")";
+  s.style.opacity = "0";
+  lb.classList.add("lb-morph");
+  s.offsetWidth;
+  s.style.transition = "";
+  s.style.transform = "none";
+  s.style.opacity = "1";
+  setTimeout(() => lb.classList.remove("lb-morph"), 360);
+  lbLoad(id);
+  lbOpen = true;
+}
+function lbNav(d){
+  if (!lbIds.length) return;
+  lbIdx = (lbIdx + d + lbIds.length) % lbIds.length;
+  const id = lbIds[lbIdx];
+  lbEl.stage.style.opacity = "0";
+  setTimeout(() => {
+    lbApplyRect(lbFinalRect(id));
+    lbLoad(id);
+    lbEl.stage.style.opacity = "1";
+  }, 170);
+}
+function lbClose(){
+  if (!lbOpen) return;
+  lbOpen = false;
+  const s = lbEl.stage;
+  s.style.opacity = "0";
+  setTimeout(() => { if (!lbOpen) lb.classList.remove("on"); }, 200);
+  lbEl.vid.pause();
+}
+lbEl.close.addEventListener("click", lbClose);
+lbEl.prev.addEventListener("click", () => lbNav(-1));
+lbEl.next.addEventListener("click", () => lbNav(1));
+lb.querySelector(".lb-backdrop").addEventListener("click", lbClose);
+document.addEventListener("keydown", e => {
+  if (!lbOpen) return;
+  if (e.key === "Escape"){ e.stopPropagation(); lbClose(); }
+  else if (e.key === "ArrowLeft"){ e.preventDefault(); lbNav(-1); }
+  else if (e.key === "ArrowRight"){ e.preventDefault(); lbNav(1); }
+});
+
 /* ---------- search ---------- */
 
 const qEl = document.getElementById("q");
@@ -1128,7 +1309,7 @@ resultsEl.addEventListener("click", e => {
 });
 document.addEventListener("keydown", e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"){ e.preventDefault(); qEl.focus(); qEl.select(); }
-  if (e.key === "Escape" && document.activeElement !== qEl && cols.length > 1){ cols.pop(); renderCols(false); syncHash(); }
+  if (e.key === "Escape" && document.activeElement !== qEl && !lbOpen && cols.length > 1){ cols.pop(); renderCols(false); syncHash(); }
 });
 window.addEventListener("hashchange", () => { if (suppressHash) return; openHash(location.hash); });
 
@@ -1136,18 +1317,21 @@ window.addEventListener("hashchange", () => { if (suppressHash) return; openHash
 
 Promise.all([
   fetch("data.json").then(r => r.json()),
-  fetch("gradients.json").then(r => r.json()).catch(() => ({}))
-]).then(([d, g]) => {
+  fetch("gradients.json").then(r => r.json()).catch(() => ({})),
+  fetch("font_sources.json").then(r => r.json()).catch(() => ({}))
+]).then(([d, g, fs]) => {
   D_ = d;
   D_.gradients = g;
   buildIndexes();
+  initFontSources(fs);
   document.getElementById("meta").textContent =
     d.domains.length.toLocaleString() + " domains · " + d.captures.length.toLocaleString() + " captures · " +
     d.families.length.toLocaleString() + " families · " + Object.keys(d.terms).length + " terms · " +
     d.color_roles.length.toLocaleString() + " color values · " + d.font_obs.length.toLocaleString() + " font observations · " + (d.ann?Object.keys(d.ann).length:0) + " ANN pivots · " + (d.motion_assets||[]).length.toLocaleString() + " motion · " + (d.font_similarity_results?Object.keys(d.font_similarity_results).length:0) + " font-sim" +
     (d.text_styles ? " · " + d.text_styles.length.toLocaleString() + " text styles" : "") +
     (d.hist_fonts ? " · " + d.hist_fonts.length.toLocaleString() + " legacy attributions" : "") +
-    (Object.keys(g).length ? " · " + Object.keys(g).length + " gradient captures" : "");
+    (Object.keys(g).length ? " · " + Object.keys(g).length + " gradient captures" : "") +
+    (Object.keys(fs).length ? " · " + fontSrc.faces + " font sources" : "");
   cols.push({ type:"home", id:"", label:"The dataset" });
   renderCols(false);
   openHash(location.hash);
