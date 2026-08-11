@@ -1,0 +1,4109 @@
+[
+ {
+  "name": "active_capture_classification_contract",
+  "arity": 4,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 3,
+  "description": "public: The one classification contract used for new capture resolution.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "singleton",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "contract_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "activated_at",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "previous_contract_id",
+    "type": "String?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture",
+  "arity": 28,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 27,
+  "description": "public: capture identity, bounded render context, screenshot identity, and profile generation",
+  "scope": "public",
+  "group": "core",
+  "columns": [
+   {
+    "name": "id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "page_id",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "capture_set_id",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "variant_order",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "title",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "captured_at",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "capture_scope",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "device_class",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "theme",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "interaction_state",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "locale",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "render_context",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "viewport_width_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "viewport_height_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "device_pixel_ratio",
+    "type": "Float?",
+    "key": false
+   },
+   {
+    "name": "scroll_x_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "scroll_y_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "crop_x_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "crop_y_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "crop_width_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "crop_height_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "screenshot_key",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "screenshot_sha256",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "screenshot_media_type",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "screenshot_width_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "screenshot_height_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "capture_contract_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "profile_generation",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_authoritative_payload",
+  "arity": 5,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 4,
+  "description": "internal: lossless source candidate identity stored atomically with its typed capture projections",
+  "scope": "internal",
+  "group": "operations",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_authoritative_payload_chunk",
+  "arity": 3,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 1,
+  "description": "internal: ordered fixed-size transport chunks whose concatenation is the exact source candidate JSON",
+  "scope": "internal",
+  "group": "operations",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_background_property",
+  "arity": 10,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 8,
+  "description": "public: computed background-color property evidence; structure_observation_index is the capture-scoped measured container anchor, while structure_id is optional resolved enrichment identity; it does not claim visible composited paint",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "observation_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "structure_id",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "structure_observation_index",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "r",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "g",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "b",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "alpha_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_border_observation",
+  "arity": 13,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 11,
+  "description": "public: measured border operation with typed side, geometry and its own color; structure_observation_index is the capture-scoped measured container anchor, while structure_id is optional resolved enrichment identity",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "observation_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "structure_id",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "structure_observation_index",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "side",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "width_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "style",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "r",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "g",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "b",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "alpha_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_border_style",
+  "arity": 11,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 9,
+  "description": "public: bounded border recipes with typed color and use evidence",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "rank",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "width_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "style",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "r",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "g",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "b",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "alpha_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "use_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "use_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_change_metric",
+  "arity": 6,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 3,
+  "description": "public: bounded screenshot-derived change measurements for one related capture pair",
+  "scope": "public",
+  "group": "measured",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_classification_attempt",
+  "arity": 10,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 8,
+  "description": "public: Bounded capture-classification lifecycle metadata; prompts, raw responses and free-form failures are never stored.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "attempt_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "contract_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "capture_generation",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "screenshot_digest",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "evidence_set_digest",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "status",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "failure_code",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "started_at",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "finished_at",
+    "type": "Int?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_classification_contract",
+  "arity": 9,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 8,
+  "description": "public: Complete contract under which capture classifications are produced and validated.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "contract_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "ontology_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "provider",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "model_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "immutable_model_version",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "prompt_digest",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "inference_contract_digest",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "validator_version",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "resolver_version",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_classification_state",
+  "arity": 7,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 6,
+  "description": "public: Honest optional-classification state for one final capture without changing its valid base profile.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "status",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "contract_id",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "attempt_id",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "observed_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "retained_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "reason_code",
+    "type": "String?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_color_role",
+  "arity": 13,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 10,
+  "description": "public: resolved interface color roles kept separate from operation-owned color observations",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "role",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "rank",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "r",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "g",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "b",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "alpha_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "coverage_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "confidence_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "support_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "support_index",
+    "type": "Int?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_composition",
+  "arity": 8,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 7,
+  "description": "public: bounded whole-capture composition measurements without an opaque density score",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "content_width_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "occupied_coverage_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "text_coverage_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "media_coverage_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "whitespace_coverage_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "dark_paint_coverage_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_contextual_color_role_projection",
+  "arity": 8,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 5,
+  "description": "public: Exact classifier ownership and measured support for a projected contextual color-role row.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "role",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "rank",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "contract_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "source_attempt_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "term_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "support_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "support_index",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_contextual_enrichment_state",
+  "arity": 8,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 7,
+  "description": "public: Current evidence-bound contextual projection state, including honest abstention without changing base observations.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "contract_id",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "source_attempt_id",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "status",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "structure_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "color_role_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "type_role_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "reason_code",
+    "type": "String?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_contextual_structure_projection",
+  "arity": 7,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 5,
+  "description": "public: Exact classifier ownership and measured support for a projected semantic structure row.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "structure_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "contract_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "source_attempt_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "term_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "support_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "support_index",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_contextual_type_role_projection",
+  "arity": 8,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 5,
+  "description": "public: Exact classifier ownership and measured support for a projected typography-role row.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "role",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "rank",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "contract_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "source_attempt_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "term_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "support_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "support_index",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_embedding",
+  "arity": 10,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 7,
+  "description": "public: immutable screenshot embeddings partitioned by retrieval generation",
+  "scope": "public",
+  "group": "retrieval",
+  "columns": [
+   {
+    "name": "generation_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "media_asset_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "modality",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "source_sha256",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "contract_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "contract_sha256",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "vector_sha256",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "embedded_at",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "embedding",
+    "type": "<F32;1536>",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_embedding:semantic_g07d97eb13ffb_a6c00387d61a1",
+  "arity": 14,
+  "access": "index",
+  "keys": 11,
+  "nonkeys": 3,
+  "description": "HNSW index for the active capture retrieval generation.",
+  "scope": "index",
+  "group": "retrieval",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_embedding:semantic_gc148bf269fa6_a8ee45cb0701e",
+  "arity": 14,
+  "access": "index",
+  "keys": 11,
+  "nonkeys": 3,
+  "description": "HNSW index retained for an alternate or rollback retrieval generation.",
+  "scope": "index",
+  "group": "retrieval",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_embedding_attempt",
+  "arity": 13,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 12,
+  "description": "public: append-only outcome evidence for trusted-backend capture embedding attempts",
+  "scope": "public",
+  "group": "retrieval",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_embedding_candidate",
+  "arity": 9,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 6,
+  "description": "public: trusted-backend capture embeddings awaiting an immutable retrieval generation",
+  "scope": "public",
+  "group": "retrieval",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_embedding_claim",
+  "arity": 9,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 8,
+  "description": "public: append-only pending-work evidence acquired before capture embedding I/O",
+  "scope": "public",
+  "group": "retrieval",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_embedding_command_receipt",
+  "arity": 5,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 4,
+  "description": "internal: exact idempotency receipt for capture embedding and retrieval-generation commands",
+  "scope": "internal",
+  "group": "retrieval",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_font_source_locator",
+  "arity": 5,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 2,
+  "description": "public: every ordered public font source locator observed for one capture font",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_gradient",
+  "arity": 12,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 10,
+  "description": "public: typed gradient operation and optional visible box in top-left crop-relative ten-thousandths (0..10000) without raw CSS; structure_observation_index is the capture-scoped measured container anchor, while structure_id is optional resolved enrichment identity",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "gradient_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "structure_id",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "structure_observation_index",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "angle_millidegrees",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "x_q",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "y_q",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "width_q",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "height_q",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_gradient_stop",
+  "arity": 8,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 5,
+  "description": "public: typed ordered colors belonging to one gradient operation",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "gradient_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "stop_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "r",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "g",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "b",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "alpha_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "position_ppm",
+    "type": "Int?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_historical_font_attribution",
+  "arity": 9,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 7,
+  "description": "public: family-level attribution retained from a historical pin-to-subfamily relationship; not an element-level captured-font observation or capture-specific source URL",
+  "scope": "public",
+  "group": "history",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_id_sequence",
+  "arity": 2,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 1,
+  "description": "internal: durable high-water mark for server-assigned public capture identities",
+  "scope": "internal",
+  "group": "operations",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_media",
+  "arity": 13,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 11,
+  "description": "public: visible media roles and treatment with top-left crop-relative bounds in ten-thousandths (0..10000), without source media bytes or URLs",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "media_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "structure_id",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "term_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "treatment",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "x_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "y_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "width_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "height_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "coverage_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "salience_rank",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "confidence_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_media_observation",
+  "arity": 10,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 8,
+  "description": "public: measured visible image/video/canvas geometry in top-left crop-relative ten-thousandths (0..10000) without retained source asset identity or inferred media role",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "observation_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "media_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "x_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "y_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "width_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "height_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "coverage_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_motion_asset",
+  "arity": 8,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 7,
+  "description": "public: exact optional Snipper-recorded motion object and bounded capture metadata; distinct from embedded page media observations",
+  "scope": "public",
+  "group": "core",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_profile_completeness",
+  "arity": 7,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 5,
+  "description": "public: explicit per-family completeness and truncation state",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "family",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "status",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "observed_candidate_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "retained_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "truncated_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "reason_code",
+    "type": "String?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_radius_observation",
+  "arity": 5,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 3,
+  "description": "public: measured corner-radius evidence kept separate from an inferred radius system",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "observation_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "value_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_radius_step",
+  "arity": 7,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 5,
+  "description": "public: bounded radius-system steps, including an explicit semantic pill value",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "rank",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "value_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "semantic_value",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "use_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "confidence_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_raster_palette_color",
+  "arity": 9,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 7,
+  "description": "public: screenshot-pixel palette evidence; it does not claim interface use or semantic role",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "observation_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "r",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "g",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "b",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "alpha_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "coverage_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_retrieval_activation_event",
+  "arity": 8,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 7,
+  "description": "public: append-only activation and rollback history for capture retrieval generations",
+  "scope": "public",
+  "group": "retrieval",
+  "columns": [
+   {
+    "name": "sequence",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "event_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "operation",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "active_generation_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "replaced_generation_id",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "rollback_generation_id",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "occurred_at",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "rollback_expires_at",
+    "type": "Int?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_retrieval_active",
+  "arity": 5,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 4,
+  "description": "public: atomic pointer to one active capture-retrieval generation and one bounded rollback",
+  "scope": "public",
+  "group": "retrieval",
+  "columns": [
+   {
+    "name": "singleton",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "active_generation_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "rollback_generation_id",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "activated_at",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "rollback_expires_at",
+    "type": "Int?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_retrieval_generation",
+  "arity": 24,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 23,
+  "description": "public: immutable metadata for one complete staged capture-retrieval generation and its isolated index",
+  "scope": "public",
+  "group": "retrieval",
+  "columns": [
+   {
+    "name": "generation_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "index_name",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "build_attempt_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "contract_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "contract_sha256",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "provider_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "model_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "immutable_model_version",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "model_sha256",
+    "type": "Bytes?",
+    "key": false
+   },
+   {
+    "name": "conformance_probe_sha256",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "preprocessing_contract_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "preprocessing_sha256",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "dimensions",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "scalar_type",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "distance",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "normalization",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "corpus_modality",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "source_corpus_sequence",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "member_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "member_set_sha256",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "hnsw_m",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "hnsw_ef_construction",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "staged_at",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "command_sha256",
+    "type": "Bytes",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_retrieval_generation_validation",
+  "arity": 5,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 4,
+  "description": "public: validation evidence required before a capture-retrieval generation may activate",
+  "scope": "public",
+  "group": "retrieval",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_set",
+  "arity": 3,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 2,
+  "description": "public: captures intentionally related as states, viewports, or revisions",
+  "scope": "public",
+  "group": "core",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_shadow_layer",
+  "arity": 14,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 11,
+  "description": "public: bounded ordered shadow layers rather than raw CSS strings",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "recipe_rank",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "layer_rank",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "inset",
+    "type": "Bool",
+    "key": false
+   },
+   {
+    "name": "offset_x_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "offset_y_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "blur_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "spread_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "r",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "g",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "b",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "opacity_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "use_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_shadow_observation",
+  "arity": 15,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 13,
+  "description": "public: measured shadow operation with typed geometry and its own color; structure_observation_index is the capture-scoped measured container anchor, while structure_id is optional resolved enrichment identity",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "observation_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "structure_id",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "structure_observation_index",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "inset",
+    "type": "Bool",
+    "key": false
+   },
+   {
+    "name": "offset_x_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "offset_y_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "blur_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "spread_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "r",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "g",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "b",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "alpha_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_space_step",
+  "arity": 7,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 5,
+  "description": "public: bounded spacing-system steps and their proven semantic use",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "rank",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "value_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "use_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "use_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "confidence_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_spacing_observation",
+  "arity": 6,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 4,
+  "description": "public: measured spacing use/value evidence kept separate from an inferred spacing system",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "observation_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "use_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "value_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_structure",
+  "arity": 15,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 13,
+  "description": "public: small semantic structure skeleton with top-left crop-relative bounds in ten-thousandths (0..10000)",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "structure_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "parent_structure_id",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "term_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "x_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "y_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "width_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "height_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "salience_rank",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "repeat_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "column_count",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "row_count",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "gap_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "confidence_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_structure_accessibility_role",
+  "arity": 4,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 2,
+  "description": "public: directly observed rendered accessibility role linked to a measured structure; kept separate from its literal declared element kind and from inferred ontology roles",
+  "scope": "public",
+  "group": "measured",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_structure_border_style",
+  "arity": 5,
+  "access": "normal",
+  "keys": 4,
+  "nonkeys": 1,
+  "description": "public: typed structure-to-border-style reference",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_structure_color_role",
+  "arity": 6,
+  "access": "normal",
+  "keys": 4,
+  "nonkeys": 2,
+  "description": "public: typed structure-to-resolved-color-role reference",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_structure_observation",
+  "arity": 11,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 9,
+  "description": "public: measured declared landmark/container geometry in top-left crop-relative ten-thousandths (0..10000) without inferred product or ontology role",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "observation_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "parent_observation_index",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "declared_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "x_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "y_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "width_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "height_q",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "coverage_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_structure_radius_step",
+  "arity": 4,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 1,
+  "description": "public: typed structure-to-radius-step reference",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_structure_shadow_recipe",
+  "arity": 4,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 1,
+  "description": "public: typed structure-to-ordered-shadow-recipe reference",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_structure_space_step",
+  "arity": 5,
+  "access": "normal",
+  "keys": 4,
+  "nonkeys": 1,
+  "description": "public: typed structure-to-spacing-step reference",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_structure_type_role",
+  "arity": 5,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 2,
+  "description": "public: typed structure-to-resolved-typography-role reference",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_term_evidence",
+  "arity": 8,
+  "access": "normal",
+  "keys": 5,
+  "nonkeys": 3,
+  "description": "public: Bounded links from a term observation to captured evidence, without model prose.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "attempt_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "term_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "assignment_scope",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "evidence_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "support_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "support_index",
+    "type": "Int?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_term_observation",
+  "arity": 8,
+  "access": "normal",
+  "keys": 4,
+  "nonkeys": 4,
+  "description": "public: Validated model or manual observations of controlled terms for a capture.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "attempt_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "term_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "assignment_scope",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "contract_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "method",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "confidence",
+    "type": "Float?",
+    "key": false
+   },
+   {
+    "name": "evidence_grade",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_text_style",
+  "arity": 29,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 27,
+  "description": "public: measured rendered-text style and optional representative box in top-left crop-relative ten-thousandths (0..10000); structure_observation_index is the capture-scoped measured container anchor, while structure_id is optional resolved enrichment identity; no text is retained",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "observation_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "structure_id",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "structure_observation_index",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "font_observation_index",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "font_content_sha256",
+    "type": "Bytes?",
+    "key": false
+   },
+   {
+    "name": "font_face_index",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "font_variation_coordinates",
+    "type": "Bytes?",
+    "key": false
+   },
+   {
+    "name": "declared_family",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "generic_family",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "weight",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "style",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "stretch_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "size_milli_px",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "line_height_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "letter_spacing_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "alignment",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "text_transform",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "r",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "g",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "b",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "alpha_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "sample_x_q",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "sample_y_q",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "sample_width_q",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "sample_height_q",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "character_share_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_tombstone",
+  "arity": 2,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 1,
+  "description": "public: minimal marker distinguishing an authorized withdrawn capture from an unknown ID",
+  "scope": "public",
+  "group": "core",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "capture_type_role",
+  "arity": 21,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 18,
+  "description": "public: resolved visual typography jobs with optional exact captured-face evidence",
+  "scope": "public",
+  "group": "resolved",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "role",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "rank",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "font_observation_index",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "font_content_sha256",
+    "type": "Bytes?",
+    "key": false
+   },
+   {
+    "name": "font_face_index",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "font_variation_coordinates",
+    "type": "Bytes?",
+    "key": false
+   },
+   {
+    "name": "declared_family",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "generic_family",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "weight",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "style",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "stretch_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "size_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "line_height_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "letter_spacing_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "character_share_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "measure_milli_px",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "confidence_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "evidence_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "support_index",
+    "type": "Int?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "capture_upload_reservation",
+  "arity": 6,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 5,
+  "description": "internal: idempotent public-capture identity and screenshot-upload reservation; it contains no user identity",
+  "scope": "internal",
+  "group": "operations",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "corpus_state",
+  "arity": 3,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 2,
+  "description": "internal: one active public-corpus schema and monotonic ordinary transaction fence",
+  "scope": "internal",
+  "group": "operations",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "design_capture_object_cleanup",
+  "arity": 5,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 3,
+  "description": "internal: durable object-deletion work committed atomically with capture withdrawal",
+  "scope": "internal",
+  "group": "operations",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "design_profile_command_receipt",
+  "arity": 6,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 5,
+  "description": "internal: exact idempotency receipt bound to canonical command bytes",
+  "scope": "internal",
+  "group": "operations",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "design_profile_outbox",
+  "arity": 4,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 3,
+  "description": "internal: ordered profile-mutation event committed with the public rows",
+  "scope": "internal",
+  "group": "operations",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "domain",
+  "arity": 2,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 1,
+  "description": "public: normalized public web origin keyed by its semantic identity",
+  "scope": "public",
+  "group": "core",
+  "columns": [
+   {
+    "name": "origin",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "id",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "historical_capture_color_observation",
+  "arity": 7,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 6,
+  "description": "public: exact legacy capture color observation with opaque source fields; property and region text do not imply rendering or semantic role",
+  "scope": "public",
+  "group": "history",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "historical_color_value",
+  "arity": 8,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 7,
+  "description": "public: exact legacy color value identity retained for migration fidelity; it carries no rendering or semantic role",
+  "scope": "public",
+  "group": "history",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "ontology_facet",
+  "arity": 5,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 3,
+  "description": "public: Facets that group controlled design terms and define their cardinality.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "ontology_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "facet_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "label",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "cardinality",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "definition",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "ontology_release",
+  "arity": 4,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 3,
+  "description": "public: Versioned Fudge ontology release and the digest of its checked-in registry.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "ontology_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "registry_digest",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "version",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "status",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "ontology_term",
+  "arity": 8,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 6,
+  "description": "public: Controlled Fudge design terms, hierarchy, definitions and assignment kind.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "ontology_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "term_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "facet_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "parent_term_id",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "label",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "definition",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "assignment_kind",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "status",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "page",
+  "arity": 3,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 1,
+  "description": "public: stable page identity keyed by normalized origin-relative path and query",
+  "scope": "public",
+  "group": "core",
+  "columns": [
+   {
+    "name": "domain_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "path",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "id",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "primary_designer",
+  "arity": 3,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 2,
+  "description": "public: canonical designer identity retained for imported and native font families",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_family",
+  "arity": 7,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 6,
+  "description": "public: canonical font family identity, separate from captured names and distributable releases",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [
+   {
+    "name": "id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "name",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "designer_id",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "vendor_id",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "created_at",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "updated_at",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "category_id",
+    "type": "Int?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "primary_font_archive_deletion_fence",
+  "arity": 5,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 4,
+  "description": "internal: durable fence coordinating authorized deletion of a private archived font blob",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_archive_retention",
+  "arity": 8,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 7,
+  "description": "internal: current evidence-backed retention decision for a private archived font blob",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_archive_retention_history",
+  "arity": 8,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 6,
+  "description": "internal: append-only history of evidence-backed private font archive retention decisions",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_artifact",
+  "arity": 7,
+  "access": "normal",
+  "keys": 4,
+  "nonkeys": 3,
+  "description": "public: exact content-addressed artifact belonging to one versioned font release",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [
+   {
+    "name": "source_adapter_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "upstream_release_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "upstream_revision",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "content_sha256",
+    "type": "Bytes",
+    "key": true
+   },
+   {
+    "name": "upstream_path",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "byte_length",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "recorded_at",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "primary_font_blob_reference",
+  "arity": 4,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 3,
+  "description": "private-boundary metadata: content-addressed font blob identity and size; the bytes are not public corpus data",
+  "scope": "private-boundary",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_category",
+  "arity": 3,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 2,
+  "description": "public: legacy-compatible font category identity; resolved classification is authoritative for new evidence",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_command_receipt",
+  "arity": 4,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 3,
+  "description": "internal: idempotency receipt binding one committed native font command to the corpus sequence",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_derived_id_sequence",
+  "arity": 2,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 1,
+  "description": "internal: transactional high-water marks for server-assigned font evidence identifiers",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_descriptor_capability",
+  "arity": 7,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 6,
+  "description": "internal contract evidence: descriptor producer accepted by this server binary",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_face_instance",
+  "arity": 4,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 1,
+  "description": "public: renderable font instance keyed by physical face and canonical variation coordinates",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [
+   {
+    "name": "content_sha256",
+    "type": "Bytes",
+    "key": true
+   },
+   {
+    "name": "face_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "variation_coordinates",
+    "type": "Bytes",
+    "key": true
+   },
+   {
+    "name": "created_at",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "primary_font_face_instance_axis_validation",
+  "arity": 5,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 2,
+  "description": "public: proof that canonical variation coordinates were validated against observed face axes",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_face_metadata_observation",
+  "arity": 28,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 27,
+  "description": "public: native-parser metadata evidence for one physical font face, including explicit failures",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_face_resolution",
+  "arity": 12,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 9,
+  "description": "public: current evidence-backed resolution from a physical face instance to a logical face",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [
+   {
+    "name": "content_sha256",
+    "type": "Bytes",
+    "key": true
+   },
+   {
+    "name": "face_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "variation_coordinates",
+    "type": "Bytes",
+    "key": true
+   },
+   {
+    "name": "logical_face_id",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "state",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "method",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "resolver_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "evidence_schema_id",
+    "type": "String?",
+    "key": false
+   },
+   {
+    "name": "evidence_bundle_sha256",
+    "type": "Bytes?",
+    "key": false
+   },
+   {
+    "name": "evidence_item_count",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "confidence_ppm",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "resolved_at",
+    "type": "Int?",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "primary_font_face_resolution_history",
+  "arity": 13,
+  "access": "normal",
+  "keys": 4,
+  "nonkeys": 9,
+  "description": "public: append-only history of physical-instance to logical-face resolution decisions",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_face_trait_observation",
+  "arity": 13,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 12,
+  "description": "public: technical weight, width, slant and pitch evidence for one face instance",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_face_variation_axis_observation",
+  "arity": 6,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 4,
+  "description": "public: bit-exact variation-axis bounds belonging to one face metadata observation",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_family_alias",
+  "arity": 7,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 6,
+  "description": "public: current reviewed alias from one family identity to its canonical family",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_family_alias_history",
+  "arity": 9,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 7,
+  "description": "public: append-only history of family alias decisions and removals",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_family_catalogue_observation",
+  "arity": 12,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 11,
+  "description": "public: timestamped official family, purchase and licence-page observations; it does not classify a family as commercial or assert a purchase, SKU or file provenance",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_family_classification_observation",
+  "arity": 7,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 6,
+  "description": "public: individual generic-class evidence for a font family with source and confidence",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_identity_resolution_failure",
+  "arity": 7,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 6,
+  "description": "internal: durable redacted failure record for automatic font identity reconciliation",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_ingestion_finalization_attempt",
+  "arity": 6,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 4,
+  "description": "public: bounded append-only outcome evidence for each captured-font finalization attempt",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_ingestion_finalization_lease",
+  "arity": 3,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 2,
+  "description": "internal: short-lived lease preventing concurrent finalization of one font-ingestion reservation",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_ingestion_finalization_receipt",
+  "arity": 6,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 5,
+  "description": "internal: durable receipt binding a finalized ingestion reservation to its atomic identity command",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_ingestion_finalized_upload",
+  "arity": 6,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 4,
+  "description": "internal: immutable summary of each upload committed by a finalized font-ingestion reservation",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_ingestion_observation",
+  "arity": 4,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 2,
+  "description": "internal staging: declared family and complete CSS stack retained while font uploads finalize",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_ingestion_observed_upload",
+  "arity": 7,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 5,
+  "description": "internal staging: validated complete font body observed for one reserved upload slot",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_ingestion_reservation",
+  "arity": 9,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 8,
+  "description": "internal: bounded reservation for one server-side captured-font ingestion request",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_ingestion_reservation_key",
+  "arity": 2,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 1,
+  "description": "internal: idempotency-key index for captured-font ingestion reservations",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_ingestion_reservation_renewal",
+  "arity": 6,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 4,
+  "description": "public: append-only evidence that an expired unfinished upload lease was renewed without changing reservation identity",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_ingestion_upload",
+  "arity": 11,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 9,
+  "description": "internal staging: declared source, expected digest and byte length for one reserved font upload slot",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_license_assertion",
+  "arity": 16,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 15,
+  "description": "public: separately verified licence evidence and free-alternative eligibility for a font release",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_logical_face",
+  "arity": 2,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 1,
+  "description": "public: stable logical face identity belonging to one canonical font family",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [
+   {
+    "name": "logical_face_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "family_id",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "primary_font_physical_face",
+  "arity": 3,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 1,
+  "description": "public: physical face identity keyed by exact font bytes and collection face index",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [
+   {
+    "name": "content_sha256",
+    "type": "Bytes",
+    "key": true
+   },
+   {
+    "name": "face_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "parsed_at",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "primary_font_release",
+  "arity": 8,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 5,
+  "description": "public: versioned font release from an authoritative source, separate from captured observations",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [
+   {
+    "name": "source_adapter_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "upstream_release_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "upstream_revision",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "family_id",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "authoritative_url",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "metadata_document_sha256",
+    "type": "Bytes",
+    "key": false
+   },
+   {
+    "name": "released_at",
+    "type": "Int?",
+    "key": false
+   },
+   {
+    "name": "recorded_at",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "primary_font_resolved_family_classification",
+  "arity": 4,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 3,
+  "description": "public: current resolved generic class for a font family, derived without overwriting observations",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_similarity_attempt",
+  "arity": 10,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 9,
+  "description": "public: append-only success or failure evidence from server-side descriptor processing",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_similarity_contract",
+  "arity": 11,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 10,
+  "description": "internal: the single active descriptor, scorer, classification, gating and family-aggregation binding",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_similarity_contract_history",
+  "arity": 21,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 20,
+  "description": "internal: append-only activation and rollback audit history for the one active similarity contract",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_similarity_contract_rollback",
+  "arity": 14,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 13,
+  "description": "internal: bounded rollback window for the immediately previous active similarity contract",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_similarity_contract_staging",
+  "arity": 18,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 17,
+  "description": "internal: one validated replacement similarity contract awaiting atomic activation; not a search generation",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_similarity_executable_capability",
+  "arity": 9,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 8,
+  "description": "internal contract evidence: complete native scorer binding accepted by this server binary",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_similarity_golden_ranking_capability",
+  "arity": 13,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 12,
+  "description": "internal contract evidence: benchmarked ranking suite accepted for one native scorer binding",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_similarity_manifest_evidence",
+  "arity": 5,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 4,
+  "description": "internal: immutable producer, eligibility, sequence and creation evidence for each staged similarity manifest",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_similarity_rollback_cleanup_history",
+  "arity": 6,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 5,
+  "description": "internal: audit of old descriptor cleanup after similarity-contract acceptance, expiry or rollback",
+  "scope": "internal",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_source_acquisition",
+  "arity": 6,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 4,
+  "description": "public: outcome of acquiring one captured font source, optionally linked to exact archived bytes",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_source_acquisition_failure",
+  "arity": 4,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 2,
+  "description": "public: stable terminal failure code for one unsuccessful captured font source acquisition",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_source_availability",
+  "arity": 8,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 7,
+  "description": "public: timestamped reachability observation for an authoritative font release source",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_source_locator",
+  "arity": 4,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 3,
+  "description": "public: exact or privacy-preserving locator identity for a captured font source",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_font_visual_descriptor",
+  "arity": 8,
+  "access": "normal",
+  "keys": 4,
+  "nonkeys": 4,
+  "description": "public: model-free visual evidence for one face instance under one descriptor schema",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_legacy_font_source_recovery",
+  "arity": 6,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 5,
+  "description": "legacy font-source recovery state retained for bounded migration work",
+  "scope": "legacy",
+  "group": "history",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_legacy_font_specimen_evidence",
+  "arity": 8,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 7,
+  "description": "public: retained legacy version-to-family font-body association for bounded server-side specimens; shared bodies remain explicitly non-canonical",
+  "scope": "public",
+  "group": "history",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_legacy_sub_family_face_bridge",
+  "arity": 7,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 6,
+  "description": "public: reviewed bridge from an imported legacy subfamily identity to a native logical face",
+  "scope": "public",
+  "group": "history",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_legacy_sub_family_face_bridge_history",
+  "arity": 8,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 6,
+  "description": "public: append-only history of reviewed legacy-subfamily to logical-face bridges",
+  "scope": "public",
+  "group": "history",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_observed_font_match",
+  "arity": 10,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 9,
+  "description": "public: auditable match from one captured font acquisition to an exact release artifact; it does not grant licence eligibility",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_pin_font_observation",
+  "arity": 5,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 3,
+  "description": "public: font-use observation from one capture, including declared family and complete computed CSS stack",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "observation_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "declared_family",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "computed_css_stack",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "observed_at",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "primary_pin_font_observation_locator",
+  "arity": 3,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 1,
+  "description": "public: exact source locator observed with one capture font-use observation before any acquisition attempt",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_pin_font_observation_source",
+  "arity": 4,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 1,
+  "description": "public: link between a capture font-use observation and a distinct source acquisition",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_pin_font_observation_stack",
+  "arity": 4,
+  "access": "normal",
+  "keys": 3,
+  "nonkeys": 1,
+  "description": "public: ordered family members from the complete computed CSS stack of one capture font-use observation",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_pin_font_observation_usage",
+  "arity": 7,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 5,
+  "description": "public: measured weight range, style, character share and occurrence count for one capture font-use observation",
+  "scope": "public",
+  "group": "measured",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "observation_index",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "weight_min",
+    "type": "Float",
+    "key": false
+   },
+   {
+    "name": "weight_max",
+    "type": "Float",
+    "key": false
+   },
+   {
+    "name": "style",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "character_share_ppm",
+    "type": "Int",
+    "key": false
+   },
+   {
+    "name": "occurrence_count",
+    "type": "Int",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ },
+ {
+  "name": "primary_pin_font_usage_role_observation",
+  "arity": 8,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 7,
+  "description": "public: capture-specific text, display, UI or decorative role evidence for one font-use observation",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_schema",
+  "arity": 2,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 1,
+  "description": "internal: schema markers for the native font modules and clean corpus runtime",
+  "scope": "internal",
+  "group": "operations",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_sub_family",
+  "arity": 5,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 4,
+  "description": "public: imported legacy subfamily identity preserved for migration fidelity and explicit face bridging",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "primary_vendor",
+  "arity": 3,
+  "access": "normal",
+  "keys": 1,
+  "nonkeys": 2,
+  "description": "public: canonical vendor or foundry identity retained for imported and native font families",
+  "scope": "public",
+  "group": "fonts",
+  "columns": [],
+  "columnsBundled": false
+ },
+ {
+  "name": "resolved_capture_term",
+  "arity": 7,
+  "access": "normal",
+  "keys": 2,
+  "nonkeys": 5,
+  "description": "public: The currently resolved controlled terms for a capture under the active contract.",
+  "scope": "public",
+  "group": "ontology",
+  "columns": [
+   {
+    "name": "capture_id",
+    "type": "Int",
+    "key": true
+   },
+   {
+    "name": "term_id",
+    "type": "String",
+    "key": true
+   },
+   {
+    "name": "contract_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "source_attempt_id",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "assignment_scope",
+    "type": "String",
+    "key": false
+   },
+   {
+    "name": "confidence",
+    "type": "Float?",
+    "key": false
+   },
+   {
+    "name": "resolution_kind",
+    "type": "String",
+    "key": false
+   }
+  ],
+  "columnsBundled": true
+ }
+]
