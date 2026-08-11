@@ -1,0 +1,245 @@
+{
+  "standard": "WCAG 2.x contrast ratio calculation",
+  "scope": "Core interface text and semantic navigation colors. Data swatches, screenshots, videos and favicons are user/content data and are not treated as interface text.",
+  "thresholds": {
+    "normal_text_AA": 4.5,
+    "large_text_AA": 3,
+    "ui_components": 3
+  },
+  "themes": {
+    "paper": {
+      "label": "Paper",
+      "surface": "#FFFFFF",
+      "pairs": {
+        "primary text": {
+          "foreground": "#171717",
+          "background": "#FFFFFF",
+          "ratio": 17.93,
+          "AA_normal_text": true
+        },
+        "muted text": {
+          "foreground": "#5F656C",
+          "background": "#FFFFFF",
+          "ratio": 5.89,
+          "AA_normal_text": true
+        },
+        "faint text": {
+          "foreground": "#6C737B",
+          "background": "#FFFFFF",
+          "ratio": 4.8,
+          "AA_normal_text": true
+        },
+        "capture/domain links": {
+          "foreground": "#2454C6",
+          "background": "#FFFFFF",
+          "ratio": 6.65,
+          "AA_normal_text": true
+        },
+        "term links": {
+          "foreground": "#6842C2",
+          "background": "#FFFFFF",
+          "ratio": 6.67,
+          "AA_normal_text": true
+        },
+        "font-family links": {
+          "foreground": "#C2410C",
+          "background": "#FFFFFF",
+          "ratio": 5.18,
+          "AA_normal_text": true
+        },
+        "designer/foundry links": {
+          "foreground": "#8A5A00",
+          "background": "#FFFFFF",
+          "ratio": 5.93,
+          "AA_normal_text": true
+        },
+        "structure links": {
+          "foreground": "#277844",
+          "background": "#FFFFFF",
+          "ratio": 5.45,
+          "AA_normal_text": true
+        },
+        "color links": {
+          "foreground": "#0F6F78",
+          "background": "#FFFFFF",
+          "ratio": 5.89,
+          "AA_normal_text": true
+        },
+        "neutral links": {
+          "foreground": "#4B5563",
+          "background": "#FFFFFF",
+          "ratio": 7.56,
+          "AA_normal_text": true
+        },
+        "motion badge": {
+          "foreground": "#B42318",
+          "background": "#FFFFFF",
+          "ratio": 6.57,
+          "AA_normal_text": true
+        },
+        "video badge": {
+          "foreground": "#B54708",
+          "background": "#FFFFFF",
+          "ratio": 5.43,
+          "AA_normal_text": true
+        }
+      }
+    },
+    "night": {
+      "label": "Night",
+      "surface": "#111315",
+      "pairs": {
+        "primary text": {
+          "foreground": "#F2F4F6",
+          "background": "#111315",
+          "ratio": 16.89,
+          "AA_normal_text": true
+        },
+        "muted text": {
+          "foreground": "#BAC1C8",
+          "background": "#111315",
+          "ratio": 10.24,
+          "AA_normal_text": true
+        },
+        "faint text": {
+          "foreground": "#9AA4AE",
+          "background": "#111315",
+          "ratio": 7.36,
+          "AA_normal_text": true
+        },
+        "capture/domain links": {
+          "foreground": "#8FB0FF",
+          "background": "#111315",
+          "ratio": 8.71,
+          "AA_normal_text": true
+        },
+        "term links": {
+          "foreground": "#B197FC",
+          "background": "#111315",
+          "ratio": 7.72,
+          "AA_normal_text": true
+        },
+        "font-family links": {
+          "foreground": "#FFB066",
+          "background": "#111315",
+          "ratio": 10.33,
+          "AA_normal_text": true
+        },
+        "designer/foundry links": {
+          "foreground": "#FFD166",
+          "background": "#111315",
+          "ratio": 12.91,
+          "AA_normal_text": true
+        },
+        "structure links": {
+          "foreground": "#6EE7A0",
+          "background": "#111315",
+          "ratio": 12.06,
+          "AA_normal_text": true
+        },
+        "color links": {
+          "foreground": "#5EEAD4",
+          "background": "#111315",
+          "ratio": 12.59,
+          "AA_normal_text": true
+        },
+        "neutral links": {
+          "foreground": "#9CA3AF",
+          "background": "#111315",
+          "ratio": 7.33,
+          "AA_normal_text": true
+        },
+        "motion badge": {
+          "foreground": "#F87171",
+          "background": "#111315",
+          "ratio": 6.73,
+          "AA_normal_text": true
+        },
+        "video badge": {
+          "foreground": "#FBBF24",
+          "background": "#111315",
+          "ratio": 11.15,
+          "AA_normal_text": true
+        }
+      }
+    },
+    "warm": {
+      "label": "Warm",
+      "surface": "#FAF6F0",
+      "pairs": {
+        "primary text": {
+          "foreground": "#241F19",
+          "background": "#FAF6F0",
+          "ratio": 15.18,
+          "AA_normal_text": true
+        },
+        "muted text": {
+          "foreground": "#6B6157",
+          "background": "#FAF6F0",
+          "ratio": 5.62,
+          "AA_normal_text": true
+        },
+        "faint text": {
+          "foreground": "#756A5C",
+          "background": "#FAF6F0",
+          "ratio": 4.91,
+          "AA_normal_text": true
+        },
+        "capture/domain links": {
+          "foreground": "#2454C6",
+          "background": "#FAF6F0",
+          "ratio": 6.18,
+          "AA_normal_text": true
+        },
+        "term links": {
+          "foreground": "#6842C2",
+          "background": "#FAF6F0",
+          "ratio": 6.2,
+          "AA_normal_text": true
+        },
+        "font-family links": {
+          "foreground": "#B45309",
+          "background": "#FAF6F0",
+          "ratio": 4.66,
+          "AA_normal_text": true
+        },
+        "designer/foundry links": {
+          "foreground": "#7C4A03",
+          "background": "#FAF6F0",
+          "ratio": 6.87,
+          "AA_normal_text": true
+        },
+        "structure links": {
+          "foreground": "#277844",
+          "background": "#FAF6F0",
+          "ratio": 5.06,
+          "AA_normal_text": true
+        },
+        "color links": {
+          "foreground": "#0F6F78",
+          "background": "#FAF6F0",
+          "ratio": 5.47,
+          "AA_normal_text": true
+        },
+        "neutral links": {
+          "foreground": "#5B5349",
+          "background": "#FAF6F0",
+          "ratio": 7.02,
+          "AA_normal_text": true
+        },
+        "motion badge": {
+          "foreground": "#B42318",
+          "background": "#FAF6F0",
+          "ratio": 6.11,
+          "AA_normal_text": true
+        },
+        "video badge": {
+          "foreground": "#9A3412",
+          "background": "#FAF6F0",
+          "ratio": 6.79,
+          "AA_normal_text": true
+        }
+      }
+    }
+  }
+}

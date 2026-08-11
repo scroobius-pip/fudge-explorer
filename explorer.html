@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#FFFFFF">
+<title>Fudge — Explorer</title>
+<script src="theme-registry.js"></script>
+<style>
+  :root {
+    --ink: var(--color-text); --mut: var(--color-text-mut); --faint: var(--color-text-faint);
+    --line: var(--color-line); --line-strong: var(--color-line-strong); --soft: var(--color-surface-soft);
+    --blue: var(--entity-capture); --violet: var(--entity-term); --lilac: var(--entity-facet);
+    --orange: var(--entity-family); --amber: var(--entity-designer); --gray: var(--entity-neutral);
+    --green: var(--entity-structure); --teal: var(--entity-color); --red: var(--entity-motion);
+    --color-bg:#FFFFFF; --color-surface:#FFFFFF; --color-surface-active:#FCFCFC;
+    --color-surface-hover:#F4F5F6; --color-surface-soft:#F6F7F8;
+    --color-text:#171717; --color-text-mut:#5F656C; --color-text-faint:#6C737B;
+    --color-line:#E3E6EA; --color-line-strong:#C9CFD6;
+    --color-input-border:#7B838C; --color-focus-ring:#2454C6;
+    --color-shadow:rgba(18,25,33,.16); --color-code-bg:#F6F7F8;
+    --color-favicon-bg:#F2F4F5; --color-scroll-thumb:#B9C0C7;
+    --entity-ink:#171717; --entity-domain:#171717; --entity-capture:#2454C6;
+    --entity-term:#6842C2; --entity-facet:#6842C2; --entity-family:#C2410C;
+    --entity-designer:#8A5A00; --entity-structure:#277844; --entity-color:#0F6F78;
+    --entity-neutral:#4B5563; --entity-motion:#B42318; --entity-video:#B54708;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; }
+  body { background:var(--color-bg); font:14px/1.55 -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
+  header { display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; padding:12px 26px 10px; border-bottom:1px solid var(--line); background:var(--color-surface); }
+  .title { font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; }
+  .title span { color:var(--mut); font-weight:400; }
+  .meta { font-size:10px; color:var(--mut); font-variant-numeric:tabular-nums; }
+  .theme-control { display:inline-flex; align-items:center; gap:5px; margin-left:auto; }
+  .theme-icon { font-size:12px; color:var(--mut); }
+  .theme-select { font:inherit; font-size:10.5px; color:var(--mut); border:1px solid var(--line); border-radius:99px; background:var(--surface, var(--color-surface)); padding:2px 9px; outline:none; cursor:pointer; }
+  .theme-select:hover { border-color:var(--line-strong, var(--color-line-strong)); color:var(--ink); }
+  .favicon { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:3px; overflow:hidden; background:var(--color-favicon-bg); border:1px solid rgba(0,0,0,.06); flex:0 0 auto; font-size:9px; font-weight:600; color:var(--mut); }
+  .favicon img { width:100%; height:100%; display:block; }
+  .motion-badge { color:var(--entity-motion); font-weight:600; }
+  .video-badge { color:var(--entity-video); font-weight:600; }
+  .wrap { position:relative; width:340px; max-width:34vw; margin-left:14px; }
+  .search { width:100%; font:inherit; font-size:13px; color:var(--ink); border:none; border-bottom:1px solid var(--color-input-border); padding:5px 0 4px; outline:none; background:transparent; }
+  .search:focus { border-bottom-color:var(--ink); }
+  .search::placeholder { color:#b9b9b9; }
+  #results { position:absolute; top:100%; right:0; left:0; z-index:30; background:var(--color-surface); border:1px solid var(--line); box-shadow:var(--color-shadow); max-height:70vh; overflow-y:auto; display:none; margin-top:4px; }
+  #results.on { display:block; }
+  .rg { font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:#b9b9b9; padding:10px 14px 3px; }
+  .res { display:flex; align-items:baseline; gap:10px; width:100%; padding:5px 14px; border:none; background:none; text-align:left; font:inherit; font-size:12.5px; cursor:pointer; color:var(--ink); }
+  .res:hover, .res.hl { background:var(--soft); }
+  .res .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .res .s { font-size:10px; color:var(--mut); flex:0 0 auto; }
+  #cols { display:flex; align-items:stretch; height:calc(100% - 60px); overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; }
+  .col { flex:0 0 340px; width:340px; max-width:88vw; border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; background:var(--color-surface); }
+  .col.enter { animation: slidein .16s ease; }
+  @keyframes slidein { from { transform:translateX(14px); opacity:.3; } to { transform:none; opacity:1; } }
+  .col.active { background:var(--color-surface-active); }
+  .chead { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--line); cursor:pointer; flex:0 0 auto; }
+  .chead:hover { background:var(--soft); }
+  .chead .dot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+  .chead .t { flex:1; font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chead .n { font-size:10px; color:var(--mut); font-variant-numeric:tabular-nums; flex:0 0 auto; }
+  .chead .x { font-size:12px; color:#b9b9b9; border:none; background:none; cursor:pointer; padding:0 2px; flex:0 0 auto; }
+  .chead .x:hover { color:var(--ink); }
+  .cbody { overflow-y:auto; padding:12px 14px 26px; min-height:0; }
+  .prose { font-size:12.5px; line-height:1.6; margin:0 0 12px; }
+  .prose b { font-weight:600; }
+  .lk { color:var(--entity-capture); cursor:pointer; text-decoration:none; border-bottom:1px solid transparent; }
+  .lk:hover { border-bottom-color:var(--blue); }
+  .lk.term { color:var(--entity-term); } .lk.term:hover { border-bottom-color:var(--violet); }
+  .lk.fam { color:var(--entity-family); } .lk.fam:hover { border-bottom-color:var(--orange); }
+  .lk.dom { color:var(--entity-domain); } .lk.dom:hover { border-bottom-color:var(--ink); }
+  .sub { font-size:10px; color:#b9b9b9; margin:-2px 0 10px; font-family:ui-monospace, Menlo, monospace; }
+  .kv { border-top:1px solid var(--line); margin-bottom:14px; }
+  .kv .r { display:flex; gap:10px; padding:4px 0; border-bottom:1px solid var(--line); font-size:11.5px; }
+  .kv .k { flex:0 0 78px; color:var(--mut); }
+  .kv .v { flex:1; word-break:break-word; }
+  .kv .v.mono { font-family:ui-monospace, Menlo, monospace; font-size:10px; }
+  .sec h4 { font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:.16em; color:#b9b9b9; margin:16px 0 4px; display:flex; align-items:baseline; gap:8px; }
+  .sec h4 .n { font-weight:500; letter-spacing:.04em; }
+  .row { display:flex; align-items:baseline; gap:10px; width:100%; padding:5px 2px; border:none; border-bottom:1px solid var(--line); background:none; text-align:left; font:inherit; font-size:12px; cursor:pointer; color:var(--ink); }
+  .row:hover { background:var(--soft); }
+  .row .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .s { font-size:10px; color:var(--mut); flex:0 0 auto; font-variant-numeric:tabular-nums; }
+  .sw { flex:0 0 16px; height:16px; border:1px solid rgba(0,0,0,.1); border-radius:2px; }
+  .confbar { height:3px; background:var(--soft); border-radius:99px; margin:2px 0 7px; }
+  .confbar i { display:block; height:3px; background:var(--ink); border-radius:99px; }
+  .chip { display:inline-block; font-size:11px; border:1px solid var(--line); border-radius:99px; padding:2px 11px; margin:0 5px 5px 0; cursor:pointer; background:none; color:var(--ink); }
+  .chip:hover { border-color:var(--color-line-strong); background:var(--soft); }
+  .shot { border:1px solid var(--line); border-radius:4px; width:100%; display:block; }
+  .empty { font-size:11px; color:#b9b9b9; padding:5px 2px; }
+  a.ext { color:var(--ink); }
+  .hsrow { display:flex; align-items:baseline; gap:10px; width:100%; padding:4px 2px; border:none; border-bottom:1px solid var(--line); background:none; text-align:left; font:inherit; font-size:11.5px; cursor:pointer; color:var(--ink); }
+  .hsrow:hover { background:var(--soft); }
+  .hsrow .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hsrow .s { font-size:9.5px; color:var(--mut); font-variant-numeric:tabular-nums; }
+  .hs h3 { font-size:9.5px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--mut); margin:14px 0 2px; }
+  .intro { font-size:11px; color:var(--mut); margin:6px 0 2px; }
+  .hint { font-size:9.5px; color:#c9c9c9; margin-bottom:4px; }
+  .foot { margin-top:16px; padding-top:10px; border-top:1px solid var(--line); font-size:10px; color:#b9b9b9; display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
+  .foot .lk { font-size:10px; }
+  /* v4-ported */
+  .type-sample { margin:1px 0 7px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .font-specimen { font-size:22px; line-height:1.2; color:var(--orange); margin:2px 0 3px; overflow-wrap:anywhere; }
+  .font-meta { font-size:9.5px; color:var(--mut); }
+  .bounds-map { position:relative; width:100%; aspect-ratio:1.6/1; border:1px solid var(--line); background-size:cover; background-position:center; overflow:hidden; margin:6px 0 12px; }
+  .bounds-map:after { content:""; position:absolute; inset:0; background:var(--color-overlay, rgba(255,255,255,.4)); }
+  .bounds-box { position:absolute; border:2px solid var(--entity-structure); background:color-mix(in srgb, var(--entity-structure) 15%, transparent); z-index:1; min-width:2px; min-height:2px; }
+  .bounds-label { position:absolute; z-index:2; left:5px; bottom:4px; background:var(--color-overlay-strong, rgba(255,255,255,.9)); padding:2px 4px; font-size:9px; color:var(--entity-structure); }
+  .sdot { width:6px; height:6px; border-radius:50%; flex:0 0 auto; }
+  .raw { white-space:pre-wrap; word-break:break-word; border:1px solid var(--color-line); background:var(--color-code-bg); padding:10px; font:10px/1.55 ui-monospace,Menlo,monospace; max-height:300px; overflow:auto; }
+  #cap-hover { position:fixed; z-index:1000; display:none; width:min(520px,calc(100vw - 24px)); background:var(--color-surface); border:1px solid var(--color-line-strong); box-shadow:var(--color-shadow); pointer-events:none; padding:7px; }
+  #cap-hover.open { display:block; }
+  #cap-hover .imgw { position:relative; min-height:120px; max-height:50vh; background:var(--color-media-fallback, var(--soft)); overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  #cap-hover img { display:block; width:100%; max-height:50vh; object-fit:contain; background:var(--color-media-fallback, var(--soft)); }
+  #cap-hover .hmeta { padding:7px 3px 1px; }
+  #cap-hover .ht { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #cap-hover .hs { font-size:10px; color:var(--mut); }
+  #cap-hover .hp { display:flex; height:5px; margin-top:6px; overflow:hidden; }
+  #cap-hover .hp span { flex:1; }
+  #cap-hover .htags { font-size:9.5px; color:var(--violet); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  @media (max-width:760px) { #cap-hover { display:none !important; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">Fudge <span>Explorer</span></div>
+  <div class="meta" id="meta">loading…</div>
+  <label class="theme-control" title="Theme">
+    <span class="theme-icon" aria-hidden="true">◐</span>
+    <select id="theme-picker" class="theme-select" aria-label="Theme"></select>
+  </label>
+  <div class="wrap">
+    <input class="search" id="q" type="search" placeholder="Search anything…  ↑↓ Enter · Esc closes column" autocomplete="off" spellcheck="false">
+    <div id="results"></div>
+  </div>
+</header>
+
+<main id="cols"></main>
+
+<script>
+let D_ = null;
+const idx = { cById:new Map(), cByDomain:new Map(), termsByCap:new Map(), capsByTerm:new Map(),
+  fById:new Map(), dgById:new Map(), vById:new Map(), fByDesigner:new Map(), fByVendor:new Map(),
+  relsById:new Map(), relCount:new Map(), colorsByCap:new Map(), bgByCap:new Map(),
+  fontsByCap:new Map(), typeByCap:new Map(), famByNorm:new Map(), capsByFam:new Map(),
+  famGroups:new Map(),
+  textByCap:new Map(), histByCap:new Map(), structuresByCap:new Map(),
+  annByCap:new Map(), motionByCap:new Map(), videoByCap:new Map(), embeddedById:new Set(),
+  simRes:new Map(), catMatch:new Map(),
+  cByPath:new Map(), cByTheme:new Map(), cByDevice:new Map(), cByState:new Map() };
+const colsEl = document.getElementById("cols");
+const TYPE = {
+  home:{label:"dataset",color:"var(--entity-ink)"}, domain:{label:"domain",color:"var(--entity-domain)"},
+  capture:{label:"capture",color:"var(--entity-capture)"}, term:{label:"term",color:"var(--entity-term)"},
+  facet:{label:"facet",color:"var(--entity-facet)"}, family:{label:"font family",color:"var(--entity-family)"},
+  designer:{label:"designer",color:"var(--entity-designer)"}, vendor:{label:"vendor",color:"var(--entity-designer)"},
+  browse:{label:"browse",color:"var(--entity-neutral)"}, index:{label:"index",color:"var(--entity-neutral)"},
+  structure:{label:"structure",color:"var(--entity-structure)"}, motion:{label:"motion",color:"var(--entity-motion)"}, video:{label:"video",color:"var(--entity-video)"},
+  runtime:{label:"runtime",color:"var(--entity-neutral)"}
+};
+const MAXCOLS = 7;
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function escId(s){ return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
+function fmtDate(ms){ return new Date(ms).toISOString().slice(0,10); }
+const termLabel = t => String((D_.terms[t] && D_.terms[t][0]) || t || "");
+const termFacet = t => (D_.terms[t] && D_.terms[t][2]) || "";
+const termDef   = t => (D_.terms[t] && D_.terms[t][1]) || "";
+function famResolve(fam){
+  const k = norm(fam);
+  const cm = idx.catMatch.get(k);
+  if (cm && cm.length && idx.fById.has(cm[0])) return idx.fById.get(cm[0]);
+  return idx.famByNorm.get(k) || null;
+}
+function favicon(origin){
+  const label = String(origin||"").replace(/^https?:\/\//,"").replace(/\/$/,"").charAt(0).toUpperCase() || "·";
+  const url = "https://www.google.com/s2/favicons?domain_url=" + encodeURIComponent(origin||"") + "&sz=64";
+  return '<span class="favicon"><span class="fl">' + esc(label) + '</span><img loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + esc(url) + '" alt="" onload="this.previousElementSibling.style.display=\'none\';this.style.display=\'block\'" onerror="this.remove()"></span>';
+}
+function capBadges(cid){
+  const m = idx.motionByCap.get(cid);
+  const v = idx.videoByCap.has(cid) || idx.embeddedById.has(cid);
+  let b = "";
+  if (m) b += ' <span class="motion-badge">▶ ' + Math.round(m[4]/1000) + "s</span>";
+  if (v) b += ' <span class="video-badge">V</span>';
+  return b;
+}
+const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g,"");
+const hex = (r,g,b) => "#" + [r,g,b].map(v => Math.max(0,Math.min(255,v)).toString(16).padStart(2,"0")).join("");
+const px = m => m == null ? "" : (m/1000 >= 10 ? Math.round(m/1000) : (m/1000).toFixed(1)) + "px";
+
+function buildIndexes() {
+  for (const c of D_.captures) {
+    idx.cById.set(c[0], c);
+    if (!idx.cByDomain.has(c[1])) idx.cByDomain.set(c[1], []);
+    idx.cByDomain.get(c[1]).push(c);
+    if (!idx.cByPath.has(c[2])) idx.cByPath.set(c[2], []);
+    idx.cByPath.get(c[2]).push(c);
+    if (!idx.cByTheme.has(c[7])) idx.cByTheme.set(c[7], []);
+    idx.cByTheme.get(c[7]).push(c);
+    if (!idx.cByDevice.has(c[6])) idx.cByDevice.set(c[6], []);
+    idx.cByDevice.get(c[6]).push(c);
+    if (!idx.cByState.has(c[8])) idx.cByState.set(c[8], []);
+    idx.cByState.get(c[8]).push(c);
+  }
+  for (const [cid, tid, conf] of D_.assignments) {
+    if (!idx.termsByCap.has(cid)) idx.termsByCap.set(cid, []);
+    idx.termsByCap.get(cid).push([tid, conf]);
+    if (!idx.capsByTerm.has(tid)) idx.capsByTerm.set(tid, []);
+    idx.capsByTerm.get(tid).push([cid, conf]);
+  }
+  for (const f of D_.families) {
+    idx.fById.set(f[0], f);
+    idx.famByNorm.set(norm(f[1]), f);
+    const n = norm(f[1]);
+    if (!idx.famGroups.has(n)) idx.famGroups.set(n, []);
+    idx.famGroups.get(n).push(f);
+    if (f[2] != null) { if (!idx.fByDesigner.has(f[2])) idx.fByDesigner.set(f[2], []); idx.fByDesigner.get(f[2]).push(f); }
+    if (f[3] != null) { if (!idx.fByVendor.has(f[3])) idx.fByVendor.set(f[3], []); idx.fByVendor.get(f[3]).push(f); }
+  }
+  for (const dg of D_.designers) idx.dgById.set(dg[0], dg);
+  for (const v of D_.vendors) idx.vById.set(v[0], v);
+  for (const r of D_.releases) {
+    if (!idx.relsById.has(r[0])) idx.relsById.set(r[0], []);
+    idx.relsById.get(r[0]).push(r);
+    idx.relCount.set(r[0], (idx.relCount.get(r[0])||0) + 1);
+  }
+  for (const [cid, role, r, g, b, a, occ] of D_.color_roles) {
+    if (!idx.colorsByCap.has(cid)) idx.colorsByCap.set(cid, []);
+    idx.colorsByCap.get(cid).push([role, r, g, b, a, occ]);
+  }
+  for (const [cid, r, g, b, a, occ] of D_.backgrounds) {
+    if (!idx.bgByCap.has(cid)) idx.bgByCap.set(cid, []);
+    idx.bgByCap.get(cid).push([r, g, b, a, occ]);
+  }
+  for (const [cid, oi, fam, stack, wmin, wmax, share, occ] of D_.font_obs) {
+    if (!idx.fontsByCap.has(cid)) idx.fontsByCap.set(cid, []);
+    idx.fontsByCap.get(cid).push([fam, stack, wmin, wmax, share, occ]);
+    const n = norm(fam);
+    if (!idx.capsByFam.has(n)) idx.capsByFam.set(n, []);
+    idx.capsByFam.get(n).push([cid, fam]);
+  }
+  for (const [cid, role, fam, w, size, lh, share] of D_.type_roles) {
+    if (!idx.typeByCap.has(cid)) idx.typeByCap.set(cid, []);
+    idx.typeByCap.get(cid).push([role, fam, w, size, lh, share]);
+  }
+  for (const row of D_.text_styles || []) {
+    /* [cid, declared_family, weight, size_milli_px, occurrence_count] */
+    const [cid, fam, w, size, occ] = row;
+    if (!idx.textByCap.has(cid)) idx.textByCap.set(cid, []);
+    idx.textByCap.get(cid).push([fam, w, size, occ]);
+  }
+  for (const row of D_.hist_fonts || []) {
+    /* [cid, family_id, family_name, sub_family_name, legacy_link_count] */
+    const [cid, fid, name, sub, links] = row;
+    if (!idx.histByCap.has(cid)) idx.histByCap.set(cid, []);
+    idx.histByCap.get(cid).push([fid, name, sub, links]);
+  }
+  for (const row of D_.structures || []) {
+    /* [cid, structure_id, parent_structure_id, term_id, x_q, y_q, width_q, height_q, confidence_ppm] */
+    const [cid, sid, parent, tid, x, y, w, h, conf] = row;
+    if (!idx.structuresByCap.has(cid)) idx.structuresByCap.set(cid, []);
+    idx.structuresByCap.get(cid).push([sid, parent, tid, x, y, w, h, conf]);
+  }
+  for (const [cid, rows] of Object.entries(D_.ann || {})) {
+    if (!idx.annByCap.has(Number(cid))) idx.annByCap.set(Number(cid), []);
+    idx.annByCap.get(Number(cid)).push(...rows.map(r => [r[0], r[1]]));
+  }
+  for (const r of D_.motion_assets || []) {
+    /* [cid, object_key, media_type, byte_length, duration_ms, width_px, height_px] */
+    idx.motionByCap.set(r[0], r);
+  }
+  for (const v of D_.video_observations || []) {
+    if (!idx.videoByCap.has(v.capture_id)) idx.videoByCap.set(v.capture_id, []);
+    idx.videoByCap.get(v.capture_id).push([v.observation_index, v.x_q, v.y_q, v.width_q, v.height_q, v.coverage_ppm, v.occurrence_count]);
+  }
+  for (const c of D_.embedded_video_captures || []) idx.embeddedById.add(c.id);
+  for (const [name, rows] of Object.entries(D_.font_similarity_results || {})) {
+    idx.simRes.set(norm(name), rows);
+  }
+  for (const [name, ids] of Object.entries(D_.catalog_matches || {})) {
+    idx.catMatch.set(norm(name), ids);
+  }
+}
+
+/* ---------- links ---------- */
+
+const L = {
+  term:  (tid, label) => '<a class="lk term" onclick="hop(\'term\',\'' + escId(tid) + '\',\'' + esc(String(label||termLabel(tid)||"").slice(0,40)) + '\')">' + esc(label||termLabel(tid)||tid) + "</a>",
+  facet: (fid) => '<a class="lk term" onclick="hop(\'facet\',\'' + escId(fid) + '\',\'' + esc(String(fid||"").slice(0,40)) + '\')">' + esc((fid||"").replace(/_/g," ")) + "</a>",
+  dom:   (origin) => '<a class="lk dom" onclick="hop(\'domain\',\'' + escId(origin) + '\',\'' + esc(String(origin||"").replace("https://","").slice(0,40)) + '\')">' + esc((origin||"").replace("https://","")) + "</a>",
+  fam:   (id, name) => '<a class="lk fam" onclick="hop(\'family\',' + id + ',\'' + esc(String(name||"").slice(0,40)) + '\')">' + esc(name||"family " + id) + "</a>",
+  cap:   (id, title) => '<a class="lk" onclick="hop(\'capture\',' + id + ',\'' + esc(String(title||"").slice(0,40)) + '\')">' + esc(title||("capture " + id)) + "</a>",
+  browse:(kind, value, label) => '<a class="lk" onclick="hop(\'browse\',\'' + kind + '\',\'' + esc(String(label||value||"").slice(0,40)) + '\')">' + esc(label||value||"") + "</a>",
+  index: (kind, label) => '<a class="lk" onclick="hop(\'index\',\'' + kind + '\',\'' + esc(String(label||"").slice(0,40)) + '\')">' + esc(label||kind) + "</a>"
+};
+
+/* ---------- column stack ---------- */
+
+const cols = [];
+function retractTo(i){ while (cols.length > i + 1) cols.pop(); renderCols(false); }
+function closeCol(i){ if (i === 0) return; cols.splice(i); renderCols(false); }
+function hop(type, id, label){
+  const last = cols[cols.length-1];
+  if (last && last.type === type && last.id === id) return;
+  cols.push({ type, id, label });
+  if (cols.length > MAXCOLS) cols.splice(1, cols.length - MAXCOLS);
+  renderCols(true);
+}
+function fresh(type, id, label){
+  cols.length = 0;
+  cols.push({ type:"home", id:"", label:"The dataset" }, { type, id, label });
+  renderCols(true);
+}
+
+const rowsHtml = (list, fn, limit) => {
+  const cut = limit ? list.slice(0, limit) : list;
+  const more = limit && list.length > limit ? '<div class="empty">+ ' + (list.length - limit) + " more</div>" : "";
+  return cut.map(fn).join("") + more;
+};
+function renderCols(animate){
+  colsEl.innerHTML = "";
+  cols.forEach((c, i) => {
+    const el = document.createElement("div");
+    el.className = "col" + (animate && i === cols.length-1 ? " enter" : "") + (i === cols.length-1 ? " active" : "");
+    el.innerHTML = VIEWS[c.type](c);
+    if (i > 0) {
+      el.querySelector(".chead").addEventListener("click", () => retractTo(i-1));
+      const x = el.querySelector(".x");
+      if (x) x.addEventListener("click", e => { e.stopPropagation(); closeCol(i); });
+    }
+    colsEl.appendChild(el);
+  });
+  colsEl.scrollLeft = colsEl.scrollWidth;
+}
+function head(c, n){
+  return '<div class="chead"><span class="dot" style="background:' + TYPE[c.type].color + '"></span>' +
+    '<span class="t">' + esc(c.label) + '</span>' + (n ? '<span class="n">' + n + "</span>" : "") +
+    (c.type !== "home" ? '<span class="x">✕</span>' : "") + "</div>";
+}
+const foot = () => '<div class="foot">' + L.index("domains","all domains") + " · " + L.index("families","all families") + " · " + L.index("facets","all facets") + " · " + L.index("runtime","runtime") + "</div>";
+
+/* ---------- shared bits ---------- */
+
+function colorRow([role, r, g, b, a, occ]){
+  const tid = "color.role." + role;
+  return '<div class="row" style="cursor:default"><span class="sw" style="background:' + hex(r,g,b) + '"></span>' +
+    '<span class="t">' + L.term(tid, role) + '</span><span class="s">' + hex(r,g,b) + (occ ? " · " + occ : "") + "</span></div>";
+}
+function termValueNote(cid, tid){
+  const parts = [];
+  if (tid.startsWith("color.role.")) {
+    const c = (idx.colorsByCap.get(cid)||[]).find(x => x[0] === tid.slice(11));
+    if (c) parts.push('<span class="sw" style="background:' + hex(c[1],c[2],c[3]) + '"></span>' + hex(c[1],c[2],c[3]));
+  } else if (tid.startsWith("typography.role.")) {
+    const f = (idx.typeByCap.get(cid)||[]).find(x => x[0] === tid.slice(16));
+    if (f) { const m = famResolve(f[1]); parts.push(m ? L.fam(m[0], f[1]) : esc(f[1])); }
+  }
+  return parts.join(" ");
+}
+function similarCaptures(cid){
+  const my = idx.termsByCap.get(cid);
+  if (!my) return [];
+  const tally = new Map();
+  for (const [tid] of my) for (const [oc, conf] of idx.capsByTerm.get(tid)||[]) {
+    if (oc === cid) continue;
+    tally.set(oc, (tally.get(oc)||0) + 1);
+  }
+  return [...tally.entries()].sort((a,b) => b[1]-a[1]).slice(0, 8);
+}
+
+/* ---------- pages ---------- */
+
+function vStructure(c){
+  const [cid, i] = String(c.id).split(":").map(Number);
+  const rows = idx.structuresByCap.get(cid) || [];
+  const x = rows[i];
+  if (!x) return head(c) + '<div class="cbody"><div class="empty">structure not found</div></div>';
+  const [sid, parent, tid, sx, sy, sw, sh, conf] = x;
+  const cap = idx.cById.get(cid);
+  const children = rows.map((r, j) => [r, j]).filter(([r]) => r[1] === sid);
+  const pRow = parent == null ? null : rows.map((r, j) => [r, j]).find(([r]) => r[0] === sid && false) || null;
+  const pIdx = parent == null ? -1 : rows.findIndex(r => r[0] === parent);
+  const bg = cap ? 'background-image:url(\'' + esc(cap[5]) + '\')' : "";
+  return head(c, termLabel(tid)) +
+    '<div class="cbody">' +
+    '<div class="bounds-map" style="' + bg + '"><div class="bounds-box" style="left:' + (sx/100) + '%;top:' + (sy/100) + '%;width:' + (sw/100) + '%;height:' + (sh/100) + '%"></div>' +
+    '<div class="bounds-label">' + esc(termLabel(tid)) + '</div></div>' +
+    '<p class="prose">' + L.term(tid) + " is a resolved region in " + L.cap(cid, cap ? cap[3] : "capture " + cid) + ".</p>" +
+    KV([
+      ["structure_id", String(sid), true],
+      ["parent", parent == null ? "—" : (pIdx >= 0 ? '<button class="chip" onclick="hop(\'structure\',\'' + cid + ":" + pIdx + '\',\'' + esc(String(termLabel(rows[pIdx][3])).slice(0,30)) + '\')">' + esc(termLabel(rows[pIdx][3])) + "</button>" : String(parent)), false],
+      ["term", L.term(tid), false],
+      ["bounds", "x " + sx + " · y " + sy + " · w " + sw + " · h " + sh, true],
+      ["confidence", Math.round(conf/10000) + "%", true]
+    ]) +
+    (children.length ? '<div class="sec"><h4>children <span class="n">' + children.length + '</span></h4>' + rowsHtml(children, ([r, j]) =>
+      '<button class="row" onclick="hop(\'structure\',\'' + cid + ":" + j + '\',\'' + esc(String(termLabel(r[3])).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(r[3])) + '</span><span class="s">child</span></button>') + "</div>" : "") +
+    '<div class="sec"><h4>raw row</h4><pre class="raw">' + esc(JSON.stringify({ capture_id: cid, structure_id: sid, parent_structure_id: parent, term_id: tid, x_q: sx, y_q: sy, width_q: sw, height_q: sh, confidence_ppm: conf, evidence_kind: "model" }, null, 2)) + "</pre></div>" +
+    foot() + "</div>";
+}
+
+function vMotion(c){
+  const row = idx.motionByCap.get(Number(c.id));
+  if (!row) return head(c) + '<div class="cbody"><div class="empty">motion asset not found</div></div>';
+  const [cid, obj, mtype, bytes, dur, w, h] = row;
+  const cap = idx.cById.get(cid);
+  return head(c, Math.round(dur/1000) + "s") +
+    '<div class="cbody">' +
+    '<div class="sec"><video src="' + esc(obj) + '" controls muted loop playsinline autoplay style="width:100%;border:1px solid var(--line);background:#000;border-radius:3px"></video></div>' +
+    '<p class="prose">Recorded motion for ' + L.cap(cid, cap ? cap[3] : "capture " + cid) + ".</p>" +
+    KV([
+      ["capture", cap ? L.cap(cid, "capture #" + cid) : "capture #" + cid, false],
+      ["media type", mtype, true],
+      ["duration", (dur/1000).toFixed(1) + "s", true],
+      ["bytes", (bytes/1048576).toFixed(2) + " MB", true],
+      ["resolution", w + " × " + h, true],
+      ["object", '<a class="ext" href="' + esc(obj) + '" target="_blank">' + esc(obj) + " ↗</a>", false]
+    ]) + foot() + "</div>";
+}
+function vVideo(c){
+  const [cid, i] = String(c.id).split(":").map(Number);
+  const v = (idx.videoByCap.get(cid)||[])[i];
+  if (!v) return head(c) + '<div class="cbody"><div class="empty">video observation not found</div></div>';
+  const cap = idx.cById.get(cid);
+  const bg = cap ? "background-image:url('" + esc(cap[5]) + "')" : "";
+  return head(c, Math.round(v[5]/10000) + "% coverage") +
+    '<div class="cbody">' +
+    '<div class="bounds-map" style="' + bg + '"><div class="bounds-box" style="left:' + (v[1]/100) + '%;top:' + (v[2]/100) + '%;width:' + (v[3]/100) + '%;height:' + (v[4]/100) + '%"></div><div class="bounds-label">video</div></div>' +
+    '<p class="prose">Measured video element in ' + L.cap(cid, cap ? cap[3] : "capture " + cid) + ".</p>" +
+    KV([
+      ["capture", L.cap(cid, cap ? cap[3] : "capture " + cid), false],
+      ["bounds", "x " + v[1] + " · y " + v[2] + " · w " + v[3] + " · h " + v[4], true],
+      ["coverage", Math.round(v[5]/10000) + "%", true],
+      ["occurrences", String(v[6]||1), true]
+    ]) + foot() + "</div>";
+}
+
+function vRuntime(c){
+  const m = D_.motion_assets || [];
+  const meanDur = m.length ? Math.round(m.reduce((s,x)=>s+x[4],0)/m.length)/1000 : 0;
+  const meanBytes = m.length ? (m.reduce((s,x)=>s+x[3],0)/m.length/1048576).toFixed(2) : "0";
+  const vids = D_.video_observations || [];
+  const annPivots = Object.keys(D_.ann||{}).length;
+  const annEdges = Object.values(D_.ann||{}).reduce((s,a)=>s+a.length,0);
+  const fs = D_.font_similarity || {};
+  const er = D_.embedding_runtime || {};
+  return head(c) + '<div class="cbody">' +
+    '<p class="prose">Runtime state of the corpus snapshot — identity, sensors and similarity subsystems.</p>' +
+    KV([
+      ["captures", D_.captures.length.toLocaleString(), true],
+      ["domains", D_.domains.length.toLocaleString(), true],
+      ["font families", D_.families.length.toLocaleString(), true],
+      ["terms", Object.keys(D_.terms).length.toLocaleString(), true],
+      ["term assignments", D_.assignments.length.toLocaleString(), true]
+    ]) +
+    '<div class="sec"><h4>motion</h4>' + KV([
+      ["recorded WebM", m.length.toLocaleString(), true],
+      ["mean duration", meanDur.toFixed(1) + "s", true],
+      ["mean bytes", meanBytes + " MiB", true]
+    ]) + "</div>" +
+    '<div class="sec"><h4>page video</h4>' + KV([
+      ["exact observations", vids.length.toLocaleString(), true],
+      ["video-bearing captures", (D_.embedded_video_captures ? D_.embedded_video_captures.length : idx.embeddedById.size).toLocaleString(), true]
+    ]) + "</div>" +
+    '<div class="sec"><h4>similarity</h4>' + KV([
+      ["ANN pivots", String(annPivots), true],
+      ["ANN edges", String(annEdges), true],
+      ["embedding generation", er.active_generation_id || "—", true],
+      ["index members", er.member_count ? er.member_count.toLocaleString() : "—", true],
+      ["font similarity lookups", Object.keys(D_.font_similarity_results||{}).length.toLocaleString(), true],
+      ["descriptor schema", (fs.contract && fs.contract.descriptor_schema_id) || "—", true],
+      ["gating contract", (fs.contract && fs.contract.gating_contract_id) || "—", true],
+      ["family aggregation", (fs.contract && fs.contract.family_aggregation_id) || "—", true]
+    ]) + "</div>" +
+    '<div class="sec"><h4>catalogue</h4>' + KV([
+      ["observed→canonical matches", Object.keys(D_.catalog_matches||{}).length.toLocaleString(), true]
+    ]) + "</div>" +
+    foot() + "</div>";
+}
+
+const VIEWS = { home:vHome, domain:vDomain, capture:vCapture, term:vTerm, facet:vFacet, family:vFamily, designer:vDesigner, vendor:vVendor, browse:vBrowse, index:vIndex, structure:vStructure, motion:vMotion, video:vVideo, runtime:vRuntime };
+
+function vHome(c){
+  const topTerms = [...idx.capsByTerm.entries()].sort((a,b) => b[1].length - a[1].length).slice(0, 6);
+  const topDomains = [...idx.cByDomain.entries()].sort((a,b) => b[1].length - a[1].length).slice(0, 6);
+  const newest = [...D_.captures].sort((a,b) => b[4] - a[4]).slice(0, 6);
+  const rich = D_.captures.filter(cp => idx.colorsByCap.has(cp[0]) && idx.fontsByCap.has(cp[0]) && idx.typeByCap.has(cp[0])).slice(0, 6);
+  const motionTop = [...(D_.motion_assets||[])].sort((a,b) => b[4]-a[4]).slice(0, 6);
+  return head(c) +
+    '<div class="cbody">' +
+    '<p class="prose">' + D_.captures.length.toLocaleString() + " captures of " + D_.domains.length.toLocaleString() + " domains — each capture carries its measured colors, fonts, and typography, and resolves into the " + L.index("facets","28-facet taxonomy") + ". Everything here links to everything: follow values to terms, terms to captures, families to foundries." + "</p>" +
+    '<div class="hs"><h3>Rich captures</h3><div class="hint">colors + fonts + type roles + terms</div>' +
+      rowsHtml(rich, cp => '<button class="hsrow" onclick="hop(\'capture\',' + cp[0] + ',\'' + esc(cp[3].slice(0,34)) + '\')"><span class="t">' + esc(cp[3]) + '</span><span class="s">' + esc(cp[1].replace("https://","")) + capBadges(cp[0]) + "</span></button>") + "</div>" +
+    '<div class="hs"><h3>Most used terms</h3><div class="hint">by resolved captures</div>' +
+      rowsHtml(topTerms, ([tid, caps]) => '<button class="hsrow" onclick="hop(\'term\',\'' + escId(tid) + '\',\'' + esc(String(termLabel(tid)).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(tid)) + '</span><span class="s">' + caps.length + " caps</span></button>") + "</div>" +
+    '<div class="hs"><h3>Largest domains</h3><div class="hint">by captures</div>' +
+      rowsHtml(topDomains, ([origin, caps]) => '<button class="hsrow" onclick="hop(\'domain\',\'' + escId(origin) + '\',\'' + esc(origin.replace("https://","").slice(0,34)) + '\')"><span class="t">' + favicon(origin) + ' ' + esc(origin.replace("https://","")) + '</span><span class="s">' + caps.length + " caps</span></button>") + "</div>" +
+    '<div class="hs"><h3>Motion captures</h3><div class="hint">recorded WebM · by duration</div>' +
+      rowsHtml(motionTop, m => '<button class="hsrow" onclick="hop(\'motion\',' + m[0] + ',\'motion #' + m[0] + '\')"><span class="t">motion #' + m[0] + '</span><span class="s">' + Math.round(m[4]/1000) + "s · " + m[5] + "×" + m[6] + "</span></button>") + "</div>" +
+    '<div class="hs"><h3>Newest captures</h3><div class="hint">by capture date</div>' +
+      rowsHtml(newest, cp => '<button class="hsrow" onclick="hop(\'capture\',' + cp[0] + ',\'' + esc(cp[3].slice(0,34)) + '\')"><span class="t">' + esc(cp[3]) + '</span><span class="s">' + fmtDate(cp[4]) + "</span></button>") + "</div>" +
+    "</div>";
+}
+
+function vDomain(c){
+  const origin = c.id;
+  const caps = idx.cByDomain.get(origin) || [];
+  const paths = {};
+  for (const cp of caps) paths[cp[2]] = (paths[cp[2]]||0) + 1;
+  const topPaths = Object.entries(paths).sort((a,b) => b[1]-a[1]).slice(0, 8);
+  return head(c, caps.length + " captures") +
+    '<div class="cbody">' +
+    '<p class="prose">' + favicon(origin) + ' ' + L.dom(origin) + " has <b>" + caps.length + " captures</b>, newest " + fmtDate(Math.max(...caps.map(x=>x[4]))) + ". Open a capture to see its colors, fonts, and taxonomy." + "</p>" +
+    '<div class="sec"><h4>top paths</h4>' +
+      rowsHtml(topPaths, ([p, n]) => '<button class="chip" onclick="hop(\'browse\',\'path\',\'' + escId(p) + '\')">' + esc(p || "/") + " · " + n + "</button>") + "</div>" +
+    '<div class="sec"><h4>captures <span class="n">' + caps.length + '</span></h4>' +
+    rowsHtml(caps, cp =>
+      '<button class="row" onclick="hop(\'capture\',' + cp[0] + ',\'' + esc(cp[3].slice(0,34)) + '\')"><span class="t">' + esc(cp[3]) +
+      '</span><span class="s">' + fmtDate(cp[4]) + " · " + (idx.colorsByCap.get(cp[0])||[]).length + " colors · " + (idx.fontsByCap.get(cp[0])||[]).length + " fonts · " + (idx.termsByCap.get(cp[0])||[]).length + " terms" + capBadges(cp[0]) + "</span></button>", 30) + "</div>" +
+    foot() + "</div>";
+}
+
+function vCapture(c){
+  const id = c.id, cp = idx.cById.get(id);
+  if (!cp) return head(c) + '<div class="cbody"><div class="empty">capture not found</div></div>';
+  const colors = idx.colorsByCap.get(id) || [];
+  const bg = idx.bgByCap.get(id) || [];
+  const fonts = idx.fontsByCap.get(id) || [];
+  const texts = idx.textByCap.get(id) || [];
+  const hists = idx.histByCap.get(id) || [];
+  const types = idx.typeByCap.get(id) || [];
+  const structs = idx.structuresByCap.get(id) || [];
+  const ann = idx.annByCap.get(id) || [];
+  const motion = idx.motionByCap.get(id);
+  const vids = idx.videoByCap.get(id) || [];
+  const tmap = new Map();
+  for (const [fam, w, size, occ] of texts) {
+    const k = norm(fam);
+    if (!tmap.has(k)) tmap.set(k, { fam, w: [], size: [], occ: 0 });
+    const e = tmap.get(k);
+    e.w.push(w); e.size.push(size); e.occ += occ;
+  }
+  const textAgg = [...tmap.values()].map(e => [e.fam, Math.min(...e.w.filter(Boolean)), Math.max(...e.size.filter(Boolean)), e.occ]).sort((a,b) => b[3]-a[3]);
+  const terms = idx.termsByCap.get(id) || [];
+  const sim = similarCaptures(id);
+  const pathCaps = idx.cByPath.get(cp[2]) || [];
+  const samePath = new Set(pathCaps.map(x=>x[1]));
+  samePath.delete(cp[1]);
+  const lkTheme = cp[7] && cp[7] !== "unknown" ? L.browse("theme", cp[7], cp[7]) : "—";
+  const lkDevice = cp[6] && cp[6] !== "unknown" ? L.browse("device", cp[6], cp[6]) : "—";
+  const lkState = cp[8] && cp[8] !== "unknown" ? L.browse("state", cp[8], cp[8]) : "—";
+  return head(c, terms.length + " terms") +
+    '<div class="cbody">' +
+    '<p class="prose">' + L.cap(id, "Capture #" + id) + " of " + L.dom(cp[1]) + " at " + L.browse("path", cp[2], cp[2] || "/") + ", captured " + fmtDate(cp[4]) + (cp[6] && cp[6] !== "unknown" ? " on " + lkDevice : "") + "." + "</p>" +
+    '<div class="sec"><img class="shot" loading="lazy" src="' + esc(cp[5]) + '" onerror="this.style.display=\'none\'"></div>' +
+    (colors.length ? '<div class="sec"><h4>measured colors <span class="n">' + colors.length + '</span></h4>' + rowsHtml(colors, colorRow) + "</div>" : "") +
+    (bg.length ? '<div class="sec"><h4>background</h4>' + rowsHtml(bg.slice(0,3), ([r,g,b,a,occ]) =>
+      '<div class="row" style="cursor:default"><span class="sw" style="background:' + hex(r,g,b) + '"></span><span class="t">dominant</span><span class="s">' + hex(r,g,b) + (occ ? " · " + occ : "") + "</span></div>") + "</div>" : "") +
+    (fonts.length ? '<div class="sec"><h4>fonts <span class="n">' + fonts.length + '</span></h4>' + rowsHtml(fonts, ([fam, stack, wmin, wmax, share, occ]) => {
+      const m = famResolve(fam);
+      const nm = m ? L.fam(m[0], fam) : esc(fam);
+      return '<div class="row" style="cursor:default" title="' + esc(stack) + '"><span class="t">' + nm + '</span><span class="s">' +
+        (wmin !== wmax ? wmin + "–" + wmax : wmin) + (occ ? " · " + occ + "×" : "") + "</span></div>";
+    }) + "</div>" : "") +
+    (textAgg.length ? '<div class="sec"><h4>fonts · measured text <span class="n">' + textAgg.length + '</span></h4>' + rowsHtml(textAgg, ([fam, w, size, occ]) => {
+      const m = famResolve(fam);
+      return '<div class="row" style="cursor:default"><span class="t">' + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' + (w || "") + " · " + px(size) + (occ ? " · " + occ + "×" : "") + "</span></div>";
+    }, 10) + "</div>" : "") +
+    (hists.length ? '<div class="sec"><h4>legacy font attributions <span class="n">' + hists.length + '</span></h4>' + rowsHtml(hists, ([fid, name, sub, links]) => {
+      const m = famResolve(name);
+      return '<div class="row" style="cursor:default"><span class="t">' + (m ? L.fam(m[0], name) : esc(name)) + (sub && sub !== name ? " · " + esc(sub) : "") + '</span><span class="s">' + links + " links</span></div>";
+    }, 10) + "</div>" : "") +
+    (types.length ? '<div class="sec"><h4>typography <span class="n">' + types.length + '</span></h4>' + rowsHtml(types, ([role, fam, w, size, lh, share]) => {
+      const m = famResolve(fam);
+      const nm = m ? L.fam(m[0], fam) : esc(fam);
+      const famCss = String(fam||"").replace(/["'<>]/g,"");
+      return '<div class="row" style="cursor:default"><span class="t">' + L.term("typography.role." + role, role) + " · " + nm + '</span><span class="s">' + (w||"") + " · " + px(size) + "</span></div>" +
+        '<div class="type-sample" style="font-family:\'' + famCss + '\',sans-serif;font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">Aa — Structure, meaning, interface.</div>';
+    }) + "</div>" : "") +
+    (structs.length ? '<div class="sec"><h4>structures <span class="n">' + structs.length + '</span></h4>' + rowsHtml(structs, (r, i) =>
+      '<button class="row" onclick="hop(\'structure\',\'' + id + ":" + i + '\',\'' + esc(String(termLabel(r[3])).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(r[3])) + '</span><span class="s">' + Math.round(r[4]/100) + "% × " + Math.round(r[6]/100) + "% · " + Math.round(r[7]/10000) + "%</span></button>", 8) + "</div>" : "") +
+    (ann.length ? '<div class="sec"><h4>visual neighbors <span class="n">ANN index</span></h4>' + rowsHtml(ann, ([nid, dist]) => {
+      const nc = idx.cById.get(nid);
+      return '<button class="row" onclick="hop(\'capture\',' + nid + ',\'' + esc((nc?nc[3]:"").slice(0,34)) + '\')"><span class="t">' + esc(nc ? nc[3] : "capture " + nid) + '</span><span class="s">' + (nc ? nc[1].replace("https://","") : "") + " · " + Math.round((1-Math.min(1,dist))*100) + "%</span></button>";
+    }) + "</div>" : "") +
+    (motion ? '<div class="sec"><h4>motion</h4><button class="row" onclick="hop(\'motion\',\'' + id + '\',\'motion #' + id + '\')"><span class="t">recorded motion</span><span class="s">' + Math.round(motion[4]/1000) + "s · " + (motion[3]/1048576).toFixed(1) + " MB</span></button></div>" : "") +
+    (vids.length ? '<div class="sec"><h4>video observations <span class="n">' + vids.length + '</span></h4>' + rowsHtml(vids, (v, i) =>
+      '<button class="row" onclick="hop(\'video\',\'' + id + ":" + i + '\',\'video ' + (i+1) + '\')"><span class="t">video element ' + (i+1) + '</span><span class="s">' + Math.round(v[5]/10000) + "% coverage</span></button>", 6) + "</div>" : "") +
+    '<div class="sec"><h4>resolved terms <span class="n">' + terms.length + '</span></h4>' +
+    (terms.length ? rowsHtml(terms, ([tid, conf]) =>
+      '<div class="row" style="cursor:default">' + termValueNote(id, tid) +
+      '<span class="t">' + L.term(tid) + '</span><span class="s">' + Math.round(conf*100) + "%</span></div>" +
+      '<div class="confbar"><i style="width:' + Math.round(conf*100) + '%"></i></div>'
+    ) : '<div class="empty">no resolved terms for this capture</div>') + "</div>" +
+    (sim.length ? '<div class="sec"><h4>similar captures <span class="n">by shared terms</span></h4>' + rowsHtml(sim, ([ocid, n]) => {
+      const oc = idx.cById.get(ocid);
+      return '<button class="row" onclick="hop(\'capture\',' + ocid + ',\'' + esc((oc?oc[3]:"").slice(0,34)) + '\')"><span class="t">' + esc(oc ? oc[3] : "capture " + ocid) + '</span><span class="s">' + (oc ? oc[1].replace("https://","") : "") + " · " + n + " shared</span></button>";
+    }) + "</div>" : "") +
+    (samePath.size ? '<div class="sec"><h4>same path elsewhere <span class="n">' + samePath.size + ' domains</span></h4>' +
+      '<button class="row" onclick="hop(\'browse\',\'path\',\'' + escId(cp[2]) + '\')"><span class="t">' + L.browse("path", cp[2], cp[2] || "/") + '</span><span class="s">all ' + pathCaps.length + " captures</span></button></div>" : "") +
+    foot() + "</div>";
+}
+
+function vTerm(c){
+  const tid = c.id;
+  const caps = idx.capsByTerm.get(tid) || [];
+  const structUses = [];
+  for (const [cid, rows] of idx.structuresByCap) rows.forEach((r, i) => { if (r[3] === tid) structUses.push([cid, i]); });
+  return head(c, caps.length + " captures") +
+    '<div class="cbody">' +
+    '<p class="prose">' + L.term(tid) + " belongs to " + L.facet(termFacet(tid)) + ". " + esc(termDef(tid)) + " Used by <b>" + caps.length + " captures</b>." + "</p>" +
+    '<div class="sec"><h4>captures <span class="n">' + caps.length + '</span></h4>' +
+    (caps.length ? rowsHtml(caps, ([cid, conf]) => {
+      const cp = idx.cById.get(cid);
+      const val = termValueNote(cid, tid);
+      return '<div class="row" style="cursor:default">' + val +
+        '<span class="t">' + L.cap(cid, cp ? cp[3] : "capture " + cid) + '</span><span class="s">' + (cp ? cp[1].replace("https://","") : "") + " · " + Math.round(conf*100) + "%</span></div>";
+    }, 60) : '<div class="empty">no captures resolved to this term</div>') + "</div>" +
+    '<div class="sec"><h4>other terms in ' + esc(termFacet(tid)) + '</h4>' +
+      rowsHtml(Object.keys(D_.terms).filter(t => termFacet(t) === termFacet(tid) && t !== tid).sort(), ot =>
+        '<button class="row" onclick="hop(\'term\',\'' + escId(ot) + '\',\'' + esc(String(termLabel(ot)).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(ot)) + '</span><span class="s">' + (idx.capsByTerm.get(ot)||[]).length + " caps</span></button>") + "</div>" +
+    (structUses.length ? '<div class="sec"><h4>resolved structures <span class="n">' + structUses.length + '</span></h4>' + rowsHtml(structUses, ([cid, i]) => {
+      const cp = idx.cById.get(cid);
+      return '<button class="row" onclick="hop(\'structure\',\'' + cid + ":" + i + '\',\'' + esc((cp?cp[3]:"").slice(0,34)) + '\')"><span class="t">' + esc(cp ? cp[3] : "capture " + cid) + '</span><span class="s">' + (cp ? cp[1].replace("https://","") : "") + "</span></button>";
+    }, 20) + "</div>" : "") +
+    foot() + "</div>";
+}
+
+function vFacet(c){
+  const fid = c.id;
+  const tids = Object.keys(D_.terms).filter(t => D_.terms[t][2] === fid).sort((a,b) => termLabel(a).localeCompare(termLabel(b)));
+  return head(c, tids.length + " terms") +
+    '<div class="cbody">' +
+    '<p class="prose">' + L.facet(fid) + " — " + tids.length + " terms. Open a term to see its measured values across captures." + "</p>" +
+    '<div class="sec"><h4>terms</h4>' +
+    rowsHtml(tids, tid =>
+      '<button class="row" onclick="hop(\'term\',\'' + escId(tid) + '\',\'' + esc(String(termLabel(tid)).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(tid)) +
+      '</span><span class="s">' + (idx.capsByTerm.get(tid)||[]).length + " captures</span></button>") + "</div>" +
+    foot() + "</div>";
+}
+
+function vFamily(c){
+  const f = idx.fById.get(c.id);
+  if (!f) return head(c) + '<div class="cbody"><div class="empty">family not found</div></div>';
+  const dg = f[2] != null ? idx.dgById.get(f[2]) : null;
+  const v = f[3] != null ? idx.vById.get(f[3]) : null;
+  const rels = idx.relsById.get(c.id) || [];
+  const sameDg = (dg ? idx.fByDesigner.get(dg[0])||[] : []).filter(x => x[0] !== f[0]);
+  const sameV = (v ? idx.fByVendor.get(v[0])||[] : []).filter(x => x[0] !== f[0]);
+  const users = idx.capsByFam.get(norm(f[1])) || [];
+  const dupes = (idx.famGroups.get(norm(f[1])) || []).filter(x => x[0] !== f[0]);
+  const cooc = new Map();
+  for (const [cid] of users) for (const [fam2] of idx.fontsByCap.get(cid) || []) {
+    if (norm(fam2) === norm(f[1])) continue;
+    const k = norm(fam2);
+    cooc.set(k, (cooc.get(k) || 0) + 1);
+  }
+  const coocRows = [...cooc.entries()].sort((a,b) => b[1]-a[1]).slice(0, 6);
+  const famCss = String(f[1]||"").replace(/["'<>]/g,"");
+  return head(c, rels.length + " releases") +
+    '<div class="cbody">' +
+    '<p class="prose">' + L.fam(f[0], f[1]) + (dg ? " by " + L.designer(dg[0], dg[1]) : "") + (v ? ", sold by " + L.vendor(v[0], v[1]) : "") + ". " + rels.length + " releases." + "</p>" +
+    '<div class="font-specimen" style="font-family:\'' + famCss + '\',sans-serif">' + esc(f[1]) + '</div>' +
+    '<div class="font-meta">Aa Bb Cc · 0123456789</div>' +
+    (dupes.length ? '<div class="sec"><h4>possible duplicates <span class="n">same name · ' + dupes.length + '</span></h4><div class="hint">' + esc(f[1]) + " appears " + (dupes.length + 1) + " times in the catalogue. The corpus alias table (family → canonical) exists but holds no reviewed links yet — these are same-name candidates.</div>" +
+      rowsHtml(dupes, x => '<button class="row" onclick="hop(\'family\',' + x[0] + ',\'' + esc(x[1].slice(0,34)) + '\')"><span class="t">' + esc(x[1]) + '</span><span class="s">#' + x[0] + (idx.relCount.get(x[0]) ? " · " + idx.relCount.get(x[0]) + " releases" : "") + "</span></button>", 12) + "</div>" : "") +
+    (sameDg.length ? '<div class="sec"><h4>other families by ' + esc(dg[1].slice(0,26)) + '</h4>' + rowsHtml(sameDg, x =>
+      '<button class="row" onclick="hop(\'family\',' + x[0] + ',\'' + esc(x[1].slice(0,34)) + '\')"><span class="t">' + esc(x[1]) + '</span><span class="s">#' + x[0] + "</span></button>", 8) + "</div>" : "") +
+    (sameV.length ? '<div class="sec"><h4>other families by ' + esc(v[1].slice(0,26)) + '</h4>' + rowsHtml(sameV, x =>
+      '<button class="row" onclick="hop(\'family\',' + x[0] + ',\'' + esc(x[1].slice(0,34)) + '\')"><span class="t">' + esc(x[1]) + '</span><span class="s">#' + x[0] + "</span></button>", 8) + "</div>" : "") +
+    (users.length ? '<div class="sec"><h4>captures using this family <span class="n">' + users.length + '</span></h4>' + rowsHtml(users, ([cid]) => {
+      const cp = idx.cById.get(cid);
+      return '<button class="row" onclick="hop(\'capture\',' + cid + ',\'' + esc((cp?cp[3]:"").slice(0,34)) + '\')"><span class="t">' + esc(cp ? cp[3] : "capture " + cid) + '</span><span class="s">' + (cp ? cp[1].replace("https://","") : "") + "</span></button>";
+    }, 20) + "</div>" : "") +
+    (coocRows.length ? '<div class="sec"><h4>often seen with <span class="n">co-occurring</span></h4>' + rowsHtml(coocRows, ([k, n]) => {
+      const m = famResolve(k);
+      return '<button class="row" onclick="hop(\'family\',' + (m ? m[0] : 0) + ',\'' + esc((m ? m[1] : k).slice(0,34)) + '\')"><span class="t">' + esc(m ? m[1] : k) + '</span><span class="s">' + n + " shared captures</span></button>";
+    }) + "</div>" : "") +
+    (() => {
+      let simRows = null;
+      for (const [key, rows] of idx.simRes) {
+        if (rows.some(r => r.family_id === f[0] || norm(r.family) === norm(f[1]))) { simRows = rows; break; }
+      }
+      if (!simRows) return "";
+      return '<div class="sec"><h4>visually similar <span class="n">descriptor contract</span></h4><div class="hint">swash-coverage-aware glyph HOG rank-blend · catalogue visual candidates</div>' +
+        rowsHtml(simRows.filter(r => r.family_id !== f[0]).slice(0, 6), r => {
+          const m = idx.fById.get(r.family_id);
+          return '<button class="row" onclick="hop(\'family\',' + r.family_id + ',\'' + esc(r.family.slice(0,34)) + '\')"><span class="t">' + esc(r.family) + '</span><span class="s">' + Math.round(r.score*100) + "%</span></button>";
+        }) + "</div>";
+    })() +
+    '<div class="sec"><h4>releases <span class="n">' + rels.length + '</span></h4>' +
+    rowsHtml(rels, r =>
+      '<div class="row" style="cursor:default"><span class="t mono">' + esc(r[1]) + '</span><span class="s">' + (r[3] ? '<a class="ext" href="' + esc(r[3]) + '" target="_blank">source ↗</a>' : esc(r[2].slice(0,8))) + "</span></div>") + "</div>" +
+    foot() + "</div>";
+}
+
+function vDesigner(c){
+  const dg = idx.dgById.get(c.id);
+  if (!dg) return head(c) + '<div class="cbody"><div class="empty">designer not found</div></div>';
+  const fams = idx.fByDesigner.get(c.id) || [];
+  return head(c, fams.length + " families") +
+    '<div class="cbody">' +
+    '<p class="prose">' + L.designer(dg[0], dg[1]) + " — " + fams.length + " families in the catalogue." + (dg[2] ? ' <a class="ext" href="' + esc(dg[2]) + '" target="_blank">' + esc(dg[2]) + " ↗</a>" : "") + "</p>" +
+    '<div class="sec"><h4>families <span class="n">' + fams.length + '</span></h4>' +
+    rowsHtml(fams, f => '<button class="row" onclick="hop(\'family\',' + f[0] + ',\'' + esc(f[1].slice(0,34)) + '\')"><span class="t">' + esc(f[1]) + '</span><span class="s">#' + f[0] + "</span></button>") + "</div>" +
+    foot() + "</div>";
+}
+function vVendor(c){
+  const v = idx.vById.get(c.id);
+  if (!v) return head(c) + '<div class="cbody"><div class="empty">vendor not found</div></div>';
+  const fams = idx.fByVendor.get(c.id) || [];
+  return head(c, fams.length + " families") +
+    '<div class="cbody">' +
+    '<p class="prose">' + L.vendor(v[0], v[1]) + " — " + fams.length + " families in the catalogue." + (v[2] ? ' <a class="ext" href="' + esc(v[2]) + '" target="_blank">' + esc(v[2]) + " ↗</a>" : "") + "</p>" +
+    '<div class="sec"><h4>families <span class="n">' + fams.length + '</span></h4>' +
+    rowsHtml(fams, f => '<button class="row" onclick="hop(\'family\',' + f[0] + ',\'' + esc(f[1].slice(0,34)) + '\')"><span class="t">' + esc(f[1]) + '</span><span class="s">#' + f[0] + "</span></button>") + "</div>" +
+    foot() + "</div>";
+}
+L.designer = (id, name) => '<a class="lk fam" onclick="hop(\'designer\',' + id + ',\'' + esc(String(name||"").slice(0,40)) + '\')">' + esc(name||("designer " + id)) + "</a>";
+L.vendor = (id, name) => '<a class="lk fam" onclick="hop(\'vendor\',' + id + ',\'' + esc(String(name||"").slice(0,40)) + '\')">' + esc(name||("vendor " + id)) + "</a>";
+
+function vBrowse(c){
+  const kind = c.id, value = c.label;
+  let caps = [];
+  if (kind === "path") caps = idx.cByPath.get(value) || [];
+  else if (kind === "theme") caps = idx.cByTheme.get(value) || [];
+  else if (kind === "device") caps = idx.cByDevice.get(value) || [];
+  else if (kind === "state") caps = idx.cByState.get(value) || [];
+  const domains = new Set(caps.map(x => x[1])).size;
+  const list = caps.slice().sort((a,b) => b[4]-a[4]);
+  const label = kind === "path" ? (value || "/") : kind + " · " + value;
+  return head({ type:"browse", label, id:kind }, caps.length + " captures") +
+    '<div class="cbody">' +
+    '<p class="prose">' + caps.length + " captures" + (kind === "path" ? " at path " + esc(value || "/") + " across " + domains + " domains" : " with " + kind + " “" + esc(value) + "”") + ".</p>" +
+    '<div class="sec"><h4>captures <span class="n">' + caps.length + '</span></h4>' +
+    rowsHtml(list, cp =>
+      '<button class="row" onclick="hop(\'capture\',' + cp[0] + ',\'' + esc(cp[3].slice(0,34)) + '\')"><span class="t">' + esc(cp[3]) +
+      '</span><span class="s">' + esc(cp[1].replace("https://","")) + " · " + fmtDate(cp[4]) + " · " + (idx.termsByCap.get(cp[0])||[]).length + " terms" + capBadges(cp[0]) + "</span></button>", 60) + "</div>" +
+    foot() + "</div>";
+}
+function vIndex(c){
+  const kind = c.id;
+  if (kind === "facets") {
+    const facets = [...new Set(Object.values(D_.terms).map(t => t[2]))].sort();
+    return head(c, facets.length + " facets") +
+      '<div class="cbody">' +
+      '<div class="sec"><h4>facets</h4>' + facets.map(f => {
+        const n = Object.keys(D_.terms).filter(t => D_.terms[t][2] === f).length;
+        return '<button class="chip" onclick="hop(\'facet\',\'' + escId(f) + '\',\'' + esc(f) + '\')">' + esc(f.replace(/_/g," ")) + " · " + n + "</button>";
+      }).join("") + "</div>" + foot() + "</div>";
+  }
+  const rows = kind === "domains" ? [...idx.cByDomain.entries()].sort((a,b) => b[1].length-a[1].length)
+    : [...D_.families].sort((a,b) => (idx.relCount.get(b[0])||0)-(idx.relCount.get(a[0])||0));
+  return head(c, rows.length.toLocaleString() + " " + kind) +
+    '<div class="cbody"><div class="sec"><h4>' + kind + '</h4>' +
+    (kind === "domains"
+      ? rowsHtml(rows, ([origin, caps]) => '<button class="row" onclick="hop(\'domain\',\'' + escId(origin) + '\',\'' + esc(origin.replace("https://","").slice(0,34)) + '\')"><span class="t">' + favicon(origin) + ' ' + esc(origin.replace("https://","")) + '</span><span class="s">' + caps.length + " caps</span></button>", 80)
+      : rowsHtml(rows, f => '<button class="row" onclick="hop(\'family\',' + f[0] + ',\'' + esc(f[1].slice(0,34)) + '\')"><span class="t">' + esc(f[1]) + '</span><span class="s">' + (idx.relCount.get(f[0])||0) + " releases</span></button>", 80)) +
+    "</div>" + foot() + "</div>";
+}
+
+/* ---------- capture hover preview (ported) ---------- */
+const hvEl = document.createElement("div");
+hvEl.id = "cap-hover";
+document.body.appendChild(hvEl);
+let hvTimer = 0;
+function hvMarkup(id){
+  const x = idx.cById.get(Number(id)); if (!x) return "";
+  const colors = idx.colorsByCap.get(Number(id)) || [];
+  const fonts = [...new Set((idx.fontsByCap.get(Number(id))||[]).map(f=>f[0]))].slice(0,3);
+  const terms = (idx.termsByCap.get(Number(id))||[]).slice(0,4).map(([t])=>termLabel(t));
+  const grad = colors.length ? "linear-gradient(90deg," + colors.slice(0,6).map((c,i)=>hex(c[1],c[2],c[3]) + " " + Math.round(i*100/colors.length) + "% " + Math.round((i+1)*100/colors.length) + "%").join(",") + ")" : "var(--soft)";
+  const m = idx.motionByCap.get(Number(id));
+  const media = m
+    ? '<img src="' + esc(x[5]) + '" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:1" onerror="this.style.display=\'none\'"><video autoplay muted loop playsinline preload="metadata" poster="' + esc(x[5]) + '" src="' + esc(m[1]) + '" onloadeddata="this.previousElementSibling.style.opacity=\'0\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000"></video><span style="position:absolute;right:6px;bottom:4px;z-index:2;font-size:9px;color:rgba(255,255,255,.9);background:rgba(0,0,0,.55);padding:1px 7px;border-radius:99px">▶ ' + Math.round(m[4]/1000) + 's</span>'
+    : '<img src="' + esc(x[5]) + '" alt="" onerror="this.style.display=\'none\'">';
+  return '<div class="imgw" style="position:relative;background:' + grad + '">' + media + "</div>" +
+    '<div class="hmeta"><div class="ht">' + esc(x[3]) + '</div><div class="hs">' + esc(x[1].replace("https://","")) + (x[2] ? " · " + esc(x[2]) : "") + " · " + fmtDate(x[4]) + "</div>" +
+    (colors.length ? '<div class="hp">' + colors.slice(0,8).map(c => '<span style="background:' + hex(c[1],c[2],c[3]) + '"></span>').join("") + "</div>" : "") +
+    (fonts.length || terms.length ? '<div class="htags">' + fonts.map(esc).join(" · ") + (fonts.length && terms.length ? "  /  " : "") + terms.map(esc).join(" · ") + "</div>" : "") + "</div>";
+}
+colsEl.addEventListener("pointerover", e => {
+  const b = e.target.closest(".row"); if (!b) return;
+  const m = (b.getAttribute("onclick")||"").match(/hop\('capture',\s*(\d+)/); if (!m) return;
+  const id = Number(m[1]); if (!idx.cById.has(id)) return;
+  clearTimeout(hvTimer);
+  hvTimer = setTimeout(() => {
+    hvEl.innerHTML = hvMarkup(id);
+    hvEl.classList.add("open");
+    const r = b.getBoundingClientRect();
+    const w = hvEl.offsetWidth, h = hvEl.offsetHeight;
+    let left = r.right + 10; if (left + w > innerWidth - 10) left = r.left - w - 10; if (left < 10) left = 10;
+    let top = Math.max(10, Math.min(r.top - 16, innerHeight - h - 10));
+    hvEl.style.left = left + "px"; hvEl.style.top = top + "px";
+  }, 120);
+});
+colsEl.addEventListener("pointerout", e => { if (e.target.closest(".row")) { clearTimeout(hvTimer); hvEl.classList.remove("open"); } });
+colsEl.addEventListener("scroll", () => hvEl.classList.remove("open"), true);
+window.addEventListener("resize", () => hvEl.classList.remove("open"));
+
+/* ---------- search ---------- */
+
+const qEl = document.getElementById("q");
+const resultsEl = document.getElementById("results");
+let hlIdx = 0, hlFns = [];
+function doSearch(){
+  const s = qEl.value.trim().toLowerCase();
+  if (!s){ resultsEl.classList.remove("on"); resultsEl.innerHTML = ""; return; }
+  const groups = [];
+  const doms = [...idx.cByDomain.keys()].filter(o => o.includes(s)).slice(0,6);
+  const caps = D_.captures.filter(cp => cp[3].toLowerCase().includes(s) || cp[1].includes(s)).slice(0,6);
+  const fams = D_.families.filter(f => f[1].toLowerCase().includes(s)).slice(0,6);
+  const terms = Object.keys(D_.terms).filter(t => termLabel(t).toLowerCase().includes(s) || t.includes(s)).slice(0,6);
+  const facets = [...new Set(Object.values(D_.terms).map(t => t[2]))].filter(f => f.includes(s) || f.replace(/_/g," ").includes(s)).slice(0,6);
+  const paths = [...idx.cByPath.keys()].filter(p => p.includes(s)).slice(0,4);
+  if (doms.length) groups.push({ g:"domains", items: doms.map(o => ({ t:o.replace("https://",""), s:(idx.cByDomain.get(o)||[]).length + " captures", c:"var(--entity-domain)", fn:() => fresh("domain", o, o.replace("https://","")) })) });
+  if (caps.length) groups.push({ g:"captures", items: caps.map(cp => ({ t:cp[3], s:cp[1].replace("https://","") + " · " + fmtDate(cp[4]), c:"var(--entity-capture)", fn:() => fresh("capture", cp[0], cp[3].slice(0,40)) })) });
+  if (fams.length) groups.push({ g:"font families", items: fams.map(f => ({ t:f[1], s:"#" + f[0], c:"var(--entity-family)", fn:() => fresh("family", f[0], f[1].slice(0,40)) })) });
+  if (terms.length) groups.push({ g:"terms", items: terms.map(t => ({ t:termLabel(t), s:termFacet(t), c:"var(--entity-term)", fn:() => fresh("term", t, String(termLabel(t)).slice(0,40)) })) });
+  if (facets.length) groups.push({ g:"facets", items: facets.map(f => ({ t:f.replace(/_/g," "), s:"facet", c:"var(--entity-facet)", fn:() => fresh("facet", f, f) })) });
+  if (paths.length) groups.push({ g:"paths", items: paths.map(p => ({ t:p||"/", s:(idx.cByPath.get(p)||[]).length + " captures", c:"var(--entity-neutral)", fn:() => fresh("browse", "path", p) })) });
+  resultsEl.innerHTML = groups.map(g =>
+    '<div class="rg">' + g.g + "</div>" + g.items.map(it => '<button class="res"><span class="sdot" style="background:' + it.c + '"></span><span class="t">' + esc(it.t) + '</span><span class="s">' + esc(it.s) + "</span></button>").join("")
+  ).join("") || '<div class="rg">no matches</div>';
+  resultsEl.classList.add("on");
+  hlIdx = 0; hlFns = groups.flatMap(g => g.items.map(it => it.fn));
+  document.querySelectorAll("#results .res").forEach((el, i) => el.classList.toggle("hl", i === 0));
+}
+function moveHl(d){
+  const els = [...document.querySelectorAll("#results .res")];
+  if (!els.length) return;
+  hlIdx = (hlIdx + d + els.length) % els.length;
+  els.forEach((el, i) => el.classList.toggle("hl", i === hlIdx));
+  els[hlIdx].scrollIntoView({ block:"nearest" });
+}
+qEl.addEventListener("input", doSearch);
+qEl.addEventListener("keydown", e => {
+  if (e.key === "ArrowDown"){ e.preventDefault(); moveHl(1); }
+  else if (e.key === "ArrowUp"){ e.preventDefault(); moveHl(-1); }
+  else if (e.key === "Enter"){ if (hlFns[hlIdx]){ hlFns[hlIdx](); qEl.value=""; resultsEl.classList.remove("on"); } }
+  else if (e.key === "Escape"){ qEl.value=""; resultsEl.classList.remove("on"); qEl.blur(); }
+});
+resultsEl.addEventListener("click", e => {
+  const b = e.target.closest(".res");
+  if (!b) return;
+  hlFns[[...resultsEl.querySelectorAll(".res")].indexOf(b)]();
+  qEl.value=""; resultsEl.classList.remove("on");
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && document.activeElement !== qEl && cols.length > 1){ cols.pop(); renderCols(false); }
+});
+
+/* ---------- boot ---------- */
+
+fetch("data.json").then(r => r.json()).then(d => {
+  D_ = d;
+  buildIndexes();
+  document.getElementById("meta").textContent =
+    d.domains.length.toLocaleString() + " domains · " + d.captures.length.toLocaleString() + " captures · " +
+    d.families.length.toLocaleString() + " families · " + Object.keys(d.terms).length + " terms · " +
+    d.color_roles.length.toLocaleString() + " color values · " + d.font_obs.length.toLocaleString() + " font observations · " + (d.ann?Object.keys(d.ann).length:0) + " ANN pivots · " + (d.motion_assets||[]).length.toLocaleString() + " motion · " + (d.font_similarity_results?Object.keys(d.font_similarity_results).length:0) + " font-sim" +
+    (d.text_styles ? " · " + d.text_styles.length.toLocaleString() + " text styles" : "") +
+    (d.hist_fonts ? " · " + d.hist_fonts.length.toLocaleString() + " legacy attributions" : "");
+  cols.push({ type:"home", id:"", label:"The dataset" });
+  renderCols(false);
+}).catch(e => {
+  colsEl.innerHTML = '<div class="col"><div class="cbody"><div class="empty">Failed to load data.json — serve this folder over http (python3 -m http.server 8123) and open explorer.html.<br>' + esc(String(e)) + "</div></div></div>";
+});
+</script>
+</body>
+</html>

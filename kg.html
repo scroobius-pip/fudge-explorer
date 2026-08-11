@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fudge — Knowledge Graph</title>
+<style>
+  :root { --ink:#111; --mut:#8a8a8a; --line:#e8e8e8; --soft:#f6f6f6; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; }
+  body { font:14px/1.5 -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; color:var(--ink); background:#fff; }
+  header {
+    position:absolute; top:0; left:0; right:0; z-index:10;
+    display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
+    padding:14px 24px 10px;
+    background:rgba(255,255,255,.96); border-bottom:1px solid var(--line);
+  }
+  .title { font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; }
+  .title span { color:var(--mut); font-weight:400; }
+  .search {
+    margin-left:auto; width:240px; max-width:38vw;
+    font:inherit; font-size:12px; color:var(--ink);
+    border:none; border-bottom:1px solid #ccc; padding:3px 0; outline:none; background:transparent;
+  }
+  .search:focus { border-bottom-color:var(--ink); }
+  .search::placeholder { color:#b9b9b9; }
+  svg { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
+  .edge { stroke:#ddd; stroke-width:1; }
+  .edge.on { stroke:var(--ink); stroke-width:1.4; }
+  .edge.off { opacity:.07; }
+  .edge .lab { fill:#888; font-size:8.5px; letter-spacing:.02em; }
+  .node { cursor:pointer; }
+  .node circle { fill:#fff; stroke-width:1; }
+  .node .ring { fill:none; stroke:#ccc; stroke-width:1; stroke-dasharray:2 2; opacity:0; }
+  .node.exp .ring { opacity:1; }
+  .node text { fill:var(--ink); font-size:10px; }
+  .node .cap { text-transform:uppercase; font-size:8px; letter-spacing:.08em; }
+  .node.off { opacity:.08; }
+  .node.hit circle { stroke-width:2.5; }
+  .node.hit text { font-weight:600; }
+  .node.dim { opacity:.14; }
+  .node.dragging circle { stroke-width:2; }
+  .legend {
+    position:absolute; left:24px; bottom:20px; z-index:10;
+    display:flex; flex-direction:column; gap:4px;
+    font-size:10px; color:#666;
+    background:rgba(255,255,255,.92); border:1px solid var(--line); border-radius:4px;
+    padding:9px 12px; cursor:default;
+  }
+  .legend .li { display:flex; align-items:center; gap:7px; white-space:nowrap; }
+  .legend .sw { width:8px; height:8px; border-radius:50%; }
+  .legend .li:hover { color:var(--ink); }
+  .hint {
+    position:absolute; right:24px; bottom:20px; z-index:10;
+    font-size:10px; color:#b9b9b9; letter-spacing:.04em; text-align:right; line-height:1.7;
+  }
+  footer a { color:var(--ink); text-decoration:none; border-bottom:1px solid #ccc; }
+  footer a:hover { border-bottom-color:var(--ink); }
+  /* drawer */
+  #shade { position:fixed; inset:0; background:rgba(17,17,17,.16); z-index:20; opacity:0; pointer-events:none; transition:opacity .18s; }
+  #shade.on { opacity:1; pointer-events:auto; }
+  #drawer {
+    position:fixed; top:0; right:0; bottom:0; width:430px; max-width:94vw;
+    background:#fff; border-left:1px solid var(--line); z-index:21;
+    transform:translateX(103%); transition:transform .22s ease;
+    display:flex; flex-direction:column;
+  }
+  #drawer.on { transform:none; }
+  .dhead { display:flex; align-items:center; gap:10px; padding:14px 20px; border-bottom:1px solid var(--line); }
+  .dback { font-size:10.5px; color:var(--mut); cursor:pointer; border:1px solid var(--line); border-radius:99px; padding:2px 11px; background:none; }
+  .dback:hover { color:var(--ink); border-color:#bbb; }
+  .dtitle { font-size:12px; font-weight:600; letter-spacing:.05em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .dclose { margin-left:auto; font-size:13px; color:var(--mut); cursor:pointer; border:none; background:none; padding:4px 6px; }
+  .dclose:hover { color:var(--ink); }
+  .dbody { overflow-y:auto; padding:16px 20px 32px; }
+  .dnote { font-size:11px; color:var(--mut); margin:0 0 16px; }
+  .dsec { margin:0 0 20px; }
+  .dsec h4 { font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:.16em; color:#b9b9b9; margin:0 0 8px; }
+  .kv { border-top:1px solid var(--line); }
+  .kv .r { display:flex; gap:12px; padding:5px 0; border-bottom:1px solid var(--line); font-size:11.5px; }
+  .kv .k { flex:0 0 104px; color:var(--mut); }
+  .kv .v { flex:1; word-break:break-word; }
+  .kv .v.mono { font-family:ui-monospace, Menlo, monospace; font-size:10px; }
+  .crow { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); cursor:pointer; font-size:11.5px; }
+  .crow:hover { background:var(--soft); }
+  .crow .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .crow .s { font-size:10px; color:var(--mut); flex:0 0 auto; }
+  .sw { flex:0 0 22px; height:22px; border:1px solid rgba(0,0,0,.08); border-radius:2px; }
+  .bar { height:3px; background:var(--soft); border-radius:99px; margin:3px 0 8px; }
+  .bar i { display:block; height:3px; background:var(--ink); border-radius:99px; }
+  .empty { font-size:10.5px; color:#b9b9b9; padding:3px 0; }
+  a.ext { color:var(--ink); text-decoration:none; border-bottom:1px solid #ccc; font-size:11px; }
+  a.ext:hover { border-bottom-color:var(--ink); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">Fudge <span>Knowledge Graph</span></div>
+  <input class="search" id="q" type="search" placeholder="Find: cursor, Inter, button…" autocomplete="off" spellcheck="false">
+</header>
+
+<svg id="svg">
+  <g id="world"></g>
+</svg>
+
+<div class="legend" id="legend"></div>
+<div class="hint">drag node · scroll zoom · click inspect<br>double-click expand · hover trace</div>
+
+<div id="shade"></div>
+<div id="drawer">
+  <div class="dhead">
+    <button class="dback" id="dback" hidden>←</button>
+    <div class="dtitle" id="dtitle"></div>
+    <button class="dclose" id="dclose">✕</button>
+  </div>
+  <div class="dbody" id="dbody"></div>
+</div>
+
+<script>
+/* ================= data ================= */
+
+const TOP_DOMAINS = [
+  ["https://apple.com",119],["https://dfy.co.kr",72],["https://jitter.video",61],["https://wise.com",61],
+  ["https://framer.com",56],["https://vercel.com",50],["https://figma.com",48],["https://openai.com",46],
+  ["https://zapier.com",46],["https://cursor.com",45],["https://braintrust.dev",44],["https://perplexity.ai",44],
+  ["https://claude.ai",42],["https://sanity.io",42],["https://anthropic.com",40],["https://cosmos.so",40],
+  ["https://stripe.com",40],["https://claude.com",39],["https://ahrefs.com",38],["https://anytype.io",38]
+];
+
+const CAPTURES = {
+  "https://cursor.com": [
+    [1030,"/","Cursor - The AI Code Editor",1757102317000],
+    [5973,"/","Cursor",1769067893000]
+  ],
+  "https://stripe.com": [
+    [61,"/","Stripe | Financial Infrastructure to Grow Your Revenue",1756850838000],
+    [70,"/","Stripe | Financial Infrastructure to Grow Your Revenue",1756850998000]
+  ],
+  "https://21st.dev": [
+    [8784,"/home","21st.dev — AI Agent Registry, UI Components & Developer Tools for the Agentic Internet | 21st",1775821188000],
+    [8793,"/home","21st.dev — AI Agent Registry, UI Components & Developer Tools for the Agentic Internet | 21st",1775842974000]
+  ],
+  "https://a16z.com": [
+    [7297,"/","Andreessen Horowitz | Software Is Eating the World",1772052261000],
+    [7299,"/","Andreessen Horowitz | Software Is Eating the World",1772052297000]
+  ]
+};
+
+const DEEP = {
+  8784: {
+    color_roles: [["text_primary",244,244,245,879],["text_secondary",135,135,135,54]],
+    terms: [
+      ["capability.ai_enabled",0.93],["capability.developer_api",0.9],
+      ["color.role.text_primary",0.95],["color.role.text_secondary",0.9],
+      ["density.moderate",0.8],["industry.technology_software",0.95],
+      ["interaction.data_state.populated",0.9],["offering.software_saas",0.88],
+      ["page.application.dashboard",0.82]
+    ]
+  }
+};
+
+const FAMILIES = [
+  [3,"Open Ai Sans","Dinamo Typefaces GmbH"], [4,"By Larissa Kasper Rosario Florio Dinamo","Dinamo"],
+  [12,"Nyt Karnak Condensed","Font Bureau"], [15,"Söhne Vf","Klim Type Foundry"],
+  [28,"Suisse Intl Mono","Swiss Typefaces"], [29,"Inter Tight","Rsms"],
+  [35,"Canela Condensed Web","Commercial Type Inc"], [36,"Switzer","Indian Type Foundry"],
+  [37,"Söhne Schmal","Klim Type Foundry"], [45,"Pp Neue Montreal","Pangram Pangram Foundry"],
+  [46,"Pp Kyoto","Pangram Pangram"], [47,"Pp Watch","Pangram Pangram Foundry"],
+  [52,"Pp Neue Corp","Pangram Pangram Foundry"], [58,"Figma Vf","Grilli Type"],
+  [60,"Matter","Displaay"], [65,"Clash Grotesk","Indian Type Foundry"],
+  [69,"Sf Pro","Apple Inc"], [73,"Universal Sans","Family Type"],
+  [75,"Ibm Plex Mono","Bold Monday"], [85,"Favorit","Dinamo"],
+  [87,"Gt Super Display","Grilli Type"], [95,"Abc Ginto Normal Variable","Dinamo"],
+  [96,"Gg Sans","Colophon Foundry"], [97,"Abc Ginto Discord","Dinamo"],
+  [100,"Abc Ginto Nord","Dinamo"], [109,"Inter","Rsms"]
+];
+
+const OBS = [
+  ["text_style","measured rendered-text style; no text is retained",42045],
+  ["type_role","resolved visual typography jobs",948],
+  ["font_observation","font-use observation incl. declared family and computed CSS stack",1218],
+  ["color_role","resolved interface color roles",4360],
+  ["raster_palette","screenshot-pixel palette evidence",2514],
+  ["background_property","computed background-color property evidence",19156],
+  ["gradient","typed gradient operation",199],
+  ["spacing_observation","measured spacing use/value evidence",64219],
+  ["radius_observation","measured corner-radius evidence",8748],
+  ["border_observation","measured border operation with typed side, geometry and color",88652],
+  ["shadow_observation","measured shadow operation with typed geometry and color",4484],
+  ["structure","semantic structure skeleton with crop-relative bounds",400],
+  ["media","visible media roles and treatment",0],
+  ["composition","bounded whole-capture composition measurements",0],
+  ["profile_completeness","per-family completeness and truncation state",null],
+  ["capture_set","captures related as states, viewports, or revisions",0]
+];
+
+const ENRICH = [
+  ["classification_contract","complete contract under which classifications are produced and validated"],
+  ["classification_attempt","bounded classification lifecycle metadata; prompts never stored"],
+  ["classification_state","optional-classification state for one final capture"],
+  ["contextual_projection","exact classifier ownership and support for projected color/type/structure rows"],
+  ["resolved_term","currently resolved controlled terms for a capture under the active contract",26208]
+];
+
+const RETRIEVAL = [
+  ["embedding","immutable screenshot embeddings partitioned by retrieval generation",20807],
+  ["retrieval_generation","metadata for one complete staged retrieval generation"],
+  ["query_fudge","bounded immutable queries over the public corpus"]
+];
+
+const FACETS = [
+  ["aesthetic","Aesthetic descriptor","score",7,"Soft visual descriptors stored as scored predictions, not hard tags."],
+  ["capability","Capability","multi",4,"Small controlled set of explicitly evidenced product capabilities."],
+  ["color_chroma_profile","Color chroma profile","single",5,"Overall saturation/chroma level for materially represented UI colors."],
+  ["color_hue_family","Color hue family","multi",13,"Dominant chromatic hue buckets separate from exact swatches."],
+  ["color_mode","Color mode","single",4,"Light, dark, or mixed background-surface luminance classification."],
+  ["color_palette_span","Color palette span","single",4,"Whether the palette is monochrome, limited, or multicolor."],
+  ["color_role","Contextual color role","multi",6,"Visible interface job of an exact measured color observation."],
+  ["component","UI component","occurrence",33,"Visible reusable controls, content units, overlays, and feedback elements."],
+  ["density","Information density","single",4,"Visible text, controls, records, and data marks per usable screen area."],
+  ["industry","Industry","structured",17,"Market or subject domain primarily served by the organization or product."],
+  ["interaction_component_state","Interaction component state","occurrence",2,"Visible or DOM-supported state on individual components."],
+  ["interaction_data_state","Interaction data state","single",6,"Visible state of data availability or task result."],
+  ["interaction_overlay_state","Interaction overlay state","multi",4,"Visible overlays such as modals, drawers, menus, or popovers."],
+  ["interaction_task_state","Interaction task state","multi",5,"Visible task state such as filters, selection, editing, or onboarding."],
+  ["layout_archetype","Layout archetype","single",11,"Dominant spatial arrangement of the visible UI."],
+  ["layout_feature","Layout feature","multi",4,"Secondary spatial behaviors or geometry traits."],
+  ["layout_shell","Layout shell","single",6,"Primary navigation shell visible in the capture."],
+  ["media","Media asset type","occurrence",10,"Visually meaningful media used in the captured design."],
+  ["offering","Offering type","multi",11,"Kind of product, service, organization, or publication being presented."],
+  ["page_role","Page role","single",28,"Dominant user purpose of the captured page."],
+  ["section_pattern","Section pattern","occurrence",14,"Bounded page regions with recognizable content or conversion functions."],
+  ["typography_generic","Typography generic class","multi",7,"Generic font classes detected from CSS, font files, or verified human assignment."],
+  ["typography_role","Typography role","multi",6,"Semantic role a detected font family plays in the capture."],
+  ["typography_system_size","Typography system size","single",4,"Count of meaningful text families in the visible type system."],
+  ["visual_background","Visual background","single",6,"Dominant visible background treatment."],
+  ["visual_corner","Visual corner profile","single",5,"Dominant corner treatment for bounded surfaces and controls."],
+  ["visual_surface","Visual surface","multi",5,"How bounded UI surfaces are separated or layered."],
+  ["visual_trait","Visual trait","multi",4,"Observable visual composition and decorative traits."]
+];
+
+const FACET_KINDS = {
+  aesthetic:"soft_semantic", capability:"grounded_semantic", color_chroma_profile:"computed",
+  color_hue_family:"computed", color_mode:"computed", color_palette_span:"computed", color_role:"grounded_semantic",
+  component:"observable", density:"computed", industry:"grounded_semantic", interaction_component_state:"observable",
+  interaction_data_state:"observable", interaction_overlay_state:"observable", interaction_task_state:"observable",
+  layout_archetype:"observable", layout_feature:"observable", layout_shell:"observable", media:"observable",
+  offering:"grounded_semantic", page_role:"grounded_semantic", section_pattern:"observable", typography_generic:"computed",
+  typography_role:"computed", typography_system_size:"computed", visual_background:"observable", visual_corner:"observable",
+  visual_surface:"observable", visual_trait:"observable"
+};
+
+/* term definitions injected at build time: TERMDATA = { term_id: [label, def, facet_id] } */
+const TERMDATA = {"aesthetic.corporate":["Corporate","Soft score for conventional business or enterprise visual impression.","aesthetic"],"aesthetic.editorial":["Editorial","Soft score for magazine-like or editorial visual impression.","aesthetic"],"aesthetic.experimental":["Experimental","Soft score for experimental, unconventional, or exploratory visual impression.","aesthetic"],"aesthetic.futuristic":["Futuristic","Soft score for futuristic, sci-fi, or advanced-technology visual impression.","aesthetic"],"aesthetic.luxury":["Luxury","Soft score for luxury, high-end, or premium visual impression.","aesthetic"],"aesthetic.minimal":["Minimal","Soft score for sparse, restrained, reductionist, or minimal visual impression.","aesthetic"],"aesthetic.playful":["Playful","Soft score for playful, whimsical, or informal visual impression.","aesthetic"],"capability.ai_enabled":["AI enabled","Explicit product copy or functionality indicates AI assistance or AI-powered behavior.","capability"],"capability.analytics":["Analytics","Product explicitly supports metrics, reporting, dashboards, BI, analytics, or data exploration.","capability"],"capability.developer_api":["Developer API","Product explicitly exposes an API, SDK, integration endpoint, or developer platform.","capability"],"capability.generative_ai":["Generative AI","The product explicitly generates text, images, code, audio, video, or other artifacts with AI.","capability"],"color.chroma.balanced":["Balanced chroma","Palette uses moderate chroma without being mostly neutral or vividly saturated.","color_chroma_profile"],"color.chroma.muted":["Muted chroma","Chromatic colors are present but low-saturation or subdued.","color_chroma_profile"],"color.chroma.neutral":["Neutral chroma","Palette is primarily neutral or near-neutral.","color_chroma_profile"],"color.chroma.unknown":["Unknown chroma profile","Insufficient evidence to classify palette chroma.","color_chroma_profile"],"color.chroma.vivid":["Vivid chroma","Material UI colors are high-saturation or vivid.","color_chroma_profile"],"color.hue.blue":["Blue hue","Blue chromatic regions are materially represented.","color_hue_family"],"color.hue.brown":["Brown hue","Brown chromatic regions are materially represented.","color_hue_family"],"color.hue.cyan":["Cyan hue","Cyan chromatic regions are materially represented.","color_hue_family"],"color.hue.gold":["Gold hue","Gold or metallic yellow-orange chromatic regions are materially represented.","color_hue_family"],"color.hue.green":["Green hue","Green chromatic regions are materially represented.","color_hue_family"],"color.hue.multicolor":["Multicolor","Three or more hue families are materially represented and no single family dominates.","color_hue_family"],"color.hue.neutral":["Neutral hue","Neutral, black, white, gray, or near-neutral colors are materially represented.","color_hue_family"],"color.hue.orange":["Orange hue","Orange chromatic regions are materially represented.","color_hue_family"],"color.hue.pink":["Pink hue","Pink chromatic regions are materially represented.","color_hue_family"],"color.hue.purple":["Purple hue","Purple chromatic regions are materially represented.","color_hue_family"],"color.hue.red":["Red hue","Red chromatic regions are materially represented.","color_hue_family"],"color.hue.teal":["Teal hue","Teal chromatic regions are materially represented.","color_hue_family"],"color.hue.yellow":["Yellow hue","Yellow chromatic regions are materially represented.","color_hue_family"],"color.mode.dark":["Dark mode","At least about 70 percent of inferred background-surface area has low luminance.","color_mode"],"color.mode.light":["Light mode","At least about 70 percent of inferred background-surface area has high luminance.","color_mode"],"color.mode.mixed":["Mixed mode","Neither light nor dark surface classification dominates the capture.","color_mode"],"color.mode.unknown":["Unknown color mode","Insufficient evidence to classify color mode.","color_mode"],"color.palette_span.limited":["Limited palette","Palette uses a small set of hue families.","color_palette_span"],"color.palette_span.monochrome":["Monochrome palette","Palette is dominated by one hue family or neutral scale.","color_palette_span"],"color.palette_span.multicolor":["Multicolor palette","Palette uses three or more materially represented hue families.","color_palette_span"],"color.palette_span.unknown":["Unknown palette span","Insufficient evidence to classify palette span.","color_palette_span"],"color.role.accent":["Accent color","Exact measured interface color used to emphasize an action, selection, highlight, or other focal element.","color_role"],"color.role.canvas":["Canvas color","Exact measured background color used by the outer page or selected capture canvas.","color_role"],"color.role.surface":["Primary surface color","Exact measured background color used by a prominent contained surface such as a card, panel, or section.","color_role"],"color.role.surface_secondary":["Secondary surface color","Exact measured background color used by a visibly subordinate or alternate contained surface.","color_role"],"color.role.text_primary":["Primary text color","Exact measured text color used for the main readable content or most visually prominent copy.","color_role"],"color.role.text_secondary":["Secondary text color","Exact measured text color used for visibly subordinate labels, metadata, captions, or supporting copy.","color_role"],"component.action":["Action component","Control used to trigger an action.","component"],"component.action.button":["Button","Control that triggers an action or submits a task.","component"],"component.commerce.product_gallery":["Product gallery","Product images, thumbnails, carousel, or gallery used for inspecting a product.","component"],"component.data_display":["Data display component","Component used to display content, records, values, or data.","component"],"component.data_display.card":["Card","Semantically independent bounded grouping of related content or controls.","component"],"component.data_display.chart":["Chart","Bar, line, pie, area, scatter, or other data visualization component.","component"],"component.data_display.code_block":["Code block","Preformatted code, terminal, request, response, or syntax-highlighted block.","component"],"component.data_display.data_table":["Data table","A row-and-column structure used to display comparable records or values.","component"],"component.data_display.list":["List","Repeated vertically or horizontally ordered records or content items.","component"],"component.data_display.metric_kpi":["Metric or KPI","Prominent single numeric metric, KPI, or summary value.","component"],"component.disclosure":["Disclosure and overlay component","Component that reveals, hides, or overlays content.","component"],"component.disclosure.accordion":["Accordion","Stacked disclosure rows where each item can expand or collapse content.","component"],"component.disclosure.drawer":["Drawer","Panel overlay sliding or positioned from an edge of the viewport.","component"],"component.disclosure.modal":["Modal","Dialog overlay interrupting the underlying page or app.","component"],"component.feedback":["Feedback component","Component communicating status, loading, error, empty, or system feedback.","component"],"component.feedback.alert_banner":["Alert banner","Prominent inline or page-level alert, notice, warning, error, or success banner.","component"],"component.feedback.empty_state":["Empty state","Explicit no-data or no-content state with explanatory copy or affordance.","component"],"component.feedback.skeleton":["Skeleton","Placeholder loading shapes representing content still loading.","component"],"component.input":["Input component","Control used to enter, choose, search, filter, or adjust user input.","component"],"component.input.checkbox":["Checkbox","Checkbox control for one or more independent selections.","component"],"component.input.date_picker":["Date picker","Input or picker for date, date range, or calendar selection.","component"],"component.input.filter_control":["Filter control","Control or group used to filter records, products, charts, or results.","component"],"component.input.radio":["Radio","Radio control for choosing one option from a set.","component"],"component.input.search_input":["Search input","Input control explicitly used for search.","component"],"component.input.select":["Select","Dropdown, select menu, or option picker.","component"],"component.input.text_input":["Text input","Single-line text entry control.","component"],"component.input.toggle":["Toggle","Binary switch or segmented control used for toggling state.","component"],"component.navigation":["Navigation component","Component used for page, app, or content navigation.","component"],"component.navigation.breadcrumbs":["Breadcrumbs","Hierarchical path navigation showing current location.","component"],"component.navigation.pagination":["Pagination","Controls for moving between pages of records or content.","component"],"component.navigation.side_nav":["Side navigation","Persistent side navigation component.","component"],"component.navigation.tabs":["Tabs","Tab list switching between views or panels.","component"],"component.navigation.top_nav":["Top navigation","Horizontal top navigation or header component.","component"],"density.dense":["Dense density","Many visible records, controls, words, data cells, charts, or compact content groups for the capture class.","density"],"density.moderate":["Moderate density","Neither sparse nor dense for the relevant page type and device class.","density"],"density.sparse":["Sparse density","Few content groups, substantial whitespace, no long list or table, and low visible word/control counts for the capture class.","density"],"density.unknown":["Unknown density","Insufficient evidence or unavailable metrics for density classification.","density"],"industry.consumer_products":["Consumer products","Consumer goods or non-software products not primarily represented as retail marketplaces.","industry"],"industry.creative_design":["Creative and design","Design, photography, architecture, fashion, creative studios, or visual arts.","industry"],"industry.education_research":["Education and research","Learning, schools, courses, research organizations, or academic services.","industry"],"industry.entertainment_gaming":["Entertainment and gaming","Games, streaming, music, entertainment, sports, events, or fan products.","industry"],"industry.finance_insurance":["Finance and insurance","Banking, payments, investing, insurance, accounting, payroll, or finance products.","industry"],"industry.food_beverage":["Food and beverage","Restaurants, cafes, grocery, packaged food, beverage, or food delivery.","industry"],"industry.healthcare_wellness":["Healthcare and wellness","Medical, telehealth, wellness, fitness, mental health, or health services.","industry"],"industry.media_publishing":["Media and publishing","News, magazines, blogs, publishers, podcasts, video, or editorial media.","industry"],"industry.other":["Other industry","Sufficient evidence indicates an industry outside the current vocabulary.","industry"],"industry.personal":["Personal","Personal website, resume, blog, portfolio, or individual presence.","industry"],"industry.professional_services":["Professional services","Consulting, legal, accounting, recruiting, agencies, or other professional services.","industry"],"industry.public_nonprofit":["Public and nonprofit","Government, civic, public services, nonprofit organizations, or charities.","industry"],"industry.real_estate_construction":["Real estate and construction","Real estate, property, construction, architecture services, or home improvement.","industry"],"industry.retail_ecommerce":["Retail and ecommerce","Retail brands, ecommerce stores, shopping, or direct product sales.","industry"],"industry.technology_software":["Technology and software","Software, technology platforms, developer products, infrastructure, or digital tools.","industry"],"industry.travel_hospitality":["Travel and hospitality","Travel booking, hotels, restaurants, destinations, or hospitality services.","industry"],"industry.unknown":["Unknown industry","Insufficient evidence to assign an industry.","industry"],"interaction.component_state.disabled":["Disabled component","Component is visibly or semantically disabled, preferably with DOM disabled or aria-disabled evidence.","interaction_component_state"],"interaction.component_state.selected":["Selected component","Component is visibly or DOM-confirmed selected.","interaction_component_state"],"interaction.data_state.empty":["Empty state","Explicit no-data or no-content condition is visible.","interaction_data_state"],"interaction.data_state.error":["Error state","Error message, error component, or equivalent failure evidence is visible.","interaction_data_state"],"interaction.data_state.loading":["Loading state","Skeleton, spinner, progress, or explicit loading treatment is visible.","interaction_data_state"],"interaction.data_state.normal":["Normal state","No explicit loading, empty, error, success, offline, or restricted data state is visible.","interaction_data_state"],"interaction.data_state.populated":["Populated state","Data, records, charts, products, or content are visibly populated.","interaction_data_state"],"interaction.data_state.unknown":["Unknown data state","Insufficient evidence to classify visible data state.","interaction_data_state"],"interaction.overlay_state.drawer_open":["Drawer open","A side or bottom drawer overlay is visibly open.","interaction_overlay_state"],"interaction.overlay_state.menu_open":["Menu open","A menu overlay is visibly open.","interaction_overlay_state"],"interaction.overlay_state.modal_open":["Modal open","A modal dialog overlay is visibly open.","interaction_overlay_state"],"interaction.overlay_state.popover_open":["Popover open","A popover overlay is visibly open.","interaction_overlay_state"],"interaction.task_state.editing":["Editing","Visible state indicates active editing or creation.","interaction_task_state"],"interaction.task_state.filter_applied":["Filter applied","Visible controls or chips indicate an active filter.","interaction_task_state"],"interaction.task_state.onboarding_step":["Onboarding step","Visible state indicates progress through onboarding, setup, or first-run flow.","interaction_task_state"],"interaction.task_state.search_active":["Search active","A visible query or search results state indicates active search.","interaction_task_state"],"interaction.task_state.selection_active":["Selection active","Visible state indicates selected item, plan, row, option, or object.","interaction_task_state"],"layout.archetype.card_grid":["Card grid","At least four repeated bounded units form two or more rows or columns and dominate the view.","layout_archetype"],"layout.archetype.comparison_columns":["Comparison columns","Two or more aligned alternatives are compared across equivalent attributes.","layout_archetype"],"layout.archetype.dashboard_grid":["Dashboard grid","At least three independent metric or data panels are arranged as a two-dimensional module grid.","layout_archetype"],"layout.archetype.data_table_workspace":["Data table workspace","A structured row-column data region is the principal work area.","layout_archetype"],"layout.archetype.editor_canvas":["Editor canvas","A document, design, code, media, or builder canvas is the dominant task area.","layout_archetype"],"layout.archetype.form_funnel":["Form funnel","Form entry, progress, and submission dominate the view.","layout_archetype"],"layout.archetype.list_feed":["List feed","Repeated vertically ordered records dominate the capture.","layout_archetype"],"layout.archetype.single_column_reading":["Single-column reading","A continuous reading column dominates; side regions are subordinate.","layout_archetype"],"layout.archetype.split_view":["Split view","Two adjacent primary panes each occupy roughly 30 percent or more of content width.","layout_archetype"],"layout.archetype.stacked_sections":["Stacked sections","Distinct full-width or near-full-width horizontal sections dominate the capture.","layout_archetype"],"layout.archetype.unknown":["Unknown layout archetype","Insufficient evidence to classify the primary layout archetype.","layout_archetype"],"layout.feature.contained":["Contained layout","Primary content is constrained to a centered max-width region.","layout_feature"],"layout.feature.full_bleed":["Full bleed layout","Primary visual or content regions extend to viewport edges.","layout_feature"],"layout.feature.right_rail":["Right rail","A subordinate right-side column is visible beside primary content.","layout_feature"],"layout.feature.right_rail_toc":["Right rail table of contents","A right-side table of contents or section navigation is visible.","layout_feature"],"layout.shell.bottom_nav":["Bottom navigation","A bottom navigation shell is visible, usually on mobile.","layout_shell"],"layout.shell.none":["No navigation shell","No persistent top, side, or bottom navigation shell is visible.","layout_shell"],"layout.shell.side_nav":["Side navigation","A persistent left or right navigation shell is visible.","layout_shell"],"layout.shell.top_and_side":["Top and side navigation","Both top and side navigation shells are visible.","layout_shell"],"layout.shell.top_nav":["Top navigation","A top horizontal navigation/header shell is visible.","layout_shell"],"layout.shell.unknown":["Unknown layout shell","Insufficient evidence to classify the layout shell.","layout_shell"],"media.data_visualization":["Data visualization","Chart, graph, diagram, or other data visualization materially appears as media.","media"],"media.illustration":["Illustration","Illustrative media materially appears in the capture.","media"],"media.map":["Map","Geographic, floor-plan, route, or location map materially appears.","media"],"media.none":["No material media","No visually meaningful media asset is materially present in the captured area.","media"],"media.photography":["Photography","Photographic media materially appears in the capture.","media"],"media.product_render":["Product render","Rendered product image or non-photographic product visualization materially appears.","media"],"media.product_screenshot":["Product screenshot","A screenshot or UI mockup of a product materially appears.","media"],"media.three_dimensional":["3D media","3D render, object, or three-dimensional visual treatment materially appears.","media"],"media.unknown":["Unknown media","Insufficient evidence to classify media assets.","media"],"media.video":["Video","Video is evidenced by DOM/media metadata, controls, animated capture, or multiple frames.","media"],"offering.agency":["Agency","Creative, marketing, development, or services agency.","offering"],"offering.api_platform":["API platform","Programmable API, developer platform, SDK, or infrastructure service.","offering"],"offering.ecommerce_store":["Ecommerce store","Storefront that sells products directly online.","offering"],"offering.marketplace":["Marketplace","Multi-vendor or multi-party marketplace connecting buyers and sellers.","offering"],"offering.media_publication":["Media publication","Publication, newsletter, editorial property, media brand, podcast, or video channel.","offering"],"offering.physical_product":["Physical product","A physical product, device, packaged good, or hardware item is being presented.","offering"],"offering.portfolio":["Portfolio","Individual or organization work showcase.","offering"],"offering.professional_service":["Professional service","Consulting, implementation, advisory, legal, accounting, or other professional service.","offering"],"offering.public_service":["Public service","Government, civic, nonprofit, or public-interest service.","offering"],"offering.software_saas":["Software SaaS","Subscription or hosted software product.","offering"],"offering.unknown":["Unknown offering","Insufficient evidence to assign an offering type.","offering"],"page.account":["Account page","Authentication, registration, or onboarding account flow page.","page_role"],"page.account.authentication":["Authentication","Sign-in, sign-up, password reset, or authentication-related page.","page_role"],"page.account.onboarding":["Onboarding","Account or product setup flow for first-use configuration or introduction.","page_role"],"page.application":["Application page","Signed-in or product UI where doing a task is the main purpose.","page_role"],"page.application.dashboard":["Dashboard","Application page dominated by metrics, charts, panels, summaries, or status overviews.","page_role"],"page.application.data_view":["Data view","Application page dominated by list, table, record, or data browsing work.","page_role"],"page.application.editor_workspace":["Editor workspace","Application page dominated by document, code, design, media, canvas, or builder editing.","page_role"],"page.application.settings":["Settings","Application page for account, workspace, preference, billing, or configuration settings.","page_role"],"page.commerce":["Commerce page","Shopping, product browsing, cart, or checkout page.","page_role"],"page.commerce.checkout":["Checkout","Cart, payment, shipping, order review, or checkout task page.","page_role"],"page.commerce.product_detail":["Product detail","Page for one product, plan, accommodation, or purchasable item with details and purchase action.","page_role"],"page.commerce.product_listing":["Product listing","Category, collection, search, or listing page showing multiple products for browsing or filtering.","page_role"],"page.content":["Content page","Editorial, article, blog, or resource page where reading or browsing content is the main task.","page_role"],"page.content.article":["Article page","Single long-form editorial, blog, news, or resource article.","page_role"],"page.content.index":["Content index","Listing or hub page for articles, posts, resources, or editorial entries.","page_role"],"page.documentation":["Documentation page","Developer, product, or technical documentation where explanation or reference is the main task.","page_role"],"page.documentation.api_reference":["API reference","Documentation page where endpoints, methods, parameters, request/response schemas, or code reference dominate.","page_role"],"page.documentation.article":["Documentation article","Guide, concept, tutorial, or prose documentation page.","page_role"],"page.marketing":["Marketing page","Public-facing page that introduces, explains, or converts interest in a product, service, person, or organization.","page_role"],"page.marketing.about":["About page","Page whose dominant purpose is explaining the company, team, mission, or personal background.","page_role"],"page.marketing.home":["Home page","Broad entry page that routes visitors to multiple product, content, or company destinations.","page_role"],"page.marketing.landing":["Landing page","Marketing page with a narrower conversion objective and dominant call to action.","page_role"],"page.marketing.portfolio":["Portfolio page","Page whose dominant purpose is showcasing work, case studies, projects, or personal/agency capabilities.","page_role"],"page.marketing.pricing":["Pricing page","Page whose dominant purpose is comparing plans, prices, packaging, or purchase tiers.","page_role"],"page.system":["System page","Search, error, status, or other system-level utility page.","page_role"],"page.system.error":["Error page","Not found, unavailable, failed request, or equivalent error page.","page_role"],"page.system.search_results":["Search results","Page whose dominant task is showing results for a query.","page_role"],"page.unknown":["Unknown page role","Insufficient evidence to assign a page role.","page_role"],"section.commercial":["Commercial section","Section supporting purchase, comparison, product selection, or pricing decisions.","section_pattern"],"section.commercial.comparison":["Comparison section","Section comparing products, plans, features, competitors, or alternatives.","section_pattern"],"section.commercial.pricing":["Pricing section","Section with plans, prices, billing toggles, packages, or purchase tiers.","section_pattern"],"section.content.related_content":["Related content section","Section linking to related articles, posts, resources, projects, or products.","section_pattern"],"section.conversion.cta":["CTA section","Section centered on a call to action such as starting, buying, booking, contacting, or signing up.","section_pattern"],"section.marketing":["Marketing section","Section that introduces, explains, or supports marketing conversion.","section_pattern"],"section.marketing.features":["Features section","Section listing product, service, or offering features.","section_pattern"],"section.marketing.hero":["Hero section","Prominent introductory section, usually near the top, with headline and primary action or media.","section_pattern"],"section.marketing.how_it_works":["How it works section","Section explaining process, steps, workflow, or setup.","section_pattern"],"section.marketing.logo_cloud":["Logo cloud","Row or group of customer, partner, publication, or integration logos.","section_pattern"],"section.marketing.stats":["Stats section","Section presenting quantified facts, metrics, usage numbers, or impact figures.","section_pattern"],"section.marketing.testimonials":["Testimonials section","Section grouping customer quotes, endorsements, reviews, or social proof statements.","section_pattern"],"section.structural.footer":["Footer","Bottom structural section with site links, legal links, newsletter, contact, or copyright.","section_pattern"],"section.support.faq":["FAQ section","Section containing frequently asked questions and answers.","section_pattern"],"typography.generic.display_decorative":["Display or decorative","Display, decorative, novelty, or highly expressive font class.","typography_generic"],"typography.generic.monospace":["Monospace","Monospace font class.","typography_generic"],"typography.generic.sans_serif":["Sans serif","Sans-serif font class.","typography_generic"],"typography.generic.script_handwriting":["Script or handwriting","Script, cursive, handwritten, or calligraphic font class.","typography_generic"],"typography.generic.serif":["Serif","Serif font class.","typography_generic"],"typography.generic.slab_serif":["Slab serif","Slab-serif font class.","typography_generic"],"typography.generic.unknown":["Unknown generic class","Insufficient evidence to classify the generic font class.","typography_generic"],"typography.role.body":["Body role","Font is used for body copy or paragraphs.","typography_role"],"typography.role.code":["Code role","Font is used for code, terminal text, request examples, or response examples.","typography_role"],"typography.role.display":["Display role","Font is used for display-scale text or hero headlines.","typography_role"],"typography.role.heading":["Heading role","Font is used for section or content headings.","typography_role"],"typography.role.numeric_data":["Numeric data role","Font is used for metrics, tables, tabular numbers, or quantitative data.","typography_role"],"typography.role.ui":["UI role","Font is used for controls, labels, navigation, or interface chrome.","typography_role"],"typography.system_size.multi_family":["Multi-family type system","Three or more meaningful text families are used.","typography_system_size"],"typography.system_size.paired":["Paired type system","Exactly two meaningful text families are used, each owning a stable role or at least about 10 percent of visible text.","typography_system_size"],"typography.system_size.single_family":["Single-family type system","One meaningful text family is used for visible text roles.","typography_system_size"],"typography.system_size.unknown":["Unknown type system size","Insufficient evidence to count meaningful text families.","typography_system_size"],"visual.background.gradient":["Gradient background","CSS gradient or visually detected continuous color transition covers a material region.","visual_background"],"visual.background.image":["Image background","Dominant background is photographic, illustrative, rendered, or otherwise image-based.","visual_background"],"visual.background.mixed":["Mixed background","No single background treatment dominates the capture.","visual_background"],"visual.background.pattern":["Pattern background","Dominant background uses a repeated or decorative pattern.","visual_background"],"visual.background.solid":["Solid background","Dominant background is a flat solid color.","visual_background"],"visual.background.unknown":["Unknown background","Insufficient evidence to classify the background treatment.","visual_background"],"visual.corner.mixed":["Mixed corners","Multiple corner treatments are materially represented without one dominant profile.","visual_corner"],"visual.corner.pill_dominant":["Pill-dominant corners","At least about 30 percent of prominent controls have radius close to half their height.","visual_corner"],"visual.corner.rounded":["Rounded corners","At least half of visible bounded surfaces have estimated or computed radius of about 8px or more.","visual_corner"],"visual.corner.square":["Square corners","Most prominent bounded surfaces and controls use square or near-square corners.","visual_corner"],"visual.corner.unknown":["Unknown corners","Insufficient evidence to classify corner profile.","visual_corner"],"visual.surface.border_separated":["Border-separated surfaces","Borders are a prominent mechanism for separating surfaces or content groups.","visual_surface"],"visual.surface.flat":["Flat surfaces","Primary surfaces have little visible separation through shadows, borders, or translucency.","visual_surface"],"visual.surface.layered":["Layered surfaces","Overlapping or stacked surfaces create a visible layering system.","visual_surface"],"visual.surface.shadowed":["Shadowed surfaces","Shadows materially separate cards, panels, controls, or layers.","visual_surface"],"visual.surface.translucent":["Translucent surfaces","Panels or controls use transparency or backdrop visibility.","visual_surface"],"visual.trait.backdrop_blur":["Backdrop blur","CSS backdrop-filter or equivalent translucency-plus-blur evidence is present.","visual_trait"],"visual.trait.card_heavy":["Card-heavy","At least half of primary content units are visually bounded independent surfaces.","visual_trait"],"visual.trait.grain_noise":["Grain or noise","Visible grain, noise texture, or similar raster texture is used decoratively.","visual_trait"],"visual.trait.large_type":["Large type","Largest visible non-logo text is at least 64px on desktop, 40px on mobile, or about 8 percent of viewport height.","visual_trait"]};
+
+const TYPE_COLOR = {
+  domain:"#111111", page:"#6b7280", capture:"#4263eb", obs:"#0ca678", enrich:"#7048e8",
+  facet:"#b197fc", term:"#9775fa", family:"#e8590c", designer:"#f59f00", retrieval:"#c92a2a",
+  color:"#1c7ed6", ontology:"#7048e8"
+};
+
+/* ================= graph model ================= */
+
+const nodes = [], edges = [], nodeMap = {};
+let alpha = 1;
+
+function addNode(id, type, label, data={}) {
+  if (nodeMap[id]) return nodeMap[id];
+  const n = { id, type, label, data, x:0, y:0, vx:0, vy:0, expandable:false, deep:false };
+  const p = { x: (Math.random()-.5)*400, y: (Math.random()-.5)*400 };
+  n.x = p.x; n.y = p.y;
+  nodeMap[id] = n; nodes.push(n);
+  return n;
+}
+function addEdge(s, t, lab) {
+  if (!edges.some(e => e.s === s && e.t === t)) edges.push({ s, t, lab });
+}
+function neighbors(id) {
+  const set = new Set();
+  for (const e of edges) { if (e.s === id) set.add(e.t); if (e.t === id) set.add(e.s); }
+  return set;
+}
+
+/* ---------- build initial graph ---------- */
+
+for (const [origin, n] of TOP_DOMAINS) {
+  const d = addNode("d:" + origin, "domain", origin.replace("https://",""), { origin, captures: n });
+  d.expandable = true; d.deep = true;
+}
+for (const origin of Object.keys(CAPTURES)) {
+  const p = addNode("p:" + origin, "page", origin.replace("https://","") + "/" + (CAPTURES[origin][0][1] || ""), { origin });
+  addEdge("d:" + origin, p.id, "hosts");
+  for (const [cid, path, title, t] of CAPTURES[origin]) {
+    const c = addNode("c:" + cid, "capture", title.replace(/\s*\|.*$/, ""), { id: cid, origin, path, title, captured_at: t });
+    c.deep = !!DEEP[cid];
+    addEdge(p.id, c.id, "captured");
+  }
+}
+for (const [name, desc, n] of OBS) addNode("o:" + name, "obs", name, { desc, n });
+addEdge("o:font_observation", "f:Inter", "resolves to");
+for (const [name, desc, n] of ENRICH) addNode("e:" + name, "enrich", name, { desc, n });
+addEdge("e:classification_contract", "e:classification_attempt", "runs");
+addEdge("e:classification_attempt", "e:classification_state", "ends in");
+addEdge("e:contextual_projection", "e:resolved_term", "contributes");
+for (const [name, desc, n] of RETRIEVAL) addNode("r:" + name, "retrieval", name, { desc, n });
+addEdge("r:embedding", "r:retrieval_generation", "partitioned into");
+addEdge("r:retrieval_generation", "r:query_fudge", "serves");
+for (const [id, name, vendor] of FAMILIES) {
+  const f = addNode("f:" + name, "family", name, { id, vendor });
+  f.expandable = true;
+}
+addNode("o:ontology", "ontology", "ontology_release", { desc:"versioned ontology release and registry digest", n:2 });
+for (const [fid, flabel] of FACETS) {
+  const fc = addNode("fac:" + fid, "facet", flabel, { fid });
+  fc.expandable = true;
+  addEdge("o:ontology", fc.id, "contains");
+}
+const deep = DEEP[8784];
+for (const [t, conf] of deep.terms) {
+  const tn = addNode("t:" + t, "term", TERMDATA[t] ? TERMDATA[t][0] : t, { t, conf });
+  addEdge("c:8784", tn.id, "resolves");
+  const facet = TERMDATA[t] ? TERMDATA[t][2] : null;
+  if (facet) addEdge(tn.id, "fac:" + facet, "facet of");
+}
+for (const [role, r, g, b, occ] of deep.color_roles) {
+  const cn = addNode("col:8784:" + role, "color", role, { role, r, g, b, occ });
+  addEdge("c:8784", cn.id, "measured");
+}
+
+/* ---------- expansions ---------- */
+
+function expand(n) {
+  if (!n.expandable) return;
+  n.expandable = false;
+  if (n.type === "domain") {
+    const caps = CAPTURES[n.data.origin];
+    if (caps) {
+      const p = nodeMap["p:" + n.data.origin];
+      const shown = new Set();
+      for (const [cid] of caps) shown.add("c:" + cid);
+      const pn = p || addNode("p:" + n.data.origin, "page", n.data.origin.replace("https://",""), { origin: n.data.origin });
+      if (!p) { addEdge(n.id, pn.id, "hosts"); }
+      for (const [cid, path, title, t] of caps) {
+        if (shown.has("c:" + cid)) continue;
+        const c = addNode("c:" + cid, "capture", title.replace(/\s*\|.*$/, ""), { id: cid, origin: n.data.origin, path, title, captured_at: t });
+        c.deep = !!DEEP[cid];
+        addEdge(pn.id, c.id, "captured");
+      }
+    }
+  }
+  if (n.type === "facet") {
+    const fid = n.data.fid;
+    let count = 0;
+    for (const tid in TERMDATA) {
+      if (TERMDATA[tid][2] !== fid) continue;
+      count++;
+      const tn = addNode("t:" + tid, "term", TERMDATA[tid][0], { t: tid });
+      addEdge(tn.id, n.id, "facet of");
+      const cut = tid.lastIndexOf(".");
+      if (cut > 0) {
+        const parent = tid.slice(0, cut);
+        if (TERMDATA[parent] && TERMDATA[parent][2] === fid) addEdge("t:" + parent, tn.id, "narrows");
+      }
+    }
+  }
+  if (n.type === "family") {
+    addNode("dg:" + n.data.id, "designer", n.data.vendor, { role:"vendor" });
+    addEdge(n.id, "dg:" + n.data.id, "sold by");
+  }
+  alpha = 1;
+}
+
+/* ---------- simulation ---------- */
+
+const RE = 3400, SPRING = .012, GRAV = .0012, DAMP = .86;
+function tick() {
+  if (alpha > .01) {
+    const L = edges.length ? 90 : 0;
+    for (const a of nodes) {
+      a.fx = 0; a.fy = 0;
+      for (const b of nodes) {
+        if (a === b) continue;
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const d2 = dx*dx + dy*dy + 1;
+        const f = RE / d2;
+        a.fx += dx / Math.sqrt(d2) * f; a.fy += dy / Math.sqrt(d2) * f;
+      }
+      a.fx -= a.x * GRAV; a.fy -= a.y * GRAV;
+    }
+    for (const e of edges) {
+      const a = nodeMap[e.s], b = nodeMap[e.t];
+      if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d = Math.sqrt(dx*dx + dy*dy) || 1;
+      const f = (d - L) * SPRING * alpha;
+      const ux = dx / d, uy = dy / d;
+      a.fx += ux * f; a.fy += uy * f;
+      b.fx -= ux * f; b.fy -= uy * f;
+    }
+    for (const a of nodes) {
+      a.vx = (a.vx + a.fx) * DAMP; a.vy = (a.vy + a.fy) * DAMP;
+      a.x += a.vx; a.y += a.vy;
+      const m = 14; a.vx = Math.max(-m, Math.min(m, a.vx)); a.vy = Math.max(-m, Math.min(m, a.vy));
+    }
+    alpha *= .994;
+  }
+  render();
+  requestAnimationFrame(tick);
+}
+
+/* ---------- rendering ---------- */
+
+const svg = document.getElementById("svg");
+const world = document.getElementById("world");
+const NS = "http://www.w3.org/2000/svg";
+const view = { tx: 0, ty: 0, z: 1 };
+let hovered = null;
+
+const edgeEls = new Map(), nodeEls = new Map(), labelEls = new Map();
+
+function render() {
+  world.setAttribute("transform", "translate(" + view.tx + " " + view.ty + ") scale(" + view.z + ")");
+  for (const e of edges) {
+    let g = edgeEls.get(e.s + "|" + e.t);
+    const a = nodeMap[e.s], b = nodeMap[e.t];
+    if (!a || !b) continue;
+    if (!g) {
+      g = document.createElementNS(NS, "path");
+      g.setAttribute("class", "edge");
+      const lab = document.createElementNS(NS, "text");
+      lab.setAttribute("class", "lab");
+      lab.textContent = e.lab;
+      lab.style.display = "none";
+      g.appendChild(lab);
+      world.appendChild(g);
+      edgeEls.set(e.s + "|" + e.t, g);
+    }
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const ctrl = (b.x - a.x) * .5;
+    g.setAttribute("d", "M " + a.x + " " + a.y + " C " + (a.x + ctrl) + " " + a.y + ", " + (b.x - ctrl) + " " + b.y + ", " + b.x + " " + b.y);
+    const lab = g.querySelector("text");
+    lab.setAttribute("x", mx); lab.setAttribute("y", my - 4);
+  }
+  for (const n of nodes) {
+    let g = nodeEls.get(n.id);
+    if (!g) {
+      g = document.createElementNS(NS, "g");
+      g.setAttribute("class", "node");
+      const c = document.createElementNS(NS, "circle");
+      c.setAttribute("r", n.type === "domain" || n.type === "capture" || n.type === "facet" ? 5 : 4);
+      const ring = document.createElementNS(NS, "circle");
+      ring.setAttribute("r", 9);
+      ring.setAttribute("class", "ring");
+      const t = document.createElementNS(NS, "text");
+      t.setAttribute("x", 9); t.setAttribute("y", 3.5);
+      const cap = document.createElementNS(NS, "text");
+      cap.setAttribute("x", 9); cap.setAttribute("y", 15);
+      cap.setAttribute("class", "cap");
+      g.append(ring, c, t, cap);
+      world.appendChild(g);
+      nodeEls.set(n.id, g);
+      labelEls.set(n.id, [t, cap]);
+      bindNode(g, n);
+    }
+    const c = g.querySelector("circle");
+    c.setAttribute("fill", n.type === "color" ? ("rgb(" + n.data.r + "," + n.data.g + "," + n.data.b + ")") : "#fff");
+    c.setAttribute("stroke", TYPE_COLOR[n.type] || "#111");
+    const [t, cap] = labelEls.get(n.id);
+    t.textContent = n.label;
+    cap.textContent = n.type === "color" ? (n.data.r + "," + n.data.g + "," + n.data.b) : (n.deep ? "✦ " + n.label : n.label);
+    cap.style.display = "none";
+    const show = view.z > 1.25 || hovered === n.id || (hovered && (neighbors(hovered).has(n.id)));
+    t.style.display = show ? "" : "none";
+    cap.style.display = n.type === "color" ? (show ? "" : "none") : "none";
+    g.setAttribute("transform", "translate(" + n.x + " " + n.y + ")");
+  }
+}
+
+/* ---------- interactions ---------- */
+
+let drag = null, moved = false, downAt = null;
+
+function bindNode(g, n) {
+  g.addEventListener("pointerdown", e => {
+    e.stopPropagation();
+    svg.setPointerCapture(e.pointerId);
+    drag = { n, px: e.clientX, py: e.clientY };
+    moved = false;
+    downAt = { x: e.clientX, y: e.clientY };
+  });
+  g.addEventListener("pointermove", e => {
+    if (drag && drag.n === n) {
+      const dx = (e.clientX - drag.px), dy = (e.clientY - drag.py);
+      if (Math.abs(e.clientX - downAt.x) + Math.abs(e.clientY - downAt.y) > 4) moved = true;
+      n.x += dx / view.z; n.y += dy / view.z;
+      drag.px = e.clientX; drag.py = e.clientY;
+      alpha = .6;
+    }
+  });
+  g.addEventListener("pointerup", e => {
+    if (drag && drag.n === n) {
+      if (!moved) inspect(n);
+      drag = null;
+    }
+  });
+  g.addEventListener("pointerenter", () => { hovered = n.id; alpha = Math.max(alpha, .4); });
+  g.addEventListener("pointerleave", () => { if (hovered === n.id) hovered = null; });
+  g.addEventListener("dblclick", e => { e.stopPropagation(); expand(n); });
+}
+
+svg.addEventListener("pointerdown", e => {
+  if (e.target === svg || e.target === world) {
+    svg.setPointerCapture(e.pointerId);
+    drag = { px: e.clientX, py: e.clientY, bg: true };
+  }
+});
+svg.addEventListener("pointermove", e => {
+  if (drag && drag.bg) {
+    view.tx += e.clientX - drag.px; view.ty += e.clientY - drag.py;
+    drag.px = e.clientX; drag.py = e.clientY;
+  }
+});
+svg.addEventListener("pointerup", () => { drag = null; });
+svg.addEventListener("wheel", e => {
+  e.preventDefault();
+  const f = Math.exp(-e.deltaY * .0012);
+  view.z = Math.max(.2, Math.min(4, view.z * f));
+  const rect = svg.getBoundingClientRect();
+  const mx = e.clientX - rect.left - view.tx, my = e.clientY - rect.top - view.ty;
+  view.tx += mx * (1 - f); view.ty += my * (1 - f);
+}, { passive:false });
+
+setInterval(() => {
+  if (!hovered) return;
+  const nb = neighbors(hovered);
+  for (const e of edges) {
+    const g = edgeEls.get(e.s + "|" + e.t);
+    if (!g) continue;
+    const on = e.s === hovered || e.t === hovered;
+    g.classList.toggle("on", on);
+    g.classList.toggle("off", !on);
+    const lab = g.querySelector("text");
+    lab.style.display = on && view.z > .8 ? "" : "none";
+    if (on && lab.style.display !== "none") {
+      const a = nodeMap[e.s], b = nodeMap[e.t];
+      const labx = (a.x + b.x) / 2, laby = (a.y + b.y) / 2 - 4;
+      lab.setAttribute("x", labx); lab.setAttribute("y", laby);
+    }
+  }
+  for (const n of nodes) {
+    const el = nodeEls.get(n.id);
+    if (!el) continue;
+    const on = n.id === hovered || nb.has(n.id);
+    el.classList.toggle("off", !on);
+  }
+}, 60);
+setInterval(() => {
+  if (hovered) return;
+  for (const e of edges) { const g = edgeEls.get(e.s + "|" + e.t); if (g) { g.classList.remove("on","off"); g.querySelector("text").style.display = "none"; } }
+  for (const n of nodes) { const el = nodeEls.get(n.id); if (el) el.classList.remove("off"); }
+}, 80);
+
+/* ---------- legend & search ---------- */
+
+const LEGEND = [["domain","domain"],["page","page"],["capture","capture"],["obs","observation"],["enrich","enrichment"],
+  ["facet","facet"],["term","term"],["family","font family"],["color","color role"],["retrieval","retrieval"]];
+const legendEl = document.getElementById("legend");
+legendEl.innerHTML = LEGEND.map(([t, l]) =>
+  '<div class="li" data-type="' + t + '"><span class="sw" style="background:' + TYPE_COLOR[t] + '"></span>' + l + "</div>"
+).join("");
+let typeFilter = null;
+legendEl.addEventListener("click", e => {
+  const li = e.target.closest(".li");
+  if (!li) return;
+  const t = li.dataset.type;
+  typeFilter = typeFilter === t ? null : t;
+  for (const el of legendEl.children) el.style.opacity = typeFilter && el.dataset.type !== typeFilter ? ".4" : "1";
+});
+
+const q = document.getElementById("q");
+q.addEventListener("input", () => {
+  const m = q.value.trim().toLowerCase();
+  let first = null;
+  for (const n of nodes) {
+    const el = nodeEls.get(n.id);
+    if (!el) continue;
+    const hit = m && (n.label.toLowerCase().includes(m) || (n.type === "term" && n.data.t.includes(m)));
+    const typeHit = !typeFilter || n.type === typeFilter;
+    el.classList.toggle("hit", !!hit);
+    el.classList.toggle("dim", (m && !hit) || !typeHit);
+    if (hit && !first) first = n;
+  }
+  if (first) {
+    view.tx = -first.x * view.z + innerWidth / 2;
+    view.ty = -first.y * view.z + innerHeight / 2;
+    view.z = Math.max(view.z, 1.4);
+  }
+});
+
+/* ================= drawer ================= */
+
+const drawer = document.getElementById("drawer"), shade = document.getElementById("shade");
+const dtitle = document.getElementById("dtitle"), dbody = document.getElementById("dbody");
+const dback = document.getElementById("dback"), dclose = document.getElementById("dclose");
+let navStack = [];
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function fmt(ms){ return new Date(ms).toISOString().slice(0,16).replace("T"," ") + " UTC"; }
+function openDrawer(title, html, back) {
+  dtitle.textContent = title; dbody.innerHTML = html;
+  drawer.classList.add("on"); shade.classList.add("on");
+  if (back) { navStack.push(back); dback.hidden = false; } else { navStack = []; dback.hidden = true; }
+}
+function closeDrawer(){ drawer.classList.remove("on"); shade.classList.remove("on"); navStack = []; }
+function goBack(){ if (navStack.length) { const b = navStack.pop(); navStack = []; openDrawer(b.title, b.html, b.back || null); } }
+dclose.addEventListener("click", closeDrawer);
+dback.addEventListener("click", goBack);
+shade.addEventListener("click", closeDrawer);
+
+function kvRows(rows){ return '<div class="kv">' + rows.map(r =>
+  '<div class="r"><span class="k">' + esc(r[0]) + '</span><span class="v' + (r[2] ? " mono" : "") + '">' + r[1] + "</span></div>"
+).join("") + "</div>"; }
+
+function inspect(n) {
+  if (n.type === "domain") {
+    const caps = CAPTURES[n.data.origin];
+    let html = kvRows([["origin", n.data.origin, true], ["captures", String(n.data.captures), true]]);
+    if (caps) {
+      html += '<div class="dsec"><h4>captures</h4>' + caps.map(c =>
+        '<div class="crow" onclick="viewCapture(' + c[0] + ')"><span class="t">' + esc(c[2]) + '</span><span class="s">' + esc(c[1]) + "</span></div>"
+      ).join("") + "</div>";
+    } else {
+      html += '<div class="dsec"><h4>captures</h4><div class="empty">not baked into this build — ask to add it</div></div>';
+    }
+    openDrawer("Domain", html);
+  } else if (n.type === "capture") {
+    viewCapture(n.data.id);
+  } else if (n.type === "term") {
+    const d = TERMDATA[n.data.t];
+    openDrawer("Term", d ? kvRows([
+      ["term_id", n.data.t, true],
+      ["label", d[0]],
+      ["facet", d[2]],
+      ["kind", FACET_KINDS[d[2]] || "", true],
+      ["definition", d[1]]
+    ]) : kvRows([["term_id", n.data.t, true]]));
+  } else if (n.type === "family") {
+    openDrawer("Font family", kvRows([
+      ["family_id", String(n.data.id), true],
+      ["name", n.label],
+      ["vendor", n.data.vendor]
+    ]) + '<div class="dsec"><h4>hint</h4><div class="empty">double-click to reveal vendor · releases not baked</div></div>');
+  } else if (n.type === "facet") {
+    const f = FACETS.find(x => x[0] === n.data.fid);
+    openDrawer("Facet", f ? kvRows([
+      ["facet_id", f[0], true],
+      ["label", f[1]],
+      ["cardinality", f[2], true],
+      ["terms", String(f[3]), true],
+      ["definition", f[4]]
+    ]) + '<div class="dsec"><h4>hint</h4><div class="empty">double-click the node to expand all ' + f[3] + ' terms</div></div>' : "");
+  } else if (n.type === "color") {
+    openDrawer("Color role", kvRows([
+      ["role", n.data.role],
+      ["rgb", n.data.r + ", " + n.data.g + ", " + n.data.b, true],
+      ["occurrences", String(n.data.occ), true],
+      ["capture", "8784 · 21st.dev /home", true]
+    ]));
+  } else if (n.type === "obs" || n.type === "enrich" || n.type === "retrieval" || n.type === "ontology") {
+    openDrawer(esc(n.label), kvRows([
+      ["relation", n.label, true],
+      ["description", n.data.desc || ""],
+      ["rows", n.data.n === null || n.data.n === undefined ? "present" : n.data.n.toLocaleString(), true]
+    ]));
+  } else {
+    openDrawer(esc(n.label), kvRows([["type", n.type, true]]));
+  }
+}
+
+function viewCapture(id) {
+  let origin = null, meta = null;
+  for (const [o, caps] of Object.entries(CAPTURES)) {
+    const f = caps.find(c => c[0] === id);
+    if (f) { origin = o; meta = f; break; }
+  }
+  const deep = DEEP[id];
+  let html = meta ? kvRows([
+    ["capture_id", String(id), true],
+    ["domain", origin, true],
+    ["path", meta[1], true],
+    ["title", meta[2]],
+    ["captured_at", fmt(meta[3]), true],
+    ["screenshot", '<a class="ext" href="https://pin.fontofweb.com/' + id + '" target="_blank">pin.fontofweb.com/' + id + " ↗</a>", false]
+  ]) : "";
+  if (deep) {
+    if (deep.color_roles.length) {
+      html += '<div class="dsec"><h4>color roles</h4>' + deep.color_roles.map(c =>
+        '<div class="crow"><span class="sw" style="background:rgb(' + c[1] + "," + c[2] + "," + c[3] + ')"></span><span class="t">' + esc(c[0]) + '</span><span class="s">' + c[1] + "," + c[2] + "," + c[3] + " · " + c[4] + " occ</span></div>"
+      ).join("") + "</div>";
+    }
+    if (deep.terms.length) {
+      html += '<div class="dsec"><h4>resolved terms</h4>' + deep.terms.map(t =>
+        '<div class="crow"><span class="t">' + esc(TERMDATA[t[0]] ? TERMDATA[t[0]][0] : t[0]) + '</span><span class="s">' + Math.round(t[1]*100) + "%</span></div>" +
+        '<div class="bar"><i style="width:' + Math.round(t[1]*100) + '%"></i></div>'
+      ).join("") + "</div>";
+    }
+  } else {
+    html += '<div class="dsec"><h4>deep profile</h4><div class="empty">only identity is baked for this capture — ask to add its profile</div></div>';
+  }
+  openDrawer("Capture " + id, html);
+}
+
+/* ---------- boot ---------- */
+
+requestAnimationFrame(tick);
+requestAnimationFrame(() => {
+  const b = document.body.getBoundingClientRect();
+  view.tx = b.width / 2; view.ty = b.height / 2;
+});
+</script>
+</body>
+</html>

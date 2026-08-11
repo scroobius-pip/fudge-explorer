@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fudge Ontology 1.1.0</title>
+<style>
+  :root { --ink:#111; --mut:#8a8a8a; --line:#e7e7e7; --soft:#f5f5f5; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font: 14px/1.55 -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: rgba(255,255,255,.94);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 18px 32px 14px;
+  }
+  .topline { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .title { font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; }
+  .title .ver { color: var(--mut); font-weight:400; }
+  .meta { font-size:11px; color: var(--mut); letter-spacing:.04em; }
+  .search {
+    margin-top:10px;
+    width:100%;
+    max-width:380px;
+    font: inherit;
+    font-size:13px;
+    color: var(--ink);
+    border:none; border-bottom:1px solid #ccc;
+    padding:6px 0; outline:none; background:transparent;
+  }
+  .search::placeholder { color:#b4b4b4; }
+  .search:focus { border-bottom-color: var(--ink); }
+  .hint { font-size:10px; color:#b4b4b4; letter-spacing:.08em; margin-left:8px; }
+  #board {
+    padding: 34px 32px 80px;
+    column-width: 300px;
+    column-gap: 60px;
+    column-fill: balance;
+  }
+  section.facet {
+    break-inside: avoid;
+    margin: 0 0 34px;
+  }
+  .fhead {
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 6px; margin-bottom: 10px;
+  }
+  .fname {
+    font-size:10px; font-weight:600;
+    letter-spacing:.18em; text-transform:uppercase;
+  }
+  .fside { font-size:10px; color:var(--mut); letter-spacing:.06em; white-space:nowrap; }
+  .fdef { font-size:11px; color:var(--mut); margin: 0 0 10px; }
+  .term {
+    position: relative;
+    font-size: 13px;
+    padding: 2px 6px 2px 2px;
+    margin: 0 -6px 0 0;
+    border-radius: 2px;
+    cursor: default;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .term:hover { background: var(--soft); }
+  .term .id { display:none; }
+  .children { margin: 1px 0 2px 9px; padding-left: 11px; border-left: 1px solid var(--line); }
+  .dim { opacity: .14; }
+  .hit { font-weight: 600; }
+  #tip {
+    position: fixed; z-index: 20; pointer-events: none;
+    max-width: 340px;
+    background: #fff;
+    border: 1px solid var(--line);
+    box-shadow: 0 8px 24px rgba(0,0,0,.06);
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+  #tip .tl { font-weight:600; font-size:13px; margin-bottom:2px; }
+  #tip .td { color:#444; margin-bottom:6px; }
+  #tip .tm { font-size:10.5px; color:var(--mut); letter-spacing:.02em; }
+  #tip .tm b { font-weight:600; color:#555; }
+  footer {
+    padding: 16px 32px 28px;
+    font-size: 11px; color: var(--mut); letter-spacing:.03em;
+    border-top: 1px solid var(--line);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+  #count { font-variant-numeric: tabular-nums; }
+  @media (max-width: 640px) { header, #board, footer { padding-left:20px; padding-right:20px; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="topline">
+    <div class="title">Fudge Ontology <span class="ver">1.1.0</span></div>
+    <div class="meta" id="meta"></div>
+  </div>
+  <input class="search" id="q" type="search" placeholder="Filter terms…" autocomplete="off" spellcheck="false">
+  <span class="hint">/ focus · esc clear</span>
+</header>
+
+<div id="board"></div>
+
+<footer>
+  <span id="count"></span>
+  <span>captured from the Fudge corpus</span>
+</footer>
+
+<div id="tip" hidden></div>
+
+<script>
+const FACETS = [
+  ["aesthetic", "Aesthetic descriptor", "score", "Soft visual descriptors stored as scored predictions, not hard tags.", "soft_semantic"],
+  ["capability", "Capability", "multi", "Small controlled set of explicitly evidenced product capabilities.", "grounded_semantic"],
+  ["color_chroma_profile", "Color chroma profile", "single", "Overall saturation/chroma level for materially represented UI colors.", "computed"],
+  ["color_hue_family", "Color hue family", "multi", "Dominant chromatic hue buckets separate from exact swatches.", "computed"],
+  ["color_mode", "Color mode", "single", "Light, dark, or mixed background-surface luminance classification.", "computed"],
+  ["color_palette_span", "Color palette span", "single", "Whether the palette is monochrome, limited, or multicolor.", "computed"],
+  ["color_role", "Contextual color role", "multi", "Visible interface job of an exact measured color observation, resolved only when screenshot context and the cited paint or text observation agree.", "grounded_semantic"],
+  ["component", "UI component", "occurrence", "Visible reusable controls, content units, overlays, and feedback elements.", "observable"],
+  ["density", "Information density", "single", "Visible text, controls, records, and data marks per usable screen area.", "computed"],
+  ["industry", "Industry", "structured", "Market or subject domain primarily served by the organization or product.", "grounded_semantic"],
+  ["interaction_component_state", "Interaction component state", "occurrence", "Visible or DOM-supported state on individual components.", "observable"],
+  ["interaction_data_state", "Interaction data state", "single", "Visible state of data availability or task result.", "observable"],
+  ["interaction_overlay_state", "Interaction overlay state", "multi", "Visible overlays such as modals, drawers, menus, or popovers.", "observable"],
+  ["interaction_task_state", "Interaction task state", "multi", "Visible task state such as filters, selection, editing, or onboarding.", "observable"],
+  ["layout_archetype", "Layout archetype", "single", "Dominant spatial arrangement of the visible UI.", "observable"],
+  ["layout_feature", "Layout feature", "multi", "Secondary spatial behaviors or geometry traits.", "observable"],
+  ["layout_shell", "Layout shell", "single", "Primary navigation shell visible in the capture.", "observable"],
+  ["media", "Media asset type", "occurrence", "Visually meaningful media used in the captured design.", "observable"],
+  ["offering", "Offering type", "multi", "Kind of product, service, organization, or publication being presented.", "grounded_semantic"],
+  ["page_role", "Page role", "single", "Dominant user purpose of the captured page.", "grounded_semantic"],
+  ["section_pattern", "Section pattern", "occurrence", "Bounded page regions with recognizable content or conversion functions.", "observable"],
+  ["typography_generic", "Typography generic class", "multi", "Generic font classes detected from CSS, font files, or verified human assignment.", "computed"],
+  ["typography_role", "Typography role", "multi", "Semantic role a detected font family plays in the capture.", "computed"],
+  ["typography_system_size", "Typography system size", "single", "Count of meaningful text families in the visible type system.", "computed"],
+  ["visual_background", "Visual background", "single", "Dominant visible background treatment.", "observable"],
+  ["visual_corner", "Visual corner profile", "single", "Dominant corner treatment for bounded surfaces and controls.", "observable"],
+  ["visual_surface", "Visual surface", "multi", "How bounded UI surfaces are separated or layered.", "observable"],
+  ["visual_trait", "Visual trait", "multi", "Observable visual composition and decorative traits.", "observable"]
+];
+
+const TERMS = {
+  aesthetic: [
+    ["aesthetic.corporate", "Corporate", "Soft score for conventional business or enterprise visual impression."],
+    ["aesthetic.editorial", "Editorial", "Soft score for magazine-like or editorial visual impression."],
+    ["aesthetic.experimental", "Experimental", "Soft score for experimental, unconventional, or exploratory visual impression."],
+    ["aesthetic.futuristic", "Futuristic", "Soft score for futuristic, sci-fi, or advanced-technology visual impression."],
+    ["aesthetic.luxury", "Luxury", "Soft score for luxury, high-end, or premium visual impression."],
+    ["aesthetic.minimal", "Minimal", "Soft score for sparse, restrained, reductionist, or minimal visual impression."],
+    ["aesthetic.playful", "Playful", "Soft score for playful, whimsical, or informal visual impression."]
+  ],
+  capability: [
+    ["capability.ai_enabled", "AI enabled", "Explicit product copy or functionality indicates AI assistance or AI-powered behavior."],
+    ["capability.analytics", "Analytics", "Product explicitly supports metrics, reporting, dashboards, BI, analytics, or data exploration."],
+    ["capability.developer_api", "Developer API", "Product explicitly exposes an API, SDK, integration endpoint, or developer platform."],
+    ["capability.generative_ai", "Generative AI", "The product explicitly generates text, images, code, audio, video, or other artifacts with AI."]
+  ],
+  color_chroma_profile: [
+    ["color.chroma.balanced", "Balanced chroma", "Palette uses moderate chroma without being mostly neutral or vividly saturated."],
+    ["color.chroma.muted", "Muted chroma", "Chromatic colors are present but low-saturation or subdued."],
+    ["color.chroma.neutral", "Neutral chroma", "Palette is primarily neutral or near-neutral."],
+    ["color.chroma.unknown", "Unknown chroma profile", "Insufficient evidence to classify palette chroma."],
+    ["color.chroma.vivid", "Vivid chroma", "Material UI colors are high-saturation or vivid."]
+  ],
+  color_hue_family: [
+    ["color.hue.blue", "Blue hue", "Blue chromatic regions are materially represented."],
+    ["color.hue.brown", "Brown hue", "Brown chromatic regions are materially represented."],
+    ["color.hue.cyan", "Cyan hue", "Cyan chromatic regions are materially represented."],
+    ["color.hue.gold", "Gold hue", "Gold or metallic yellow-orange chromatic regions are materially represented."],
+    ["color.hue.green", "Green hue", "Green chromatic regions are materially represented."],
+    ["color.hue.multicolor", "Multicolor", "Three or more hue families are materially represented and no single family dominates."],
+    ["color.hue.neutral", "Neutral hue", "Neutral, black, white, gray, or near-neutral colors are materially represented."],
+    ["color.hue.orange", "Orange hue", "Orange chromatic regions are materially represented."],
+    ["color.hue.pink", "Pink hue", "Pink chromatic regions are materially represented."],
+    ["color.hue.purple", "Purple hue", "Purple chromatic regions are materially represented."],
+    ["color.hue.red", "Red hue", "Red chromatic regions are materially represented."],
+    ["color.hue.teal", "Teal hue", "Teal chromatic regions are materially represented."],
+    ["color.hue.yellow", "Yellow hue", "Yellow chromatic regions are materially represented."]
+  ],
+  color_mode: [
+    ["color.mode.dark", "Dark mode", "At least about 70 percent of inferred background-surface area has low luminance."],
+    ["color.mode.light", "Light mode", "At least about 70 percent of inferred background-surface area has high luminance."],
+    ["color.mode.mixed", "Mixed mode", "Neither light nor dark surface classification dominates the capture."],
+    ["color.mode.unknown", "Unknown color mode", "Insufficient evidence to classify color mode."]
+  ],
+  color_palette_span: [
+    ["color.palette_span.limited", "Limited palette", "Palette uses a small set of hue families."],
+    ["color.palette_span.monochrome", "Monochrome palette", "Palette is dominated by one hue family or neutral scale."],
+    ["color.palette_span.multicolor", "Multicolor palette", "Palette uses three or more materially represented hue families."],
+    ["color.palette_span.unknown", "Unknown palette span", "Insufficient evidence to classify palette span."]
+  ],
+  color_role: [
+    ["color.role.accent", "Accent color", "Exact measured interface color used to emphasize an action, selection, highlight, or other focal element."],
+    ["color.role.canvas", "Canvas color", "Exact measured background color used by the outer page or selected capture canvas."],
+    ["color.role.surface", "Primary surface color", "Exact measured background color used by a prominent contained surface such as a card, panel, or section."],
+    ["color.role.surface_secondary", "Secondary surface color", "Exact measured background color used by a visibly subordinate or alternate contained surface."],
+    ["color.role.text_primary", "Primary text color", "Exact measured text color used for the main readable content or most visually prominent copy."],
+    ["color.role.text_secondary", "Secondary text color", "Exact measured text color used for visibly subordinate labels, metadata, captions, or supporting copy."]
+  ],
+  component: [
+    ["component.action", "Action component", "Control used to trigger an action."],
+    ["component.action.button", "Button", "Control that triggers an action or submits a task."],
+    ["component.commerce.product_gallery", "Product gallery", "Product images, thumbnails, carousel, or gallery used for inspecting a product."],
+    ["component.data_display", "Data display component", "Component used to display content, records, values, or data."],
+    ["component.data_display.card", "Card", "Semantically independent bounded grouping of related content or controls."],
+    ["component.data_display.chart", "Chart", "Bar, line, pie, area, scatter, or other data visualization component."],
+    ["component.data_display.code_block", "Code block", "Preformatted code, terminal, request, response, or syntax-highlighted block."],
+    ["component.data_display.data_table", "Data table", "A row-and-column structure used to display comparable records or values."],
+    ["component.data_display.list", "List", "Repeated vertically or horizontally ordered records or content items."],
+    ["component.data_display.metric_kpi", "Metric or KPI", "Prominent single numeric metric, KPI, or summary value."],
+    ["component.disclosure", "Disclosure and overlay component", "Component that reveals, hides, or overlays content."],
+    ["component.disclosure.accordion", "Accordion", "Stacked disclosure rows where each item can expand or collapse content."],
+    ["component.disclosure.drawer", "Drawer", "Panel overlay sliding or positioned from an edge of the viewport."],
+    ["component.disclosure.modal", "Modal", "Dialog overlay interrupting the underlying page or app."],
+    ["component.feedback", "Feedback component", "Component communicating status, loading, error, empty, or system feedback."],
+    ["component.feedback.alert_banner", "Alert banner", "Prominent inline or page-level alert, notice, warning, error, or success banner."],
+    ["component.feedback.empty_state", "Empty state", "Explicit no-data or no-content state with explanatory copy or affordance."],
+    ["component.feedback.skeleton", "Skeleton", "Placeholder loading shapes representing content still loading."],
+    ["component.input", "Input component", "Control used to enter, choose, search, filter, or adjust user input."],
+    ["component.input.checkbox", "Checkbox", "Checkbox control for one or more independent selections."],
+    ["component.input.date_picker", "Date picker", "Input or picker for date, date range, or calendar selection."],
+    ["component.input.filter_control", "Filter control", "Control or group used to filter records, products, charts, or results."],
+    ["component.input.radio", "Radio", "Radio control for choosing one option from a set."],
+    ["component.input.search_input", "Search input", "Input control explicitly used for search."],
+    ["component.input.select", "Select", "Dropdown, select menu, or option picker."],
+    ["component.input.text_input", "Text input", "Single-line text entry control."],
+    ["component.input.toggle", "Toggle", "Binary switch or segmented control used for toggling state."],
+    ["component.navigation", "Navigation component", "Component used for page, app, or content navigation."],
+    ["component.navigation.breadcrumbs", "Breadcrumbs", "Hierarchical path navigation showing current location."],
+    ["component.navigation.pagination", "Pagination", "Controls for moving between pages of records or content."],
+    ["component.navigation.side_nav", "Side navigation", "Persistent side navigation component."],
+    ["component.navigation.tabs", "Tabs", "Tab list switching between views or panels."],
+    ["component.navigation.top_nav", "Top navigation", "Horizontal top navigation or header component."]
+  ],
+  density: [
+    ["density.dense", "Dense density", "Many visible records, controls, words, data cells, charts, or compact content groups for the capture class."],
+    ["density.moderate", "Moderate density", "Neither sparse nor dense for the relevant page type and device class."],
+    ["density.sparse", "Sparse density", "Few content groups, substantial whitespace, no long list or table, and low visible word/control counts for the capture class."],
+    ["density.unknown", "Unknown density", "Insufficient evidence or unavailable metrics for density classification."]
+  ],
+  industry: [
+    ["industry.consumer_products", "Consumer products", "Consumer goods or non-software products not primarily represented as retail marketplaces."],
+    ["industry.creative_design", "Creative and design", "Design, photography, architecture, fashion, creative studios, or visual arts."],
+    ["industry.education_research", "Education and research", "Learning, schools, courses, research organizations, or academic services."],
+    ["industry.entertainment_gaming", "Entertainment and gaming", "Games, streaming, music, entertainment, sports, events, or fan products."],
+    ["industry.finance_insurance", "Finance and insurance", "Banking, payments, investing, insurance, accounting, payroll, or finance products."],
+    ["industry.food_beverage", "Food and beverage", "Restaurants, cafes, grocery, packaged food, beverage, or food delivery."],
+    ["industry.healthcare_wellness", "Healthcare and wellness", "Medical, telehealth, wellness, fitness, mental health, or health services."],
+    ["industry.media_publishing", "Media and publishing", "News, magazines, blogs, publishers, podcasts, video, or editorial media."],
+    ["industry.other", "Other industry", "Sufficient evidence indicates an industry outside the current vocabulary."],
+    ["industry.personal", "Personal", "Personal website, resume, blog, portfolio, or individual presence."],
+    ["industry.professional_services", "Professional services", "Consulting, legal, accounting, recruiting, agencies, or other professional services."],
+    ["industry.public_nonprofit", "Public and nonprofit", "Government, civic, public services, nonprofit organizations, or charities."],
+    ["industry.real_estate_construction", "Real estate and construction", "Real estate, property, construction, architecture services, or home improvement."],
+    ["industry.retail_ecommerce", "Retail and ecommerce", "Retail brands, ecommerce stores, shopping, or direct product sales."],
+    ["industry.technology_software", "Technology and software", "Software, technology platforms, developer products, infrastructure, or digital tools."],
+    ["industry.travel_hospitality", "Travel and hospitality", "Travel booking, hotels, restaurants, destinations, or hospitality services."],
+    ["industry.unknown", "Unknown industry", "Insufficient evidence to assign an industry."]
+  ],
+  interaction_component_state: [
+    ["interaction.component_state.disabled", "Disabled component", "Component is visibly or semantically disabled, preferably with DOM disabled or aria-disabled evidence."],
+    ["interaction.component_state.selected", "Selected component", "Component is visibly or DOM-confirmed selected."]
+  ],
+  interaction_data_state: [
+    ["interaction.data_state.empty", "Empty state", "Explicit no-data or no-content condition is visible."],
+    ["interaction.data_state.error", "Error state", "Error message, error component, or equivalent failure evidence is visible."],
+    ["interaction.data_state.loading", "Loading state", "Skeleton, spinner, progress, or explicit loading treatment is visible."],
+    ["interaction.data_state.normal", "Normal state", "No explicit loading, empty, error, success, offline, or restricted data state is visible."],
+    ["interaction.data_state.populated", "Populated state", "Data, records, charts, products, or content are visibly populated."],
+    ["interaction.data_state.unknown", "Unknown data state", "Insufficient evidence to classify visible data state."]
+  ],
+  interaction_overlay_state: [
+    ["interaction.overlay_state.drawer_open", "Drawer open", "A side or bottom drawer overlay is visibly open."],
+    ["interaction.overlay_state.menu_open", "Menu open", "A menu overlay is visibly open."],
+    ["interaction.overlay_state.modal_open", "Modal open", "A modal dialog overlay is visibly open."],
+    ["interaction.overlay_state.popover_open", "Popover open", "A popover overlay is visibly open."]
+  ],
+  interaction_task_state: [
+    ["interaction.task_state.editing", "Editing", "Visible state indicates active editing or creation."],
+    ["interaction.task_state.filter_applied", "Filter applied", "Visible controls or chips indicate an active filter."],
+    ["interaction.task_state.onboarding_step", "Onboarding step", "Visible state indicates progress through onboarding, setup, or first-run flow."],
+    ["interaction.task_state.search_active", "Search active", "A visible query or search results state indicates active search."],
+    ["interaction.task_state.selection_active", "Selection active", "Visible state indicates selected item, plan, row, option, or object."]
+  ],
+  layout_archetype: [
+    ["layout.archetype.card_grid", "Card grid", "At least four repeated bounded units form two or more rows or columns and dominate the view."],
+    ["layout.archetype.comparison_columns", "Comparison columns", "Two or more aligned alternatives are compared across equivalent attributes."],
+    ["layout.archetype.dashboard_grid", "Dashboard grid", "At least three independent metric or data panels are arranged as a two-dimensional module grid."],
+    ["layout.archetype.data_table_workspace", "Data table workspace", "A structured row-column data region is the principal work area."],
+    ["layout.archetype.editor_canvas", "Editor canvas", "A document, design, code, media, or builder canvas is the dominant task area."],
+    ["layout.archetype.form_funnel", "Form funnel", "Form entry, progress, and submission dominate the view."],
+    ["layout.archetype.list_feed", "List feed", "Repeated vertically ordered records dominate the capture."],
+    ["layout.archetype.single_column_reading", "Single-column reading", "A continuous reading column dominates; side regions are subordinate."],
+    ["layout.archetype.split_view", "Split view", "Two adjacent primary panes each occupy roughly 30 percent or more of content width."],
+    ["layout.archetype.stacked_sections", "Stacked sections", "Distinct full-width or near-full-width horizontal sections dominate the capture."],
+    ["layout.archetype.unknown", "Unknown layout archetype", "Insufficient evidence to classify the primary layout archetype."]
+  ],
+  layout_feature: [
+    ["layout.feature.contained", "Contained layout", "Primary content is constrained to a centered max-width region."],
+    ["layout.feature.full_bleed", "Full bleed layout", "Primary visual or content regions extend to viewport edges."],
+    ["layout.feature.right_rail", "Right rail", "A subordinate right-side column is visible beside primary content."],
+    ["layout.feature.right_rail_toc", "Right rail table of contents", "A right-side table of contents or section navigation is visible."]
+  ],
+  layout_shell: [
+    ["layout.shell.bottom_nav", "Bottom navigation", "A bottom navigation shell is visible, usually on mobile."],
+    ["layout.shell.none", "No navigation shell", "No persistent top, side, or bottom navigation shell is visible."],
+    ["layout.shell.side_nav", "Side navigation", "A persistent left or right navigation shell is visible."],
+    ["layout.shell.top_and_side", "Top and side navigation", "Both top and side navigation shells are visible."],
+    ["layout.shell.top_nav", "Top navigation", "A top horizontal navigation/header shell is visible."],
+    ["layout.shell.unknown", "Unknown layout shell", "Insufficient evidence to classify the layout shell."]
+  ],
+  media: [
+    ["media.data_visualization", "Data visualization", "Chart, graph, diagram, or other data visualization materially appears as media."],
+    ["media.illustration", "Illustration", "Illustrative media materially appears in the capture."],
+    ["media.map", "Map", "Geographic, floor-plan, route, or location map materially appears."],
+    ["media.none", "No material media", "No visually meaningful media asset is materially present in the captured area."],
+    ["media.photography", "Photography", "Photographic media materially appears in the capture."],
+    ["media.product_render", "Product render", "Rendered product image or non-photographic product visualization materially appears."],
+    ["media.product_screenshot", "Product screenshot", "A screenshot or UI mockup of a product materially appears."],
+    ["media.three_dimensional", "3D media", "3D render, object, or three-dimensional visual treatment materially appears."],
+    ["media.unknown", "Unknown media", "Insufficient evidence to classify media assets."],
+    ["media.video", "Video", "Video is evidenced by DOM/media metadata, controls, animated capture, or multiple frames."]
+  ],
+  offering: [
+    ["offering.agency", "Agency", "Creative, marketing, development, or services agency."],
+    ["offering.api_platform", "API platform", "Programmable API, developer platform, SDK, or infrastructure service."],
+    ["offering.ecommerce_store", "Ecommerce store", "Storefront that sells products directly online."],
+    ["offering.marketplace", "Marketplace", "Multi-vendor or multi-party marketplace connecting buyers and sellers."],
+    ["offering.media_publication", "Media publication", "Publication, newsletter, editorial property, media brand, podcast, or video channel."],
+    ["offering.physical_product", "Physical product", "A physical product, device, packaged good, or hardware item is being presented."],
+    ["offering.portfolio", "Portfolio", "Individual or organization work showcase."],
+    ["offering.professional_service", "Professional service", "Consulting, implementation, advisory, legal, accounting, or other professional service."],
+    ["offering.public_service", "Public service", "Government, civic, nonprofit, or public-interest service."],
+    ["offering.software_saas", "Software SaaS", "Subscription or hosted software product."],
+    ["offering.unknown", "Unknown offering", "Insufficient evidence to assign an offering type."]
+  ],
+  page_role: [
+    ["page.account", "Account page", "Authentication, registration, or onboarding account flow page."],
+    ["page.account.authentication", "Authentication", "Sign-in, sign-up, password reset, or authentication-related page."],
+    ["page.account.onboarding", "Onboarding", "Account or product setup flow for first-use configuration or introduction."],
+    ["page.application", "Application page", "Signed-in or product UI where doing a task is the main purpose."],
+    ["page.application.dashboard", "Dashboard", "Application page dominated by metrics, charts, panels, summaries, or status overviews."],
+    ["page.application.data_view", "Data view", "Application page dominated by list, table, record, or data browsing work."],
+    ["page.application.editor_workspace", "Editor workspace", "Application page dominated by document, code, design, media, canvas, or builder editing."],
+    ["page.application.settings", "Settings", "Application page for account, workspace, preference, billing, or configuration settings."],
+    ["page.commerce", "Commerce page", "Shopping, product browsing, cart, or checkout page."],
+    ["page.commerce.checkout", "Checkout", "Cart, payment, shipping, order review, or checkout task page."],
+    ["page.commerce.product_detail", "Product detail", "Page for one product, plan, accommodation, or purchasable item with details and purchase action."],
+    ["page.commerce.product_listing", "Product listing", "Category, collection, search, or listing page showing multiple products for browsing or filtering."],
+    ["page.content", "Content page", "Editorial, article, blog, or resource page where reading or browsing content is the main task."],
+    ["page.content.article", "Article page", "Single long-form editorial, blog, news, or resource article."],
+    ["page.content.index", "Content index", "Listing or hub page for articles, posts, resources, or editorial entries."],
+    ["page.documentation", "Documentation page", "Developer, product, or technical documentation where explanation or reference is the main task."],
+    ["page.documentation.api_reference", "API reference", "Documentation page where endpoints, methods, parameters, request/response schemas, or code reference dominate."],
+    ["page.documentation.article", "Documentation article", "Guide, concept, tutorial, or prose documentation page."],
+    ["page.marketing", "Marketing page", "Public-facing page that introduces, explains, or converts interest in a product, service, person, or organization."],
+    ["page.marketing.about", "About page", "Page whose dominant purpose is explaining the company, team, mission, or personal background."],
+    ["page.marketing.home", "Home page", "Broad entry page that routes visitors to multiple product, content, or company destinations."],
+    ["page.marketing.landing", "Landing page", "Marketing page with a narrower conversion objective and dominant call to action."],
+    ["page.marketing.portfolio", "Portfolio page", "Page whose dominant purpose is showcasing work, case studies, projects, or personal/agency capabilities."],
+    ["page.marketing.pricing", "Pricing page", "Page whose dominant purpose is comparing plans, prices, packaging, or purchase tiers."],
+    ["page.system", "System page", "Search, error, status, or other system-level utility page."],
+    ["page.system.error", "Error page", "Not found, unavailable, failed request, or equivalent error page."],
+    ["page.system.search_results", "Search results", "Page whose dominant task is showing results for a query."],
+    ["page.unknown", "Unknown page role", "Insufficient evidence to assign a page role."]
+  ],
+  section_pattern: [
+    ["section.commercial", "Commercial section", "Section supporting purchase, comparison, product selection, or pricing decisions."],
+    ["section.commercial.comparison", "Comparison section", "Section comparing products, plans, features, competitors, or alternatives."],
+    ["section.commercial.pricing", "Pricing section", "Section with plans, prices, billing toggles, packages, or purchase tiers."],
+    ["section.content.related_content", "Related content section", "Section linking to related articles, posts, resources, projects, or products."],
+    ["section.conversion.cta", "CTA section", "Section centered on a call to action such as starting, buying, booking, contacting, or signing up."],
+    ["section.marketing", "Marketing section", "Section that introduces, explains, or supports marketing conversion."],
+    ["section.marketing.features", "Features section", "Section listing product, service, or offering features."],
+    ["section.marketing.hero", "Hero section", "Prominent introductory section, usually near the top, with headline and primary action or media."],
+    ["section.marketing.how_it_works", "How it works section", "Section explaining process, steps, workflow, or setup."],
+    ["section.marketing.logo_cloud", "Logo cloud", "Row or group of customer, partner, publication, or integration logos."],
+    ["section.marketing.stats", "Stats section", "Section presenting quantified facts, metrics, usage numbers, or impact figures."],
+    ["section.marketing.testimonials", "Testimonials section", "Section grouping customer quotes, endorsements, reviews, or social proof statements."],
+    ["section.structural.footer", "Footer", "Bottom structural section with site links, legal links, newsletter, contact, or copyright."],
+    ["section.support.faq", "FAQ section", "Section containing frequently asked questions and answers."]
+  ],
+  typography_generic: [
+    ["typography.generic.display_decorative", "Display or decorative", "Display, decorative, novelty, or highly expressive font class."],
+    ["typography.generic.monospace", "Monospace", "Monospace font class."],
+    ["typography.generic.sans_serif", "Sans serif", "Sans-serif font class."],
+    ["typography.generic.script_handwriting", "Script or handwriting", "Script, cursive, handwritten, or calligraphic font class."],
+    ["typography.generic.serif", "Serif", "Serif font class."],
+    ["typography.generic.slab_serif", "Slab serif", "Slab-serif font class."],
+    ["typography.generic.unknown", "Unknown generic class", "Insufficient evidence to classify the generic font class."]
+  ],
+  typography_role: [
+    ["typography.role.body", "Body role", "Font is used for body copy or paragraphs."],
+    ["typography.role.code", "Code role", "Font is used for code, terminal text, request examples, or response examples."],
+    ["typography.role.display", "Display role", "Font is used for display-scale text or hero headlines."],
+    ["typography.role.heading", "Heading role", "Font is used for section or content headings."],
+    ["typography.role.numeric_data", "Numeric data role", "Font is used for metrics, tables, tabular numbers, or quantitative data."],
+    ["typography.role.ui", "UI role", "Font is used for controls, labels, navigation, or interface chrome."]
+  ],
+  typography_system_size: [
+    ["typography.system_size.multi_family", "Multi-family type system", "Three or more meaningful text families are used."],
+    ["typography.system_size.paired", "Paired type system", "Exactly two meaningful text families are used, each owning a stable role or at least about 10 percent of visible text."],
+    ["typography.system_size.single_family", "Single-family type system", "One meaningful text family is used for visible text roles."],
+    ["typography.system_size.unknown", "Unknown type system size", "Insufficient evidence to count meaningful text families."]
+  ],
+  visual_background: [
+    ["visual.background.gradient", "Gradient background", "CSS gradient or visually detected continuous color transition covers a material region."],
+    ["visual.background.image", "Image background", "Dominant background is photographic, illustrative, rendered, or otherwise image-based."],
+    ["visual.background.mixed", "Mixed background", "No single background treatment dominates the capture."],
+    ["visual.background.pattern", "Pattern background", "Dominant background uses a repeated or decorative pattern."],
+    ["visual.background.solid", "Solid background", "Dominant background is a flat solid color."],
+    ["visual.background.unknown", "Unknown background", "Insufficient evidence to classify the background treatment."]
+  ],
+  visual_corner: [
+    ["visual.corner.mixed", "Mixed corners", "Multiple corner treatments are materially represented without one dominant profile."],
+    ["visual.corner.pill_dominant", "Pill-dominant corners", "At least about 30 percent of prominent controls have radius close to half their height."],
+    ["visual.corner.rounded", "Rounded corners", "At least half of visible bounded surfaces have estimated or computed radius of about 8px or more."],
+    ["visual.corner.square", "Square corners", "Most prominent bounded surfaces and controls use square or near-square corners."],
+    ["visual.corner.unknown", "Unknown corners", "Insufficient evidence to classify corner profile."]
+  ],
+  visual_surface: [
+    ["visual.surface.border_separated", "Border-separated surfaces", "Borders are a prominent mechanism for separating surfaces or content groups."],
+    ["visual.surface.flat", "Flat surfaces", "Primary surfaces have little visible separation through shadows, borders, or translucency."],
+    ["visual.surface.layered", "Layered surfaces", "Overlapping or stacked surfaces create a visible layering system."],
+    ["visual.surface.shadowed", "Shadowed surfaces", "Shadows materially separate cards, panels, controls, or layers."],
+    ["visual.surface.translucent", "Translucent surfaces", "Panels or controls use transparency or backdrop visibility."]
+  ],
+  visual_trait: [
+    ["visual.trait.backdrop_blur", "Backdrop blur", "CSS backdrop-filter or equivalent translucency-plus-blur evidence is present.", "observable"],
+    ["visual.trait.card_heavy", "Card-heavy", "At least half of primary content units are visually bounded independent surfaces.", "observable"],
+    ["visual.trait.grain_noise", "Grain or noise", "Visible grain, noise texture, or similar raster texture is used decoratively.", "observable"],
+    ["visual.trait.large_type", "Large type", "Largest visible non-logo text is at least 64px on desktop, 40px on mobile, or about 8 percent of viewport height.", "computed"]
+  ]
+};
+
+const CARD_GLYPH = { score: "~", single: "1", multi: "n", occurrence: "+", structured: "{}" };
+const KIND_LABEL = { soft_semantic: "soft score", grounded_semantic: "grounded semantic", computed: "computed", observable: "observable" };
+
+const ids = new Set(Object.values(TERMS).flat().map(t => t[0]));
+const parentOf = id => {
+  const cut = id.lastIndexOf(".");
+  if (cut < 0) return null;
+  const p = id.slice(0, cut);
+  return ids.has(p) ? p : null;
+};
+
+const byFacet = facet => TERMS[facet] || [];
+const childrenOf = (facet, id) => byFacet(facet).filter(t => parentOf(t[0]) === id);
+const kindOf = (facet, term) => term.length > 3 ? term[3] : (FACETS.find(f => f[0] === facet) || [])[4];
+
+const board = document.getElementById("board");
+const tip = document.getElementById("tip");
+const q = document.getElementById("q");
+const countEl = document.getElementById("count");
+const total = Object.values(TERMS).flat().length;
+
+let query = "";
+
+function esc(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function termRow(term, facet) {
+  const [id, label, def] = term;
+  const el = document.createElement("div");
+  el.className = "term";
+  el.textContent = label;
+  el.dataset.id = id;
+  el.dataset.facet = facet;
+  el.addEventListener("mouseenter", () => showTip(el, term, facet));
+  el.addEventListener("mouseleave", hideTip);
+  return el;
+}
+
+function renderTerms(facet, parent, match) {
+  const kids = childrenOf(facet, parent);
+  const frag = document.createDocumentFragment();
+  for (const t of kids) {
+    const el = termRow(t, facet);
+    const id = t[0];
+    const isHit = match && (id.toLowerCase().includes(match) || t[1].toLowerCase().includes(match));
+    if (query && !isHit) el.classList.add("dim");
+    if (query && isHit) el.classList.add("hit");
+    frag.appendChild(el);
+    const grand = renderTerms(facet, id, match);
+    if (grand.children.length) {
+      const wrap = document.createElement("div");
+      wrap.className = "children";
+      wrap.appendChild(grand);
+      frag.appendChild(wrap);
+    }
+  }
+  return frag;
+}
+
+function render() {
+  board.innerHTML = "";
+  const match = query ? query.trim().toLowerCase() : "";
+  let hits = 0;
+  for (const [fid, flabel, card, fdef, kind] of FACETS) {
+    const terms = byFacet(fid);
+    const facetHits = match ? terms.filter(t =>
+      t[0].toLowerCase().includes(match) || t[1].toLowerCase().includes(match)
+    ).length : terms.length;
+    hits += facetHits;
+
+    const sec = document.createElement("section");
+    sec.className = "facet";
+    if (match && facetHits === 0) sec.classList.add("dim");
+
+    const head = document.createElement("div");
+    head.className = "fhead";
+    const name = document.createElement("span");
+    name.className = "fname";
+    name.textContent = flabel;
+    const side = document.createElement("span");
+    side.className = "fside";
+    side.textContent = (CARD_GLYPH[card] || "") + "  " + terms.length;
+    side.title = "cardinality: " + card + " · assignment: " + KIND_LABEL[kind];
+    head.append(name, side);
+    sec.appendChild(head);
+
+    const def = document.createElement("div");
+    def.className = "fdef";
+    def.textContent = fdef;
+    sec.appendChild(def);
+
+    sec.appendChild(renderTerms(fid, null, match));
+    board.appendChild(sec);
+  }
+  countEl.textContent = "28 facets · " + total + " terms" + (query ? "  ·  " + hits + " match" + (hits === 1 ? "" : "es") : "");
+}
+
+function showTip(el, term, facet) {
+  const [id, label, def] = term;
+  const facetDef = FACETS.find(f => f[0] === facet);
+  tip.innerHTML =
+    '<div class="tl">' + esc(label) + "</div>" +
+    '<div class="td">' + esc(def) + "</div>" +
+    '<div class="tm"><b>' + esc(facetDef[1]) + "</b> &nbsp;·&nbsp; " +
+    esc(KIND_LABEL[kindOf(facet, term)]) + "<br>" + esc(id) + "</div>";
+  tip.hidden = false;
+  const r = el.getBoundingClientRect();
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let x = r.right + 10, y = r.top;
+  if (x + tw > innerWidth - 8) x = r.left - tw - 10;
+  if (y + th > innerHeight - 8) y = innerHeight - th - 8;
+  if (x < 8) x = 8;
+  if (y < 8) y = 8;
+  tip.style.left = x + "px";
+  tip.style.top = y + "px";
+}
+
+function hideTip() { tip.hidden = true; }
+
+q.addEventListener("input", () => { query = q.value; render(); });
+addEventListener("keydown", e => {
+  if (e.key === "/" && document.activeElement !== q) { e.preventDefault(); q.focus(); }
+  if (e.key === "Escape" && document.activeElement === q) { q.value = ""; query = ""; render(); q.blur(); }
+});
+
+document.getElementById("meta").textContent = "28 facets · " + total + " terms";
+render();
+</script>
+</body>
+</html>
