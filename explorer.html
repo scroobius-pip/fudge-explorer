@@ -26,6 +26,9 @@
     --entity-neutral:#4B5563; --entity-motion:#B42318; --entity-video:#B54708;
   }
   * { box-sizing:border-box; }
+  * { scrollbar-color:var(--color-scroll-thumb, #b9c0c7) transparent; scrollbar-width:thin; }
+  :focus-visible { outline:2px solid var(--color-focus-ring, #2454c6); outline-offset:2px; }
+  ::selection { background:var(--color-selection, #dce6ff); }
   html, body { margin:0; height:100%; overflow:hidden; }
   body { background:var(--color-bg); font:14px/1.55 -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
   header { display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; padding:12px 26px 10px; border-bottom:1px solid var(--line); background:var(--color-surface); }
@@ -37,6 +40,7 @@
   .theme-select { font:inherit; font-size:10.5px; color:var(--mut); border:1px solid var(--line); border-radius:99px; background:var(--surface, var(--color-surface)); padding:2px 9px; outline:none; cursor:pointer; }
   .theme-select:hover { border-color:var(--line-strong, var(--color-line-strong)); color:var(--ink); }
   .favicon { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:3px; overflow:hidden; background:var(--color-favicon-bg); border:1px solid rgba(0,0,0,.06); flex:0 0 auto; font-size:9px; font-weight:600; color:var(--mut); }
+  .favicon.inline { width:13px; height:13px; font-size:7px; border-radius:2px; vertical-align:-2px; margin-right:3px; }
   .favicon img { width:100%; height:100%; display:block; }
   .motion-badge { color:var(--entity-motion); font-weight:600; }
   .video-badge { color:var(--entity-video); font-weight:600; }
@@ -51,7 +55,7 @@
   .res:hover, .res.hl { background:var(--soft); }
   .res .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .res .s { font-size:10px; color:var(--mut); flex:0 0 auto; }
-  #cols { display:flex; align-items:stretch; height:calc(100% - 60px); overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; }
+  #cols { display:flex; align-items:stretch; height:calc(100% - 60px); overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; overscroll-behavior-x:contain; }
   .col { flex:0 0 340px; width:340px; max-width:88vw; border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; background:var(--color-surface); }
   .col.enter { animation: slidein .16s ease; }
   @keyframes slidein { from { transform:translateX(14px); opacity:.3; } to { transform:none; opacity:1; } }
@@ -79,6 +83,10 @@
   .kv .v.mono { font-family:ui-monospace, Menlo, monospace; font-size:10px; }
   .sec h4 { font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:.16em; color:#b9b9b9; margin:16px 0 4px; display:flex; align-items:baseline; gap:8px; }
   .sec h4 .n { font-weight:500; letter-spacing:.04em; }
+  .sec h4 .section-open { margin-left:auto; flex:0 0 auto; border:0; background:none; color:#c4c4c4; font-size:8px; font-weight:400; letter-spacing:.04em; padding:0; cursor:pointer; }
+  .sec h4 .section-open:hover { color:var(--mut); }
+  .hs h3 .section-open { border:0; background:none; color:#c4c4c4; font-size:8px; font-weight:400; letter-spacing:.04em; padding:0; cursor:pointer; margin-left:4px; }
+  .hs h3 .section-open:hover { color:var(--mut); }
   .row { display:flex; align-items:baseline; gap:10px; width:100%; padding:5px 2px; border:none; border-bottom:1px solid var(--line); background:none; text-align:left; font:inherit; font-size:12px; cursor:pointer; color:var(--ink); }
   .row:hover { background:var(--soft); }
   .row .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -86,10 +94,48 @@
   .sw { flex:0 0 16px; height:16px; border:1px solid rgba(0,0,0,.1); border-radius:2px; }
   .confbar { height:3px; background:var(--soft); border-radius:99px; margin:2px 0 7px; }
   .confbar i { display:block; height:3px; background:var(--ink); border-radius:99px; }
+  .capture-row { display:grid; grid-template-columns:46px minmax(0,1fr) minmax(0,auto) 9px; align-items:center; gap:8px; width:100%; min-width:0; min-height:42px; padding:4px 2px; border:0; border-bottom:1px solid var(--line); background:transparent; cursor:pointer; overflow:hidden; text-align:left; font:inherit; color:var(--ink); }
+  .capture-row:hover { background:var(--soft); }
+  .capture-thumb { position:relative; width:46px; height:32px; display:block; overflow:hidden; border:1px solid var(--line); background:var(--color-favicon-bg, #eceff1); background-size:100% 100%; flex:0 0 auto; }
+  .capture-thumb img { position:absolute; inset:0; width:100%; height:100%; display:block; object-fit:cover; object-position:center; opacity:0; }
+  .capture-thumb img.loaded { opacity:1; }
+  .capture-thumb img.missing { display:none; }
+  .capture-row .motion-badge, .capture-row .video-badge { position:absolute; bottom:2px; z-index:2; display:grid; place-items:center; width:12px; height:12px; border:1px solid rgba(0,0,0,.2); border-radius:50%; background:rgba(255,255,255,.92); color:var(--mut); font-size:6px; line-height:1; }
+  .capture-row .motion-badge { right:2px; }
+  .capture-row .video-badge { left:2px; font-weight:650; }
+  .capture-copy { min-width:0; overflow:hidden; }
+  .capture-title, .capture-sub { display:block; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .capture-title { font-size:11.5px; }
+  .capture-sub { margin-top:1px; color:var(--mut); font-size:9px; }
+  .capture-meta { min-width:0; max-width:118px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--mut); font-size:8.7px; font-variant-numeric:tabular-nums; }
+  .row-arrow { flex:0 0 auto; color:var(--mut); font-size:12px; }
+  .grad-prev { flex:0 0 26px; height:16px; border-radius:2px; }
   .chip { display:inline-block; font-size:11px; border:1px solid var(--line); border-radius:99px; padding:2px 11px; margin:0 5px 5px 0; cursor:pointer; background:none; color:var(--ink); }
   .chip:hover { border-color:var(--color-line-strong); background:var(--soft); }
-  .shot { border:1px solid var(--line); border-radius:4px; width:100%; display:block; }
+  .shot-wrap { position:relative; min-height:80px; margin:0 0 10px; overflow:hidden; border:1px solid var(--line); border-radius:4px; background:var(--soft); background-size:100% 100%; }
+  .shot { width:100%; max-width:100%; display:block; opacity:0; }
+  .shot.loaded { opacity:1; }
+  .shot-fallback { display:none; padding:28px 12px; text-align:center; color:var(--mut); font-size:10px; }
+  .motion-player { position:relative; margin:0 0 6px; overflow:hidden; border:1px solid var(--line); border-radius:4px; background:#000; }
+  .motion-player video { display:block; width:100%; height:100%; background:#000; object-fit:contain; }
+  .media-meta { display:flex; flex-wrap:wrap; gap:5px 12px; margin:0 0 12px; color:var(--mut); font-size:9.5px; }
+  .associated-capture { border:1px solid var(--line); border-radius:4px; padding:4px 6px; margin:0 0 12px; }
+  .associated-capture .capture-row { border-bottom:0; }
+  .swatch.big { width:100%; height:64px; margin:4px 0 8px; border-radius:2px; }
+  .evidence-family-row { display:grid; grid-template-columns:minmax(0,1fr) auto 9px; align-items:center; gap:8px; min-width:0; width:100%; padding:6px 2px; border:0; border-bottom:1px solid var(--line); background:transparent; cursor:pointer; text-align:left; font:inherit; color:var(--ink); }
+  .evidence-family-row:hover { background:var(--soft); }
+  .evidence-family-copy { min-width:0; overflow:hidden; }
+  .evidence-family-title, .evidence-family-preview { display:block; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .evidence-family-title { font-size:11.5px; font-weight:500; }
+  .evidence-family-preview { margin-top:1px; color:var(--mut); font-size:9px; }
+  .evidence-count { color:var(--mut); font-size:9.5px; font-variant-numeric:tabular-nums; }
+  .palette-mini { display:flex; height:4px; margin-top:3px; overflow:hidden; border-radius:2px; }
+  .palette-mini i { display:block; flex:1; min-width:2px; }
+  .actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:6px 0 12px; }
+  .action { border:0; background:transparent; color:var(--mut); padding:0; cursor:pointer; font-size:10px; text-decoration:underline; text-underline-offset:2px; }
+  .action:hover { color:var(--ink); }
   .empty { font-size:11px; color:#b9b9b9; padding:5px 2px; }
+  @media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto!important; animation-duration:.001ms!important; transition-duration:.001ms!important; } }
   a.ext { color:var(--ink); }
   .hsrow { display:flex; align-items:baseline; gap:10px; width:100%; padding:4px 2px; border:none; border-bottom:1px solid var(--line); background:none; text-align:left; font:inherit; font-size:11.5px; cursor:pointer; color:var(--ink); }
   .hsrow:hover { background:var(--soft); }
@@ -112,8 +158,8 @@
   .raw { white-space:pre-wrap; word-break:break-word; border:1px solid var(--color-line); background:var(--color-code-bg); padding:10px; font:10px/1.55 ui-monospace,Menlo,monospace; max-height:300px; overflow:auto; }
   #cap-hover { position:fixed; z-index:1000; display:none; width:min(520px,calc(100vw - 24px)); background:var(--color-surface); border:1px solid var(--color-line-strong); box-shadow:var(--color-shadow); pointer-events:none; padding:7px; }
   #cap-hover.open { display:block; }
-  #cap-hover .imgw { position:relative; min-height:120px; max-height:50vh; background:var(--color-media-fallback, var(--soft)); overflow:hidden; display:flex; align-items:center; justify-content:center; }
-  #cap-hover img { display:block; width:100%; max-height:50vh; object-fit:contain; background:var(--color-media-fallback, var(--soft)); }
+  #cap-hover .imgw { position:relative; background:var(--color-media-fallback, var(--soft)); overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  #cap-hover img { display:block; width:100%; height:auto; max-height:62vh; object-fit:cover; background:var(--color-media-fallback, var(--soft)); }
   #cap-hover .hmeta { padding:7px 3px 1px; }
   #cap-hover .ht { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #cap-hover .hs { font-size:10px; color:var(--mut); }
@@ -148,7 +194,7 @@ const idx = { cById:new Map(), cByDomain:new Map(), termsByCap:new Map(), capsBy
   fontsByCap:new Map(), typeByCap:new Map(), famByNorm:new Map(), capsByFam:new Map(),
   famGroups:new Map(),
   textByCap:new Map(), histByCap:new Map(), structuresByCap:new Map(),
-  annByCap:new Map(), motionByCap:new Map(), videoByCap:new Map(), embeddedById:new Set(),
+  annByCap:new Map(), motionByCap:new Map(), videoByCap:new Map(), embeddedById:new Set(), gradientsByCap:new Map(),
   simRes:new Map(), catMatch:new Map(),
   cByPath:new Map(), cByTheme:new Map(), cByDevice:new Map(), cByState:new Map() };
 const colsEl = document.getElementById("cols");
@@ -159,7 +205,7 @@ const TYPE = {
   designer:{label:"designer",color:"var(--entity-designer)"}, vendor:{label:"vendor",color:"var(--entity-designer)"},
   browse:{label:"browse",color:"var(--entity-neutral)"}, index:{label:"index",color:"var(--entity-neutral)"},
   structure:{label:"structure",color:"var(--entity-structure)"}, motion:{label:"motion",color:"var(--entity-motion)"}, video:{label:"video",color:"var(--entity-video)"},
-  runtime:{label:"runtime",color:"var(--entity-neutral)"}
+  runtime:{label:"runtime",color:"var(--entity-neutral)"}, section:{label:"section",color:"var(--entity-neutral)"}
 };
 const MAXCOLS = 7;
 
@@ -175,10 +221,10 @@ function famResolve(fam){
   if (cm && cm.length && idx.fById.has(cm[0])) return idx.fById.get(cm[0]);
   return idx.famByNorm.get(k) || null;
 }
-function favicon(origin){
+function favicon(origin, inline){
   const label = String(origin||"").replace(/^https?:\/\//,"").replace(/\/$/,"").charAt(0).toUpperCase() || "·";
   const url = "https://www.google.com/s2/favicons?domain_url=" + encodeURIComponent(origin||"") + "&sz=64";
-  return '<span class="favicon"><span class="fl">' + esc(label) + '</span><img loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + esc(url) + '" alt="" onload="this.previousElementSibling.style.display=\'none\';this.style.display=\'block\'" onerror="this.remove()"></span>';
+  return '<span class="favicon' + (inline ? " inline" : "") + '"><span class="fl">' + esc(label) + '</span><img loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + esc(url) + '" alt="" onload="this.previousElementSibling.style.display=\'none\';this.style.display=\'block\'" onerror="this.remove()"></span>';
 }
 function capBadges(cid){
   const m = idx.motionByCap.get(cid);
@@ -236,6 +282,9 @@ function buildIndexes() {
     if (!idx.bgByCap.has(cid)) idx.bgByCap.set(cid, []);
     idx.bgByCap.get(cid).push([r, g, b, a, occ]);
   }
+  for (const [cid, rows] of Object.entries(D_.gradients || {})) {
+    idx.gradientsByCap.set(Number(cid), rows);
+  }
   for (const [cid, oi, fam, stack, wmin, wmax, share, occ] of D_.font_obs) {
     if (!idx.fontsByCap.has(cid)) idx.fontsByCap.set(cid, []);
     idx.fontsByCap.get(cid).push([fam, stack, wmin, wmax, share, occ]);
@@ -291,7 +340,7 @@ function buildIndexes() {
 const L = {
   term:  (tid, label) => '<a class="lk term" onclick="hop(\'term\',\'' + escId(tid) + '\',\'' + esc(String(label||termLabel(tid)||"").slice(0,40)) + '\')">' + esc(label||termLabel(tid)||tid) + "</a>",
   facet: (fid) => '<a class="lk term" onclick="hop(\'facet\',\'' + escId(fid) + '\',\'' + esc(String(fid||"").slice(0,40)) + '\')">' + esc((fid||"").replace(/_/g," ")) + "</a>",
-  dom:   (origin) => '<a class="lk dom" onclick="hop(\'domain\',\'' + escId(origin) + '\',\'' + esc(String(origin||"").replace("https://","").slice(0,40)) + '\')">' + esc((origin||"").replace("https://","")) + "</a>",
+  dom:   (origin) => '<a class="lk dom" onclick="hop(\'domain\',\'' + escId(origin) + '\',\'' + esc(String(origin||"").replace("https://","").slice(0,40)) + '\')">' + favicon(origin, true) + esc((origin||"").replace("https://","")) + "</a>",
   fam:   (id, name) => '<a class="lk fam" onclick="hop(\'family\',' + id + ',\'' + esc(String(name||"").slice(0,40)) + '\')">' + esc(name||"family " + id) + "</a>",
   cap:   (id, title) => '<a class="lk" onclick="hop(\'capture\',' + id + ',\'' + esc(String(title||"").slice(0,40)) + '\')">' + esc(title||("capture " + id)) + "</a>",
   browse:(kind, value, label) => '<a class="lk" onclick="hop(\'browse\',\'' + kind + '\',\'' + esc(String(label||value||"").slice(0,40)) + '\')">' + esc(label||value||"") + "</a>",
@@ -301,19 +350,53 @@ const L = {
 /* ---------- column stack ---------- */
 
 const cols = [];
-function retractTo(i){ while (cols.length > i + 1) cols.pop(); renderCols(false); }
-function closeCol(i){ if (i === 0) return; cols.splice(i); renderCols(false); }
+let suppressHash = false;
+function syncHash(){
+  const last = cols[cols.length-1];
+  const id = last && last.type === "browse" ? last.id + "|" + last.label : last ? String(last.id) : "";
+  const h = last && last.type !== "home" ? "#" + encodeURIComponent(last.type) + "/" + encodeURIComponent(id) : "";
+  if (location.hash === h) return;
+  suppressHash = true;
+  try {
+    history.replaceState(null, "", h || (location.pathname + location.search));
+  } catch (_) { if (h) location.hash = h; }
+  queueMicrotask(() => { suppressHash = false; });
+}
+function openHash(hash){
+  const m = String(hash || "").match(/^#([^/]+)\/(.+)$/);
+  if (!m) return false;
+  const type = decodeURIComponent(m[1]);
+  let id = decodeURIComponent(m[2]);
+  if (!VIEWS[type]) return false;
+  let label = id;
+  if (type === "capture") { const cp = idx.cById.get(Number(id)); if (cp) label = cp[3]; }
+  else if (type === "domain") label = String(id).replace("https://","");
+  else if (type === "term") label = String(termLabel(id) || id);
+  else if (type === "family") { const f = idx.fById.get(Number(id)); if (f) label = f[1]; }
+  else if (type === "browse") {
+    const sep = id.indexOf("|");
+    if (sep > 0) { label = id.slice(sep + 1); id = id.slice(0, sep); }
+  }
+  cols.length = 0;
+  cols.push({ type:"home", id:"", label:"The dataset" }, { type, id, label });
+  renderCols(false);
+  return true;
+}
+function retractTo(i){ while (cols.length > i + 1) cols.pop(); renderCols(false); syncHash(); }
+function closeCol(i){ if (i === 0) return; cols.splice(i); renderCols(false); syncHash(); }
 function hop(type, id, label){
   const last = cols[cols.length-1];
   if (last && last.type === type && last.id === id) return;
   cols.push({ type, id, label });
   if (cols.length > MAXCOLS) cols.splice(1, cols.length - MAXCOLS);
   renderCols(true);
+  syncHash();
 }
 function fresh(type, id, label){
   cols.length = 0;
   cols.push({ type:"home", id:"", label:"The dataset" }, { type, id, label });
   renderCols(true);
+  syncHash();
 }
 
 const rowsHtml = (list, fn, limit) => {
@@ -337,11 +420,79 @@ function renderCols(animate){
   colsEl.scrollLeft = colsEl.scrollWidth;
 }
 function head(c, n){
-  return '<div class="chead"><span class="dot" style="background:' + TYPE[c.type].color + '"></span>' +
+  const lead = c.type === "domain" ? favicon(c.id) : '<span class="dot" style="background:' + TYPE[c.type].color + '"></span>';
+  return '<div class="chead">' + lead +
     '<span class="t">' + esc(c.label) + '</span>' + (n ? '<span class="n">' + n + "</span>" : "") +
     (c.type !== "home" ? '<span class="x">✕</span>' : "") + "</div>";
 }
-const foot = () => '<div class="foot">' + L.index("domains","all domains") + " · " + L.index("families","all families") + " · " + L.index("facets","all facets") + " · " + L.index("runtime","runtime") + "</div>";
+const foot = () => '<div class="foot">' + L.index("domains","all domains") + " · " + L.index("families","all families") + " · " + L.index("facets","all facets") + " · " + L.browse("motion","motion","motion") + " · " + L.browse("video","video","page video") + " · " + L.index("runtime","runtime") + "</div>";
+function fmtDateTime(ms){ return new Date(ms).toLocaleString(undefined, { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }); }
+function downloadText(filename, content){
+  const url = URL.createObjectURL(new Blob([content], { type:"application/json" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const __rawCache = new Map();
+let __rawSeq = 0;
+function sectionRaw(key, cid){
+  if (key === "colors") return D_.color_roles.filter(r => r[0] === cid);
+  if (key === "backgrounds") return D_.backgrounds.filter(r => r[0] === cid);
+  if (key === "fonts") return D_.font_obs.filter(r => r[0] === cid);
+  if (key === "typography") return D_.type_roles.filter(r => r[0] === cid);
+  if (key === "text") return D_.text_styles.filter(r => r[0] === cid);
+  if (key === "structures") return D_.structures.filter(r => r[0] === cid);
+  if (key === "gradients") return (D_.gradients || {})[cid] || [];
+  if (key === "terms") return D_.assignments.filter(r => r[0] === cid);
+  if (key === "hist") return D_.hist_fonts.filter(r => r[0] === cid);
+  if (key === "ann") return (D_.ann || {})[cid] || [];
+  if (key === "video") return D_.video_observations.filter(r => r.capture_id === cid);
+  return null;
+}
+function evRow(title, preview, count, type, id, label, palette){
+  return '<button class="evidence-family-row" onclick="hop(\'' + type + '\',\'' + escId(id) + '\',\'' + esc(String(label||"").slice(0,40)) + '\')">' +
+    '<span class="evidence-family-copy"><span class="evidence-family-title">' + esc(title) + '</span>' +
+    (preview ? '<span class="evidence-family-preview">' + preview + '</span>' : "") +
+    (palette ? palette : "") +
+    '</span><span class="evidence-count">' + count + '</span><span class="row-arrow">›</span></button>';
+}
+function shade(hexStr, f){
+  const n = parseInt(hexStr.slice(1), 16);
+  const m = x => Math.max(0, Math.min(255, Math.round(x * f)));
+  return "#" + [m(n >> 16 & 255), m(n >> 8 & 255), m(n & 255)].map(x => x.toString(16).padStart(2, "0")).join("");
+}
+function gradientRow(row, bgHex){
+  const kind = row.kind || "linear";
+  const ang = row.angle_millidegrees != null ? Math.round(row.angle_millidegrees / 1000) + "°" : null;
+  const from = bgHex || "#9aa1a8", to = shade(bgHex || "#9aa1a8", 0.55);
+  const css = kind === "radial"
+    ? "radial-gradient(circle at 50% 35%, " + from + ", " + to + ")"
+    : "linear-gradient(" + (ang || 135) + "deg, " + from + ", " + to + ")";
+  const bits = [kind, ang, row.occurrence_count ? row.occurrence_count + "×" : null, String(row.evidence_kind || "").replace(/_/g, " ")].filter(Boolean).join(" · ");
+  return '<div class="row" style="cursor:default" title="' + esc(kind + " gradient" + (ang ? " at " + ang : "") + " — color stops not captured; preview seeded from dominant background") + '">' +
+    '<span class="sw grad-prev" style="background:' + css + '"></span>' +
+    '<span class="t">' + esc(kind) + (ang ? " · " + ang : "") + '</span><span class="s">' + esc(bits) + "</span></div>";
+}
+const KV = rows => '<div class="kv">' + rows.map(([k, v, mono]) =>
+  '<div class="r"><span class="k">' + k + '</span><span class="v' + (mono ? " mono" : "") + '">' + v + "</span></div>").join("") + "</div>";
+function capFallback(cp){
+  const seed = [...String(cp ? cp[1] || cp[0] : "")].reduce((s, ch) => s + ch.charCodeAt(0), 0);
+  const hue = seed % 360;
+  return 'linear-gradient(135deg,hsl(' + hue + ' 13% 25%),hsl(' + ((hue + 32) % 360) + ' 12% 62%))';
+}
+function capRow(cp, meta, note){
+  if (!cp) return "";
+  const id = cp[0];
+  const sub = (note ? note + " " : "") + esc(cp[1].replace("https://","")) + (cp[2] && cp[2] !== "/" ? " · " + esc(cp[2]) : "");
+  const m = meta || fmtDate(cp[4]) + " · " + (idx.colorsByCap.get(id)||[]).length + " colors · " + (idx.fontsByCap.get(id)||[]).length + " fonts · " + (idx.termsByCap.get(id)||[]).length + " terms";
+  return '<button class="capture-row" onclick="hop(\'capture\',' + id + ',\'' + esc(cp[3].slice(0,34)) + '\')">' +
+    '<span class="capture-thumb" style="background-image:' + capFallback(cp) + '">' +
+    '<img loading="lazy" decoding="async" src="' + esc(cp[5]) + '" alt="" onload="this.classList.add(\'loaded\')" onerror="this.classList.add(\'missing\')">' +
+    (idx.videoByCap.has(id) ? '<span class="video-badge">V</span>' : "") +
+    (idx.motionByCap.has(id) ? '<span class="motion-badge">▶</span>' : "") +
+    '</span><span class="capture-copy"><span class="capture-title">' + esc(cp[3]) + '</span><span class="capture-sub">' + sub + '</span></span>' +
+    '<span class="capture-meta">' + m + '</span><span class="row-arrow">›</span></button>';
+}
 
 /* ---------- shared bits ---------- */
 
@@ -410,10 +561,11 @@ function vMotion(c){
   const cap = idx.cById.get(cid);
   return head(c, Math.round(dur/1000) + "s") +
     '<div class="cbody">' +
-    '<div class="sec"><video src="' + esc(obj) + '" controls muted loop playsinline autoplay style="width:100%;border:1px solid var(--line);background:#000;border-radius:3px"></video></div>' +
+    '<div class="sec"><div class="motion-player" style="aspect-ratio:' + w + '/' + h + '"><video controls muted loop playsinline autoplay preload="metadata" poster="' + esc(cap ? cap[5] : "") + '" src="' + esc(obj) + '"></video></div>' +
+    '<div class="media-meta"><span>WebM</span><span>' + (dur/1000).toFixed(1) + "s</span><span>" + w + " × " + h + '</span><span>' + (bytes/1048576).toFixed(2) + " MB</span></div></div>" +
+    (cap ? '<div class="sec"><h4>capture</h4><div class="associated-capture">' + capRow(cap, "capture #" + cid) + "</div></div>" : "") +
     '<p class="prose">Recorded motion for ' + L.cap(cid, cap ? cap[3] : "capture " + cid) + ".</p>" +
     KV([
-      ["capture", cap ? L.cap(cid, "capture #" + cid) : "capture #" + cid, false],
       ["media type", mtype, true],
       ["duration", (dur/1000).toFixed(1) + "s", true],
       ["bytes", (bytes/1048576).toFixed(2) + " MB", true],
@@ -430,6 +582,7 @@ function vVideo(c){
   return head(c, Math.round(v[5]/10000) + "% coverage") +
     '<div class="cbody">' +
     '<div class="bounds-map" style="' + bg + '"><div class="bounds-box" style="left:' + (v[1]/100) + '%;top:' + (v[2]/100) + '%;width:' + (v[3]/100) + '%;height:' + (v[4]/100) + '%"></div><div class="bounds-label">video</div></div>' +
+    (cap ? '<div class="sec"><h4>capture</h4><div class="associated-capture">' + capRow(cap, "capture #" + cid) + "</div></div>" : "") +
     '<p class="prose">Measured video element in ' + L.cap(cid, cap ? cap[3] : "capture " + cid) + ".</p>" +
     KV([
       ["capture", L.cap(cid, cap ? cap[3] : "capture " + cid), false],
@@ -482,7 +635,7 @@ function vRuntime(c){
     foot() + "</div>";
 }
 
-const VIEWS = { home:vHome, domain:vDomain, capture:vCapture, term:vTerm, facet:vFacet, family:vFamily, designer:vDesigner, vendor:vVendor, browse:vBrowse, index:vIndex, structure:vStructure, motion:vMotion, video:vVideo, runtime:vRuntime };
+const VIEWS = { home:vHome, domain:vDomain, capture:vCapture, term:vTerm, facet:vFacet, family:vFamily, designer:vDesigner, vendor:vVendor, browse:vBrowse, index:vIndex, structure:vStructure, motion:vMotion, video:vVideo, runtime:vRuntime, section:vSection };
 
 function vHome(c){
   const topTerms = [...idx.capsByTerm.entries()].sort((a,b) => b[1].length - a[1].length).slice(0, 6);
@@ -494,15 +647,15 @@ function vHome(c){
     '<div class="cbody">' +
     '<p class="prose">' + D_.captures.length.toLocaleString() + " captures of " + D_.domains.length.toLocaleString() + " domains — each capture carries its measured colors, fonts, and typography, and resolves into the " + L.index("facets","28-facet taxonomy") + ". Everything here links to everything: follow values to terms, terms to captures, families to foundries." + "</p>" +
     '<div class="hs"><h3>Rich captures</h3><div class="hint">colors + fonts + type roles + terms</div>' +
-      rowsHtml(rich, cp => '<button class="hsrow" onclick="hop(\'capture\',' + cp[0] + ',\'' + esc(cp[3].slice(0,34)) + '\')"><span class="t">' + esc(cp[3]) + '</span><span class="s">' + esc(cp[1].replace("https://","")) + capBadges(cp[0]) + "</span></button>") + "</div>" +
+      rowsHtml(rich, cp => capRow(cp)) + "</div>" +
     '<div class="hs"><h3>Most used terms</h3><div class="hint">by resolved captures</div>' +
       rowsHtml(topTerms, ([tid, caps]) => '<button class="hsrow" onclick="hop(\'term\',\'' + escId(tid) + '\',\'' + esc(String(termLabel(tid)).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(tid)) + '</span><span class="s">' + caps.length + " caps</span></button>") + "</div>" +
     '<div class="hs"><h3>Largest domains</h3><div class="hint">by captures</div>' +
       rowsHtml(topDomains, ([origin, caps]) => '<button class="hsrow" onclick="hop(\'domain\',\'' + escId(origin) + '\',\'' + esc(origin.replace("https://","").slice(0,34)) + '\')"><span class="t">' + favicon(origin) + ' ' + esc(origin.replace("https://","")) + '</span><span class="s">' + caps.length + " caps</span></button>") + "</div>" +
-    '<div class="hs"><h3>Motion captures</h3><div class="hint">recorded WebM · by duration</div>' +
-      rowsHtml(motionTop, m => '<button class="hsrow" onclick="hop(\'motion\',' + m[0] + ',\'motion #' + m[0] + '\')"><span class="t">motion #' + m[0] + '</span><span class="s">' + Math.round(m[4]/1000) + "s · " + m[5] + "×" + m[6] + "</span></button>") + "</div>" +
-    '<div class="hs"><h3>Newest captures</h3><div class="hint">by capture date</div>' +
-      rowsHtml(newest, cp => '<button class="hsrow" onclick="hop(\'capture\',' + cp[0] + ',\'' + esc(cp[3].slice(0,34)) + '\')"><span class="t">' + esc(cp[3]) + '</span><span class="s">' + fmtDate(cp[4]) + "</span></button>") + "</div>" +
+    '<div class="hs"><h3>Motion captures <button class="section-open" onclick="hop(\'browse\',\'motion\',\'motion\')">open ›</button></h3><div class="hint">recorded WebM · by duration</div>' +
+      rowsHtml(motionTop, m => capRow(idx.cById.get(m[0]), "▶ " + Math.round(m[4]/1000) + "s · " + (m[3]/1048576).toFixed(1) + " MB")) + "</div>" +
+    '<div class="hs"><h3>Newest captures <button class="section-open" onclick="hop(\'browse\',\'captures\',\'captures\')">open ›</button></h3><div class="hint">by capture date</div>' +
+      rowsHtml(newest, cp => capRow(cp)) + "</div>" +
     "</div>";
 }
 
@@ -514,16 +667,29 @@ function vDomain(c){
   const topPaths = Object.entries(paths).sort((a,b) => b[1]-a[1]).slice(0, 8);
   return head(c, caps.length + " captures") +
     '<div class="cbody">' +
-    '<p class="prose">' + favicon(origin) + ' ' + L.dom(origin) + " has <b>" + caps.length + " captures</b>, newest " + fmtDate(Math.max(...caps.map(x=>x[4]))) + ". Open a capture to see its colors, fonts, and taxonomy." + "</p>" +
+    '<p class="prose">' + L.dom(origin) + " has <b>" + caps.length + " captures</b>, newest " + fmtDate(Math.max(...caps.map(x=>x[4]))) + ". Open a capture to see its colors, fonts, and taxonomy." + "</p>" +
     '<div class="sec"><h4>top paths</h4>' +
       rowsHtml(topPaths, ([p, n]) => '<button class="chip" onclick="hop(\'browse\',\'path\',\'' + escId(p) + '\')">' + esc(p || "/") + " · " + n + "</button>") + "</div>" +
     '<div class="sec"><h4>captures <span class="n">' + caps.length + '</span></h4>' +
-    rowsHtml(caps, cp =>
-      '<button class="row" onclick="hop(\'capture\',' + cp[0] + ',\'' + esc(cp[3].slice(0,34)) + '\')"><span class="t">' + esc(cp[3]) +
-      '</span><span class="s">' + fmtDate(cp[4]) + " · " + (idx.colorsByCap.get(cp[0])||[]).length + " colors · " + (idx.fontsByCap.get(cp[0])||[]).length + " fonts · " + (idx.termsByCap.get(cp[0])||[]).length + " terms" + capBadges(cp[0]) + "</span></button>", 30) + "</div>" +
+    rowsHtml(caps, cp => capRow(cp), 30) + "</div>" +
     foot() + "</div>";
 }
 
+const SECTION_DESC = {
+  colors: "Measured interface color roles with their resolved values and occurrence.",
+  backgrounds: "Dominant background color samples from the screenshot.",
+  fonts: "CSS font families with computed stacks, weight ranges and usage.",
+  typography: "Resolved typography roles — display, heading, body, UI — with family, weight and size.",
+  text: "Font family, weight and size measured per text node.",
+  structures: "Recognized page regions and interface structures with geometry.",
+  gradients: "Gradient kinds and angles measured from computed styles. Color stops are not captured.",
+  terms: "Design terms assigned from the Fudge ontology, with confidence.",
+  hist: "Legacy font attributions from earlier corpus versions.",
+  ann: "Captures with the nearest screenshot embeddings.",
+  sim: "Captures sharing the most resolved terms.",
+  samepath: "The same path captured on other domains.",
+  video: "Video elements detected in the rendered page, with geometry and coverage."
+};
 function vCapture(c){
   const id = c.id, cp = idx.cById.get(id);
   if (!cp) return head(c) + '<div class="cbody"><div class="empty">capture not found</div></div>';
@@ -537,6 +703,7 @@ function vCapture(c){
   const ann = idx.annByCap.get(id) || [];
   const motion = idx.motionByCap.get(id);
   const vids = idx.videoByCap.get(id) || [];
+  const grads = idx.gradientsByCap.get(id) || [];
   const tmap = new Map();
   for (const [fam, w, size, occ] of texts) {
     const k = norm(fam);
@@ -553,55 +720,135 @@ function vCapture(c){
   const lkTheme = cp[7] && cp[7] !== "unknown" ? L.browse("theme", cp[7], cp[7]) : "—";
   const lkDevice = cp[6] && cp[6] !== "unknown" ? L.browse("device", cp[6], cp[6]) : "—";
   const lkState = cp[8] && cp[8] !== "unknown" ? L.browse("state", cp[8], cp[8]) : "—";
-  return head(c, terms.length + " terms") +
+  const famNames = fs => [...new Set(fs.map(f => f[0]))].slice(0, 3).map(esc).join(" · ");
+  const pal = '<div class="palette-mini">' + colors.slice(0, 8).map(c => '<i style="background:' + hex(c[1], c[2], c[3]) + '"></i>').join("") + "</div>";
+  const rows = [];
+  if (motion) rows.push(evRow("Recorded motion", "▶ " + (motion[4]/1000).toFixed(1) + "s · " + motion[5] + "×" + motion[6] + " · " + (motion[3]/1048576).toFixed(1) + " MB", 1, "motion", id, "motion #" + id));
+  if (vids.length) rows.push(evRow("Page video", vids.length + " element" + (vids.length === 1 ? "" : "s") + " · max " + Math.round(Math.max(...vids.map(v => v[5]))/10000) + "%", vids.length, "section", id + ":video", "Page video"));
+  const motionGroup = rows.length ? '<div class="sec"><h4>motion</h4>' + rows.join("") + "</div>" : "";
+  const colsRows = [];
+  if (colors.length) colsRows.push(evRow("Measured colors", colors.slice(0,3).map(cl => hex(cl[1],cl[2],cl[3])).join(" · "), colors.length, "section", id + ":colors", "Measured colors", pal));
+  if (bg.length) colsRows.push(evRow("Backgrounds", bg.slice(0,2).map(b => hex(b[0],b[1],b[2])).join(" · "), bg.length, "section", id + ":backgrounds", "Backgrounds"));
+  if (fonts.length) colsRows.push(evRow("Fonts", famNames(fonts), fonts.length, "section", id + ":fonts", "Fonts"));
+  if (types.length) colsRows.push(evRow("Typography", types.slice(0,3).map(t => t[0]).join(" · "), types.length, "section", id + ":typography", "Typography"));
+  if (textAgg.length) colsRows.push(evRow("Text styles", famNames(textAgg), textAgg.length, "section", id + ":text", "Text styles"));
+  const colsGroup = colsRows.length ? '<div class="sec"><h4>colors & typography</h4>' + colsRows.join("") + "</div>" : "";
+  const layoutRows = [];
+  if (structs.length) layoutRows.push(evRow("Structures", [...new Set(structs.map(s => termLabel(s[3])))].slice(0,3).map(esc).join(" · "), structs.length, "section", id + ":structures", "Structures"));
+  if (grads.length) layoutRows.push(evRow("Gradients", [...new Set(grads.map(g => g.kind))].join(" · "), grads.length, "section", id + ":gradients", "Gradients"));
+  const layoutGroup = layoutRows.length ? '<div class="sec"><h4>layout & effects</h4>' + layoutRows.join("") + "</div>" : "";
+  const roleRows = [];
+  if (terms.length) roleRows.push(evRow("Ontology terms", terms.slice(0,3).map(([t]) => termLabel(t)).map(esc).join(" · "), terms.length, "section", id + ":terms", "Ontology terms"));
+  if (hists.length) roleRows.push(evRow("Legacy attributions", hists.slice(0,3).map(h => h[2]).map(esc).join(" · "), hists.length, "section", id + ":hist", "Legacy attributions"));
+  const roleGroup = roleRows.length ? '<div class="sec"><h4>design roles</h4>' + roleRows.join("") + "</div>" : "";
+  const simRows = [];
+  if (ann.length) simRows.push(evRow("Visual neighbors", ann.length + " nearest captures", ann.length, "section", id + ":ann", "Visual neighbors"));
+  if (sim.length) simRows.push(evRow("Similar by terms", sim.length + " captures sharing terms", sim.length, "section", id + ":sim", "Similar by terms"));
+  if (samePath.size) simRows.push(evRow("Same path elsewhere", samePath.size + " other domain" + (samePath.size === 1 ? "" : "s"), samePath.size, "section", id + ":samepath", "Same path elsewhere"));
+  const simGroup = simRows.length ? '<div class="sec"><h4>visual similarity</h4>' + simRows.join("") + "</div>" : "";
+  return head(c, "#" + id) +
     '<div class="cbody">' +
-    '<p class="prose">' + L.cap(id, "Capture #" + id) + " of " + L.dom(cp[1]) + " at " + L.browse("path", cp[2], cp[2] || "/") + ", captured " + fmtDate(cp[4]) + (cp[6] && cp[6] !== "unknown" ? " on " + lkDevice : "") + "." + "</p>" +
-    '<div class="sec"><img class="shot" loading="lazy" src="' + esc(cp[5]) + '" onerror="this.style.display=\'none\'"></div>' +
-    (colors.length ? '<div class="sec"><h4>measured colors <span class="n">' + colors.length + '</span></h4>' + rowsHtml(colors, colorRow) + "</div>" : "") +
-    (bg.length ? '<div class="sec"><h4>background</h4>' + rowsHtml(bg.slice(0,3), ([r,g,b,a,occ]) =>
-      '<div class="row" style="cursor:default"><span class="sw" style="background:' + hex(r,g,b) + '"></span><span class="t">dominant</span><span class="s">' + hex(r,g,b) + (occ ? " · " + occ : "") + "</span></div>") + "</div>" : "") +
-    (fonts.length ? '<div class="sec"><h4>fonts <span class="n">' + fonts.length + '</span></h4>' + rowsHtml(fonts, ([fam, stack, wmin, wmax, share, occ]) => {
+    '<p class="prose">' + L.cap(id, "Capture #" + id) + " of " + L.dom(cp[1]) + " at " + L.browse("path", cp[2], cp[2] || "/") + ", captured " + fmtDateTime(cp[4]) + "." + "</p>" +
+    '<div class="sec">' + (motion
+      ? '<div class="motion-player" style="aspect-ratio:' + motion[5] + '/' + motion[6] + '"><video controls muted loop playsinline autoplay preload="metadata" poster="' + esc(cp[5]) + '" src="' + esc(motion[1]) + '"></video></div>' +
+        '<div class="media-meta"><span>WebM</span><span>' + (motion[4]/1000).toFixed(1) + "s</span><span>" + motion[5] + " × " + motion[6] + '</span><span>' + (motion[3]/1048576).toFixed(2) + " MB</span></div>"
+      : '<div class="shot-wrap" style="background-image:' + capFallback(cp) + '"><div class="shot-fallback">preview unavailable</div><img class="shot" loading="lazy" decoding="async" src="' + esc(cp[5]) + '" alt="" onload="this.classList.add(\'loaded\')" onerror="this.style.display=\'none\';this.previousElementSibling.style.display=\'block\'"></div>') + "</div>" +
+    KV([
+      ["id", '<span class="mono">#' + id + "</span>", true],
+      ["domain", L.dom(cp[1]), false],
+      ["path", L.browse("path", cp[2], cp[2] || "/"), false],
+      ["captured", fmtDateTime(cp[4]), false],
+      ["device", lkDevice, false],
+      ["theme", lkTheme, false],
+      ["state", lkState, false]
+    ]) +
+    motionGroup + colsGroup + layoutGroup + roleGroup + simGroup +
+    foot() + "</div>";
+}
+
+function vSection(c){
+  const [cid, key] = String(c.id).split(":");
+  const cp = idx.cById.get(Number(cid));
+  const label = (SECTION_DESC[key] ? key : "section") + (cp ? " · " + cp[3].slice(0, 26) : "");
+  if (!cp || !SECTION_DESC[key]) return head(c) + '<div class="cbody"><div class="empty">section not found</div></div>';
+  const id = Number(cid);
+  const raw = sectionRaw(key, id);
+  let body = "";
+  if (key === "colors") {
+    body = rowsHtml(idx.colorsByCap.get(id) || [], colorRow);
+  } else if (key === "backgrounds") {
+    const bg = idx.bgByCap.get(id) || [];
+    body = (bg.length ? '<span class="sw big" style="background:' + hex(bg[0][0], bg[0][1], bg[0][2]) + '"></span>' : "") +
+      rowsHtml(bg.slice(0, 12), ([r,g,b,a,occ]) =>
+        '<div class="row" style="cursor:default"><span class="sw" style="background:' + hex(r,g,b) + '"></span><span class="t">dominant</span><span class="s">' + hex(r,g,b) + (occ ? " · " + occ : "") + "</span></div>");
+  } else if (key === "fonts") {
+    body = rowsHtml(idx.fontsByCap.get(id) || [], ([fam, stack, wmin, wmax, share, occ]) => {
       const m = famResolve(fam);
-      const nm = m ? L.fam(m[0], fam) : esc(fam);
-      return '<div class="row" style="cursor:default" title="' + esc(stack) + '"><span class="t">' + nm + '</span><span class="s">' +
+      return '<div class="row" style="cursor:default" title="' + esc(stack) + '"><span class="t">' + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' +
         (wmin !== wmax ? wmin + "–" + wmax : wmin) + (occ ? " · " + occ + "×" : "") + "</span></div>";
-    }) + "</div>" : "") +
-    (textAgg.length ? '<div class="sec"><h4>fonts · measured text <span class="n">' + textAgg.length + '</span></h4>' + rowsHtml(textAgg, ([fam, w, size, occ]) => {
+    });
+  } else if (key === "typography") {
+    body = rowsHtml(idx.typeByCap.get(id) || [], ([role, fam, w, size, lh, share]) => {
+      const m = famResolve(fam);
+      const famCss = String(fam||"").replace(/["'<>]/g,"");
+      return '<div class="row" style="cursor:default"><span class="t">' + L.term("typography.role." + role, role) + " · " + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + "</span></div>" +
+        '<div class="type-sample" style="font-family:\'' + famCss + '\',sans-serif;font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">Aa — Structure, meaning, interface.</div>';
+    });
+  } else if (key === "text") {
+    const texts = idx.textByCap.get(id) || [];
+    const tmap = new Map();
+    for (const [fam, w, size, occ] of texts) {
+      const k = norm(fam);
+      if (!tmap.has(k)) tmap.set(k, { fam, w: [], size: [], occ: 0 });
+      const e = tmap.get(k);
+      e.w.push(w); e.size.push(size); e.occ += occ;
+    }
+    const agg = [...tmap.values()].map(e => [e.fam, Math.min(...e.w.filter(Boolean)), Math.max(...e.size.filter(Boolean)), e.occ]).sort((a,b) => b[3]-a[3]);
+    body = rowsHtml(agg, ([fam, w, size, occ]) => {
       const m = famResolve(fam);
       return '<div class="row" style="cursor:default"><span class="t">' + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' + (w || "") + " · " + px(size) + (occ ? " · " + occ + "×" : "") + "</span></div>";
-    }, 10) + "</div>" : "") +
-    (hists.length ? '<div class="sec"><h4>legacy font attributions <span class="n">' + hists.length + '</span></h4>' + rowsHtml(hists, ([fid, name, sub, links]) => {
-      const m = famResolve(name);
-      return '<div class="row" style="cursor:default"><span class="t">' + (m ? L.fam(m[0], name) : esc(name)) + (sub && sub !== name ? " · " + esc(sub) : "") + '</span><span class="s">' + links + " links</span></div>";
-    }, 10) + "</div>" : "") +
-    (types.length ? '<div class="sec"><h4>typography <span class="n">' + types.length + '</span></h4>' + rowsHtml(types, ([role, fam, w, size, lh, share]) => {
-      const m = famResolve(fam);
-      const nm = m ? L.fam(m[0], fam) : esc(fam);
-      const famCss = String(fam||"").replace(/["'<>]/g,"");
-      return '<div class="row" style="cursor:default"><span class="t">' + L.term("typography.role." + role, role) + " · " + nm + '</span><span class="s">' + (w||"") + " · " + px(size) + "</span></div>" +
-        '<div class="type-sample" style="font-family:\'' + famCss + '\',sans-serif;font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">Aa — Structure, meaning, interface.</div>';
-    }) + "</div>" : "") +
-    (structs.length ? '<div class="sec"><h4>structures <span class="n">' + structs.length + '</span></h4>' + rowsHtml(structs, (r, i) =>
-      '<button class="row" onclick="hop(\'structure\',\'' + id + ":" + i + '\',\'' + esc(String(termLabel(r[3])).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(r[3])) + '</span><span class="s">' + Math.round(r[4]/100) + "% × " + Math.round(r[6]/100) + "% · " + Math.round(r[7]/10000) + "%</span></button>", 8) + "</div>" : "") +
-    (ann.length ? '<div class="sec"><h4>visual neighbors <span class="n">ANN index</span></h4>' + rowsHtml(ann, ([nid, dist]) => {
-      const nc = idx.cById.get(nid);
-      return '<button class="row" onclick="hop(\'capture\',' + nid + ',\'' + esc((nc?nc[3]:"").slice(0,34)) + '\')"><span class="t">' + esc(nc ? nc[3] : "capture " + nid) + '</span><span class="s">' + (nc ? nc[1].replace("https://","") : "") + " · " + Math.round((1-Math.min(1,dist))*100) + "%</span></button>";
-    }) + "</div>" : "") +
-    (motion ? '<div class="sec"><h4>motion</h4><button class="row" onclick="hop(\'motion\',\'' + id + '\',\'motion #' + id + '\')"><span class="t">recorded motion</span><span class="s">' + Math.round(motion[4]/1000) + "s · " + (motion[3]/1048576).toFixed(1) + " MB</span></button></div>" : "") +
-    (vids.length ? '<div class="sec"><h4>video observations <span class="n">' + vids.length + '</span></h4>' + rowsHtml(vids, (v, i) =>
-      '<button class="row" onclick="hop(\'video\',\'' + id + ":" + i + '\',\'video ' + (i+1) + '\')"><span class="t">video element ' + (i+1) + '</span><span class="s">' + Math.round(v[5]/10000) + "% coverage</span></button>", 6) + "</div>" : "") +
-    '<div class="sec"><h4>resolved terms <span class="n">' + terms.length + '</span></h4>' +
-    (terms.length ? rowsHtml(terms, ([tid, conf]) =>
+    }, 60);
+  } else if (key === "structures") {
+    body = rowsHtml(idx.structuresByCap.get(id) || [], (r, i) =>
+      '<button class="row" onclick="hop(\'structure\',\'' + id + ":" + i + '\',\'' + esc(String(termLabel(r[3])).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(r[3])) + '</span><span class="s">' + Math.round(r[4]/100) + "% × " + Math.round(r[6]/100) + "% · " + Math.round(r[7]/10000) + "%</span></button>");
+  } else if (key === "gradients") {
+    const bg0 = (idx.bgByCap.get(id)||[])[0];
+    const seed = bg0 ? hex(bg0[0], bg0[1], bg0[2]) : null;
+    body = rowsHtml(idx.gradientsByCap.get(id) || [], r => gradientRow(r, seed));
+  } else if (key === "terms") {
+    body = rowsHtml(idx.termsByCap.get(id) || [], ([tid, conf]) =>
       '<div class="row" style="cursor:default">' + termValueNote(id, tid) +
       '<span class="t">' + L.term(tid) + '</span><span class="s">' + Math.round(conf*100) + "%</span></div>" +
-      '<div class="confbar"><i style="width:' + Math.round(conf*100) + '%"></i></div>'
-    ) : '<div class="empty">no resolved terms for this capture</div>') + "</div>" +
-    (sim.length ? '<div class="sec"><h4>similar captures <span class="n">by shared terms</span></h4>' + rowsHtml(sim, ([ocid, n]) => {
-      const oc = idx.cById.get(ocid);
-      return '<button class="row" onclick="hop(\'capture\',' + ocid + ',\'' + esc((oc?oc[3]:"").slice(0,34)) + '\')"><span class="t">' + esc(oc ? oc[3] : "capture " + ocid) + '</span><span class="s">' + (oc ? oc[1].replace("https://","") : "") + " · " + n + " shared</span></button>";
-    }) + "</div>" : "") +
-    (samePath.size ? '<div class="sec"><h4>same path elsewhere <span class="n">' + samePath.size + ' domains</span></h4>' +
-      '<button class="row" onclick="hop(\'browse\',\'path\',\'' + escId(cp[2]) + '\')"><span class="t">' + L.browse("path", cp[2], cp[2] || "/") + '</span><span class="s">all ' + pathCaps.length + " captures</span></button></div>" : "") +
+      '<div class="confbar"><i style="width:' + Math.round(conf*100) + '%"></i></div>');
+  } else if (key === "hist") {
+    body = rowsHtml(idx.histByCap.get(id) || [], ([fid, name, sub, links]) => {
+      const m = famResolve(name);
+      return '<div class="row" style="cursor:default"><span class="t">' + (m ? L.fam(m[0], name) : esc(name)) + (sub && sub !== name ? " · " + esc(sub) : "") + '</span><span class="s">' + links + " links</span></div>";
+    });
+  } else if (key === "ann") {
+    body = rowsHtml(idx.annByCap.get(id) || [], ([nid, dist]) =>
+      capRow(idx.cById.get(nid), Math.round((1-Math.min(1,dist))*100) + "% similar"));
+  } else if (key === "sim") {
+    body = rowsHtml(similarCaptures(id), ([ocid, n]) => capRow(idx.cById.get(ocid), n + " shared terms"));
+  } else if (key === "samepath") {
+    const pathCaps = idx.cByPath.get(cp[2]) || [];
+    body = rowsHtml(pathCaps.filter(x => x[1] !== cp[1]), x => capRow(x), 60);
+  } else if (key === "video") {
+    body = rowsHtml(idx.videoByCap.get(id) || [], (v, i) =>
+      '<button class="row" onclick="hop(\'video\',\'' + id + ":" + i + '\',\'video ' + (i+1) + '\')"><span class="t">video element ' + (i+1) + '</span><span class="s">' + Math.round(v[5]/10000) + "% coverage</span></button>");
+  }
+  const rawId = raw ? ++__rawSeq : 0;
+  if (raw) __rawCache.set(rawId, raw);
+  let count = raw ? raw.length : 0;
+  if (key === "sim") count = similarCaptures(id).length;
+  if (key === "samepath") count = (idx.cByPath.get(cp[2]) || []).filter(x => x[1] !== cp[1]).length;
+  return head({ type:"section", id:c.id, label }, count) +
+    '<div class="cbody">' +
+    '<div class="sec"><div class="associated-capture">' + capRow(cp, "capture #" + id) + "</div></div>" +
+    '<p class="prose">' + SECTION_DESC[key] + "</p>" +
+    '<div class="sec"><h4>' + (key === "samepath" ? "same path" : key.replace(/_/g, " ")) + ' <span class="n">' + count + '</span></h4>' +
+    (body || '<div class="empty">no data for this capture</div>') + "</div>" +
+    (raw ? '<div class="sec"><h4>JSON</h4><div class="actions"><button class="action" onclick="downloadText(\'capture-' + id + '-' + key + '.json\', JSON.stringify(__rawCache.get(' + rawId + ')))">download JSON</button></div><pre class="raw">' + esc(JSON.stringify(raw, null, 2)) + "</pre></div>" : "") +
     foot() + "</div>";
 }
 
@@ -616,9 +863,7 @@ function vTerm(c){
     '<div class="sec"><h4>captures <span class="n">' + caps.length + '</span></h4>' +
     (caps.length ? rowsHtml(caps, ([cid, conf]) => {
       const cp = idx.cById.get(cid);
-      const val = termValueNote(cid, tid);
-      return '<div class="row" style="cursor:default">' + val +
-        '<span class="t">' + L.cap(cid, cp ? cp[3] : "capture " + cid) + '</span><span class="s">' + (cp ? cp[1].replace("https://","") : "") + " · " + Math.round(conf*100) + "%</span></div>";
+      return capRow(cp, Math.round(conf*100) + "%", termValueNote(cid, tid));
     }, 60) : '<div class="empty">no captures resolved to this term</div>') + "</div>" +
     '<div class="sec"><h4>other terms in ' + esc(termFacet(tid)) + '</h4>' +
       rowsHtml(Object.keys(D_.terms).filter(t => termFacet(t) === termFacet(tid) && t !== tid).sort(), ot =>
@@ -672,10 +917,8 @@ function vFamily(c){
       '<button class="row" onclick="hop(\'family\',' + x[0] + ',\'' + esc(x[1].slice(0,34)) + '\')"><span class="t">' + esc(x[1]) + '</span><span class="s">#' + x[0] + "</span></button>", 8) + "</div>" : "") +
     (sameV.length ? '<div class="sec"><h4>other families by ' + esc(v[1].slice(0,26)) + '</h4>' + rowsHtml(sameV, x =>
       '<button class="row" onclick="hop(\'family\',' + x[0] + ',\'' + esc(x[1].slice(0,34)) + '\')"><span class="t">' + esc(x[1]) + '</span><span class="s">#' + x[0] + "</span></button>", 8) + "</div>" : "") +
-    (users.length ? '<div class="sec"><h4>captures using this family <span class="n">' + users.length + '</span></h4>' + rowsHtml(users, ([cid]) => {
-      const cp = idx.cById.get(cid);
-      return '<button class="row" onclick="hop(\'capture\',' + cid + ',\'' + esc((cp?cp[3]:"").slice(0,34)) + '\')"><span class="t">' + esc(cp ? cp[3] : "capture " + cid) + '</span><span class="s">' + (cp ? cp[1].replace("https://","") : "") + "</span></button>";
-    }, 20) + "</div>" : "") +
+    (users.length ? '<div class="sec"><h4>captures using this family <span class="n">' + users.length + '</span></h4>' + rowsHtml(users, ([cid]) =>
+      capRow(idx.cById.get(cid)), 20) + "</div>" : "") +
     (coocRows.length ? '<div class="sec"><h4>often seen with <span class="n">co-occurring</span></h4>' + rowsHtml(coocRows, ([k, n]) => {
       const m = famResolve(k);
       return '<button class="row" onclick="hop(\'family\',' + (m ? m[0] : 0) + ',\'' + esc((m ? m[1] : k).slice(0,34)) + '\')"><span class="t">' + esc(m ? m[1] : k) + '</span><span class="s">' + n + " shared captures</span></button>";
@@ -725,6 +968,38 @@ L.vendor = (id, name) => '<a class="lk fam" onclick="hop(\'vendor\',' + id + ',\
 
 function vBrowse(c){
   const kind = c.id, value = c.label;
+  if (kind === "motion") {
+    const list = (D_.motion_assets||[]).slice().sort((a,b) => b[4]-a[4]);
+    return head(c, list.length + " recordings") +
+      '<div class="cbody">' +
+      '<p class="prose">All recorded WebM motion assets, longest first.</p>' +
+      '<div class="sec"><h4>recordings <span class="n">' + list.length + '</span></h4>' +
+      rowsHtml(list, m => capRow(idx.cById.get(m[0]), "▶ " + Math.round(m[4]/1000) + "s · " + (m[3]/1048576).toFixed(1) + " MB"), 120) + "</div>" +
+      foot() + "</div>";
+  }
+  if (kind === "video") {
+    const list = (D_.embedded_video_captures||[]).slice().sort((a,b) => b.captured_at - a.captured_at);
+    return head(c, list.length + " captures") +
+      '<div class="cbody">' +
+      '<p class="prose">Captures with measured video elements, newest first.</p>' +
+      '<div class="sec"><h4>captures with video <span class="n">' + list.length + '</span></h4>' +
+      rowsHtml(list, v => {
+        const cp = idx.cById.get(v.id) || [v.id, v.origin, v.path, v.title, v.captured_at, v.image_url || "", 0, 0, 0];
+        const rows = idx.videoByCap.get(v.id) || [];
+        const maxCov = rows.length ? Math.max(...rows.map(r => r[5])) : 0;
+        return capRow(cp, rows.length + " element" + (rows.length === 1 ? "" : "s") + " · " + Math.round(maxCov/10000) + "% max");
+      }, 120) + "</div>" +
+      foot() + "</div>";
+  }
+  if (kind === "captures") {
+    const list = D_.captures.slice().sort((a,b) => b[4]-a[4]).slice(0, 200);
+    return head(c, D_.captures.length + " corpus") +
+      '<div class="cbody">' +
+      '<p class="prose">All captures, newest first.</p>' +
+      '<div class="sec"><h4>captures <span class="n">' + list.length + '</span></h4>' +
+      rowsHtml(list, cp => capRow(cp)) + "</div>" +
+      foot() + "</div>";
+  }
   let caps = [];
   if (kind === "path") caps = idx.cByPath.get(value) || [];
   else if (kind === "theme") caps = idx.cByTheme.get(value) || [];
@@ -737,9 +1012,7 @@ function vBrowse(c){
     '<div class="cbody">' +
     '<p class="prose">' + caps.length + " captures" + (kind === "path" ? " at path " + esc(value || "/") + " across " + domains + " domains" : " with " + kind + " “" + esc(value) + "”") + ".</p>" +
     '<div class="sec"><h4>captures <span class="n">' + caps.length + '</span></h4>' +
-    rowsHtml(list, cp =>
-      '<button class="row" onclick="hop(\'capture\',' + cp[0] + ',\'' + esc(cp[3].slice(0,34)) + '\')"><span class="t">' + esc(cp[3]) +
-      '</span><span class="s">' + esc(cp[1].replace("https://","")) + " · " + fmtDate(cp[4]) + " · " + (idx.termsByCap.get(cp[0])||[]).length + " terms" + capBadges(cp[0]) + "</span></button>", 60) + "</div>" +
+    rowsHtml(list, cp => capRow(cp), 60) + "</div>" +
     foot() + "</div>";
 }
 function vIndex(c){
@@ -776,7 +1049,10 @@ function hvMarkup(id){
   const grad = colors.length ? "linear-gradient(90deg," + colors.slice(0,6).map((c,i)=>hex(c[1],c[2],c[3]) + " " + Math.round(i*100/colors.length) + "% " + Math.round((i+1)*100/colors.length) + "%").join(",") + ")" : "var(--soft)";
   const m = idx.motionByCap.get(Number(id));
   const media = m
-    ? '<img src="' + esc(x[5]) + '" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:1" onerror="this.style.display=\'none\'"><video autoplay muted loop playsinline preload="metadata" poster="' + esc(x[5]) + '" src="' + esc(m[1]) + '" onloadeddata="this.previousElementSibling.style.opacity=\'0\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000"></video><span style="position:absolute;right:6px;bottom:4px;z-index:2;font-size:9px;color:rgba(255,255,255,.9);background:rgba(0,0,0,.55);padding:1px 7px;border-radius:99px">▶ ' + Math.round(m[4]/1000) + 's</span>'
+    ? '<div style="position:relative;width:100%;aspect-ratio:' + m[5] + '/' + m[6] + ';background:#000">' +
+      '<img src="' + esc(x[5]) + '" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:1" onerror="this.style.display=\'none\'">' +
+      '<video autoplay muted loop playsinline preload="metadata" poster="' + esc(x[5]) + '" src="' + esc(m[1]) + '" onloadeddata="this.previousElementSibling.style.opacity=\'0\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000"></video>' +
+      '<span style="position:absolute;right:6px;bottom:4px;z-index:2;font-size:9px;color:rgba(255,255,255,.9);background:rgba(0,0,0,.55);padding:1px 7px;border-radius:99px">▶ ' + Math.round(m[4]/1000) + 's</span></div>'
     : '<img src="' + esc(x[5]) + '" alt="" onerror="this.style.display=\'none\'">';
   return '<div class="imgw" style="position:relative;background:' + grad + '">' + media + "</div>" +
     '<div class="hmeta"><div class="ht">' + esc(x[3]) + '</div><div class="hs">' + esc(x[1].replace("https://","")) + (x[2] ? " · " + esc(x[2]) : "") + " · " + fmtDate(x[4]) + "</div>" +
@@ -784,7 +1060,7 @@ function hvMarkup(id){
     (fonts.length || terms.length ? '<div class="htags">' + fonts.map(esc).join(" · ") + (fonts.length && terms.length ? "  /  " : "") + terms.map(esc).join(" · ") + "</div>" : "") + "</div>";
 }
 colsEl.addEventListener("pointerover", e => {
-  const b = e.target.closest(".row"); if (!b) return;
+  const b = e.target.closest(".row, .capture-row"); if (!b) return;
   const m = (b.getAttribute("onclick")||"").match(/hop\('capture',\s*(\d+)/); if (!m) return;
   const id = Number(m[1]); if (!idx.cById.has(id)) return;
   clearTimeout(hvTimer);
@@ -798,7 +1074,7 @@ colsEl.addEventListener("pointerover", e => {
     hvEl.style.left = left + "px"; hvEl.style.top = top + "px";
   }, 120);
 });
-colsEl.addEventListener("pointerout", e => { if (e.target.closest(".row")) { clearTimeout(hvTimer); hvEl.classList.remove("open"); } });
+colsEl.addEventListener("pointerout", e => { if (e.target.closest(".row, .capture-row")) { clearTimeout(hvTimer); hvEl.classList.remove("open"); } });
 colsEl.addEventListener("scroll", () => hvEl.classList.remove("open"), true);
 window.addEventListener("resize", () => hvEl.classList.remove("open"));
 
@@ -817,14 +1093,14 @@ function doSearch(){
   const terms = Object.keys(D_.terms).filter(t => termLabel(t).toLowerCase().includes(s) || t.includes(s)).slice(0,6);
   const facets = [...new Set(Object.values(D_.terms).map(t => t[2]))].filter(f => f.includes(s) || f.replace(/_/g," ").includes(s)).slice(0,6);
   const paths = [...idx.cByPath.keys()].filter(p => p.includes(s)).slice(0,4);
-  if (doms.length) groups.push({ g:"domains", items: doms.map(o => ({ t:o.replace("https://",""), s:(idx.cByDomain.get(o)||[]).length + " captures", c:"var(--entity-domain)", fn:() => fresh("domain", o, o.replace("https://","")) })) });
+  if (doms.length) groups.push({ g:"domains", items: doms.map(o => ({ origin:o, t:o.replace("https://",""), s:(idx.cByDomain.get(o)||[]).length + " captures", c:"var(--entity-domain)", fn:() => fresh("domain", o, o.replace("https://","")) })) });
   if (caps.length) groups.push({ g:"captures", items: caps.map(cp => ({ t:cp[3], s:cp[1].replace("https://","") + " · " + fmtDate(cp[4]), c:"var(--entity-capture)", fn:() => fresh("capture", cp[0], cp[3].slice(0,40)) })) });
   if (fams.length) groups.push({ g:"font families", items: fams.map(f => ({ t:f[1], s:"#" + f[0], c:"var(--entity-family)", fn:() => fresh("family", f[0], f[1].slice(0,40)) })) });
   if (terms.length) groups.push({ g:"terms", items: terms.map(t => ({ t:termLabel(t), s:termFacet(t), c:"var(--entity-term)", fn:() => fresh("term", t, String(termLabel(t)).slice(0,40)) })) });
   if (facets.length) groups.push({ g:"facets", items: facets.map(f => ({ t:f.replace(/_/g," "), s:"facet", c:"var(--entity-facet)", fn:() => fresh("facet", f, f) })) });
   if (paths.length) groups.push({ g:"paths", items: paths.map(p => ({ t:p||"/", s:(idx.cByPath.get(p)||[]).length + " captures", c:"var(--entity-neutral)", fn:() => fresh("browse", "path", p) })) });
   resultsEl.innerHTML = groups.map(g =>
-    '<div class="rg">' + g.g + "</div>" + g.items.map(it => '<button class="res"><span class="sdot" style="background:' + it.c + '"></span><span class="t">' + esc(it.t) + '</span><span class="s">' + esc(it.s) + "</span></button>").join("")
+    '<div class="rg">' + g.g + "</div>" + g.items.map(it => '<button class="res">' + (it.origin ? favicon(it.origin, true) : '<span class="sdot" style="background:' + it.c + '"></span>') + '<span class="t">' + esc(it.t) + '</span><span class="s">' + esc(it.s) + "</span></button>").join("")
   ).join("") || '<div class="rg">no matches</div>';
   resultsEl.classList.add("on");
   hlIdx = 0; hlFns = groups.flatMap(g => g.items.map(it => it.fn));
@@ -851,22 +1127,30 @@ resultsEl.addEventListener("click", e => {
   qEl.value=""; resultsEl.classList.remove("on");
 });
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape" && document.activeElement !== qEl && cols.length > 1){ cols.pop(); renderCols(false); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"){ e.preventDefault(); qEl.focus(); qEl.select(); }
+  if (e.key === "Escape" && document.activeElement !== qEl && cols.length > 1){ cols.pop(); renderCols(false); syncHash(); }
 });
+window.addEventListener("hashchange", () => { if (suppressHash) return; openHash(location.hash); });
 
 /* ---------- boot ---------- */
 
-fetch("data.json").then(r => r.json()).then(d => {
+Promise.all([
+  fetch("data.json").then(r => r.json()),
+  fetch("gradients.json").then(r => r.json()).catch(() => ({}))
+]).then(([d, g]) => {
   D_ = d;
+  D_.gradients = g;
   buildIndexes();
   document.getElementById("meta").textContent =
     d.domains.length.toLocaleString() + " domains · " + d.captures.length.toLocaleString() + " captures · " +
     d.families.length.toLocaleString() + " families · " + Object.keys(d.terms).length + " terms · " +
     d.color_roles.length.toLocaleString() + " color values · " + d.font_obs.length.toLocaleString() + " font observations · " + (d.ann?Object.keys(d.ann).length:0) + " ANN pivots · " + (d.motion_assets||[]).length.toLocaleString() + " motion · " + (d.font_similarity_results?Object.keys(d.font_similarity_results).length:0) + " font-sim" +
     (d.text_styles ? " · " + d.text_styles.length.toLocaleString() + " text styles" : "") +
-    (d.hist_fonts ? " · " + d.hist_fonts.length.toLocaleString() + " legacy attributions" : "");
+    (d.hist_fonts ? " · " + d.hist_fonts.length.toLocaleString() + " legacy attributions" : "") +
+    (Object.keys(g).length ? " · " + Object.keys(g).length + " gradient captures" : "");
   cols.push({ type:"home", id:"", label:"The dataset" });
   renderCols(false);
+  openHash(location.hash);
 }).catch(e => {
   colsEl.innerHTML = '<div class="col"><div class="cbody"><div class="empty">Failed to load data.json — serve this folder over http (python3 -m http.server 8123) and open explorer.html.<br>' + esc(String(e)) + "</div></div></div>";
 });

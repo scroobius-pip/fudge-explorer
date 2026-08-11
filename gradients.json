@@ -1,0 +1,290 @@
+{
+ "10711": [
+  {
+   "gradient_id": 0,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 1,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 2,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 3,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 4,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 5,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  }
+ ],
+ "10713": [
+  {
+   "gradient_id": 0,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 1,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 2,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 3,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 4,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 5,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  }
+ ],
+ "10733": [
+  {
+   "gradient_id": 0,
+   "structure_id": null,
+   "kind": "linear",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 1,
+   "structure_id": null,
+   "kind": "linear",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 5,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 2,
+   "structure_id": null,
+   "kind": "linear",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 3,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 3,
+   "structure_id": null,
+   "kind": "linear",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 5,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 4,
+   "structure_id": null,
+   "kind": "radial",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  }
+ ],
+ "10735": [
+  {
+   "gradient_id": 0,
+   "structure_id": null,
+   "kind": "linear",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 2,
+   "evidence_kind": "dom_computed_style"
+  }
+ ],
+ "10742": [
+  {
+   "gradient_id": 0,
+   "structure_id": null,
+   "kind": "linear",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  }
+ ],
+ "10812": [
+  {
+   "gradient_id": 0,
+   "structure_observation_index": 10,
+   "kind": "linear",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 1,
+   "structure_observation_index": 11,
+   "kind": "linear",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 2,
+   "structure_observation_index": 13,
+   "kind": "linear",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  },
+  {
+   "gradient_id": 3,
+   "structure_observation_index": 14,
+   "kind": "linear",
+   "angle_millidegrees": null,
+   "x_q": null,
+   "y_q": null,
+   "width_q": null,
+   "height_q": null,
+   "occurrence_count": 1,
+   "evidence_kind": "dom_computed_style"
+  }
+ ]
+}
