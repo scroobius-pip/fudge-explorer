@@ -199,8 +199,6 @@
   .lb-cap .lb-sub { font-size:10px; color:rgba(255,255,255,.65); }
   .lb-count { position:fixed; top:16px; left:18px; z-index:2001; font-size:10px; color:rgba(255,255,255,.6); font-variant-numeric:tabular-nums; }
   .capture-thumb, .shot-wrap img, .motion-player video { cursor:zoom-in; }
-  .shot-pal-strip { display:flex; height:10px; margin:6px 0 8px; overflow:hidden; border-radius:2px; border:1px solid var(--line); }
-  .shot-pal-strip i { flex:1; min-width:2px; }
   .mono { font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:10.5px; overflow-wrap:anywhere; }
   .system-callout { margin:0 0 12px; padding:7px 9px; border-left:2px solid var(--gray); background:var(--soft); color:var(--mut); font-size:10.5px; line-height:1.52; overflow-wrap:anywhere; }
   .system-callout b { color:var(--ink); }
@@ -235,7 +233,7 @@
 
 <script>
 let D_ = null, relations = [];
-const INDEX_MAPS = ["cById","cByDomain","termsByCap","capsByTerm","fById","dgById","vById","fByDesigner","fByVendor","relsById","relCount","colorsByCap","bgByCap","fontsByCap","typeByCap","famByNorm","capsByFam","famGroups","textByCap","histByCap","structuresByCap","annByCap","motionByCap","videoByCap","gradientsByCap","simRes","catMatch","cByPath","cByTheme","cByDevice","cByState"];
+const INDEX_MAPS = ["cById","cByDomain","termsByCap","capsByTerm","fById","dgById","vById","fByDesigner","fByVendor","relsById","relCount","colorsByCap","legacyColorsByCap","bgByCap","fontsByCap","typeByCap","famByNorm","capsByFam","famGroups","textByCap","histByCap","structuresByCap","annByCap","motionByCap","videoByCap","gradientsByCap","simRes","catMatch","cByPath","cByTheme","cByDevice","cByState"];
 const createIndexes = () => Object.assign(Object.fromEntries(INDEX_MAPS.map(k => [k, new Map()])), { embeddedById:new Set() });
 let idx = createIndexes();
 const colsEl = document.getElementById("cols");
@@ -321,6 +319,7 @@ function buildIndexes() {
   for (const [cid, role, r, g, b, a, occ] of D_.color_roles) {
     pushMap(idx.colorsByCap, cid, [role, r, g, b, a, occ]);
   }
+  for (const [cid, rows] of Object.entries(D_.legacy_colors || {})) idx.legacyColorsByCap.set(Number(cid), rows);
   for (const [cid, r, g, b, a, occ] of D_.backgrounds) {
     pushMap(idx.bgByCap, cid, [r, g, b, a, occ]);
   }
@@ -328,9 +327,7 @@ function buildIndexes() {
     idx.gradientsByCap.set(Number(cid), rows);
   }
   for (const [cid, oi, fam, stack, wmin, wmax, share, occ] of D_.font_obs) {
-    pushMap(idx.fontsByCap, cid, [fam, stack, wmin, wmax, share, occ]);
-    const n = norm(fam);
-    pushMap(idx.capsByFam, n, [cid, fam]);
+    pushMap(idx.fontsByCap, cid, [fam, stack, wmin, wmax, share, occ, oi]);
   }
   for (const [cid, role, fam, w, size, lh, share] of D_.type_roles) {
     pushMap(idx.typeByCap, cid, [role, fam, w, size, lh, share]);
@@ -367,6 +364,7 @@ function buildIndexes() {
   for (const [name, ids] of Object.entries(D_.catalog_matches || {})) {
     idx.catMatch.set(norm(name), ids);
   }
+  for (const cp of D_.captures) for (const fam of captureFamilies(cp[0])) pushMap(idx.capsByFam, norm(fam), [cp[0], fam]);
 }
 
 /* ---------- links ---------- */
@@ -390,24 +388,30 @@ const L = {
 /* ---------- column stack ---------- */
 
 const cols = [];
-let suppressHash = false;
-function syncHash(){
-  const last = cols[cols.length-1];
-  const id = last && last.type === "browse" ? "~" + JSON.stringify([last.id, last.label]) : last ? String(last.id) : "";
-  const h = last && last.type !== "home" ? "#" + encodeURIComponent(last.type) + "/" + encodeURIComponent(id) : "";
+let suppressHash = false, bundleGeneration = 0;
+const homeColumn = () => column("home", "", "The dataset");
+const columnKey = c => JSON.stringify([c.type, c.id, c.label]);
+const columnIdentity = c => JSON.stringify(c.type === "browse" ? [c.type, c.id, c.label] : [c.type, c.id]);
+function stackHash(stack = cols){
+  const payload = stack.slice(1).map(c => [c.type, c.id, c.label]);
+  return payload.length ? "#stack/" + encodeURIComponent(JSON.stringify(payload)) : "";
+}
+function syncHash(replace = false){
+  const h = stackHash();
   if (location.hash === h) return;
   suppressHash = true;
   try {
-    history.replaceState(null, "", h || (location.pathname + location.search));
+    history[replace ? "replaceState" : "pushState"](null, "", h || (location.pathname + location.search));
   } catch (_) { if (h) location.hash = h; }
   queueMicrotask(() => { suppressHash = false; });
 }
-function openHash(hash){
+function legacyStack(hash){
   const m = String(hash || "").match(/^#([^/]+)\/(.+)$/);
-  if (!m) return false;
-  const type = decodeURIComponent(m[1]);
-  let id = decodeURIComponent(m[2]);
-  if (!VIEWS[type]) return false;
+  if (!m) return null;
+  let type, id;
+  try { type = decodeURIComponent(m[1]); id = decodeURIComponent(m[2]); } catch (_) { return null; }
+  if (!Object.hasOwn(VIEWS, type)) return null;
+  if (NUMERIC_VIEWS.has(type) && !Number.isFinite(Number(id))) return null;
   let label = id;
   if (type === "capture") { const cp = idx.cById.get(Number(id)); if (cp) label = cp[3]; }
   else if (type === "domain") label = String(id).replace("https://","");
@@ -419,26 +423,47 @@ function openHash(hash){
     }
     else { const sep = id.lastIndexOf("|"); if (sep > 0) { label = id.slice(sep + 1); id = id.slice(0, sep); } }
   }
-  cols.length = 0;
-  cols.push(column("home", "", "The dataset"), column(type, id, label));
-  renderCols(false);
+  return [homeColumn(), column(type, id, label)];
+}
+function stackFromHash(hash){
+  if (!hash) return [homeColumn()];
+  if (!String(hash).startsWith("#stack/")) return legacyStack(hash);
+  try {
+    const rows = JSON.parse(decodeURIComponent(String(hash).slice(7)));
+    if (!Array.isArray(rows) || rows.length > MAXCOLS - 1) return null;
+    const stack = [homeColumn()];
+    for (const row of rows) {
+      if (!Array.isArray(row) || row.length < 2 || !Object.hasOwn(VIEWS, row[0])) return null;
+      if (NUMERIC_VIEWS.has(row[0]) && !Number.isFinite(Number(row[1]))) return null;
+      stack.push(column(row[0], row[1], String(row[2] ?? row[1])));
+    }
+    return stack;
+  } catch (_) { return null; }
+}
+function setColumns(next, { animate = false, historyMode = "push" } = {}){
+  cols.splice(0, cols.length, ...next);
+  renderCols(animate);
+  if (historyMode) syncHash(historyMode === "replace");
+}
+function openHash(hash, canonicalize = false){
+  const stack = stackFromHash(hash);
+  if (!stack) return false;
+  try { setColumns(stack, { historyMode:null }); } catch (_) { return false; }
+  if (canonicalize || !String(hash || "").startsWith("#stack/")) syncHash(true);
   return true;
 }
-function retractTo(i){ while (cols.length > i + 1) cols.pop(); renderCols(false); syncHash(); }
-function closeCol(i){ if (i === 0) return; cols.splice(i); renderCols(false); syncHash(); }
+function retractTo(i){ setColumns(cols.slice(0, i + 1)); }
+function closeCol(i){ if (i > 0) setColumns(cols.slice(0, i)); }
 function hop(type, id, label){
   const last = cols[cols.length-1];
-  if (last && last.type === type && last.id === id) return;
-  cols.push(column(type, id, label));
-  if (cols.length > MAXCOLS) cols.splice(1, cols.length - MAXCOLS);
-  renderCols(true);
-  syncHash();
+  const next = column(type, id, label);
+  if (last && columnIdentity(last) === columnIdentity(next)) return;
+  const stack = [...cols, next];
+  if (stack.length > MAXCOLS) stack.splice(1, stack.length - MAXCOLS);
+  setColumns(stack, { animate:true });
 }
 function fresh(type, id, label){
-  cols.length = 0;
-  cols.push(column("home", "", "The dataset"), column(type, id, label));
-  renderCols(true);
-  syncHash();
+  setColumns([homeColumn(), column(type, id, label)], { animate:true });
 }
 
 const rowsHtml = (list, fn, limit) => {
@@ -451,10 +476,17 @@ function navRow(type, id, label, meta, content, className = "row"){
   return '<button class="' + escAttr(className) + '" onclick="' + escAttr(handler) + '"><span class="t">' + (content == null ? esc(label) : content) + '</span><span class="s">' + esc(meta || "") + "</span></button>";
 }
 function renderCols(animate){
-  colsEl.innerHTML = "";
-  cols.forEach((c, i) => {
+  const mounted = [...colsEl.children];
+  let keep = 0;
+  while (keep < mounted.length && keep < cols.length && Number(mounted[keep].dataset.generation) === bundleGeneration && mounted[keep].dataset.columnKey === columnKey(cols[keep])) keep++;
+  const changed = keep < mounted.length || keep < cols.length;
+  for (let i = mounted.length - 1; i >= keep; i--) mounted[i].remove();
+  for (let i = keep; i < cols.length; i++) {
+    const c = cols[i];
     const el = document.createElement("div");
-    el.className = "col" + (animate && i === cols.length-1 ? " enter" : "") + (i === cols.length-1 ? " active" : "");
+    el.dataset.columnKey = columnKey(c);
+    el.dataset.generation = bundleGeneration;
+    el.className = "col" + (animate && i === cols.length-1 ? " enter" : "");
     colsEl.appendChild(el);
     const mount = html => {
       if (!el.isConnected) return;
@@ -471,8 +503,9 @@ function renderCols(animate){
       mount(head(c) + '<div class="cbody"><div class="empty">loading…</div></div>');
       output.then(mount, error => mount(head(c) + '<div class="cbody"><div class="empty">' + esc(error) + "</div></div>"));
     } else mount(output);
-  });
-  colsEl.scrollLeft = colsEl.scrollWidth;
+  }
+  [...colsEl.children].forEach((el, i) => el.classList.toggle("active", i === cols.length - 1));
+  if (changed) colsEl.lastElementChild?.scrollIntoView({ block:"nearest", inline:"end" });
 }
 function head(c, n){
   const lead = c.type === "domain" ? favicon(c.id) : '<span class="dot" style="background:' + TYPE[c.type].color + '"></span>';
@@ -482,7 +515,7 @@ function head(c, n){
 }
 const page = (c, n, content) => head(c, n) + '<div class="cbody">' + content + "</div>";
 const section = (title, content, count) => '<div class="sec"><h4>' + title + (count == null ? "" : ' <span class="n">' + count + "</span>") + "</h4>" + content + "</div>";
-const listPage = (c, metric, prose, title, count, content) => page(c, metric, '<p class="prose">' + prose + "</p>" + section(title, content, count) + foot());
+const listPage = (c, metric, prose, title, count, content) => page(c, metric, '<p class="prose">' + prose + "</p>" + section(title, content, count) + foot(c));
 /* ---------- generic filtered views ---------- */
 
 const ROUTE_SOURCES = {
@@ -498,13 +531,27 @@ const ROUTE_SOURCES = {
 const CAPTURE_FILTERS = {
   motion: cid => idx.motionByCap.has(cid),
   video: cid => idx.videoByCap.has(cid) || idx.embeddedById.has(cid),
-  colors: cid => (idx.colorsByCap.get(cid) || []).length,
+  colors: cid => (idx.colorsByCap.get(cid) || []).length || (idx.legacyColorsByCap.get(cid) || []).length,
   gradients: cid => (idx.gradientsByCap.get(cid) || []).length,
-  typography: cid => (idx.typeByCap.get(cid) || []).length
+  typography: cid => (idx.typeByCap.get(cid) || []).length,
+  text: cid => (idx.textByCap.get(cid) || []).length
 };
+function captureFamilies(cid){
+  const names = [...(idx.fontsByCap.get(cid) || []).map(row => row[0]), ...(idx.typeByCap.get(cid) || []).map(row => row[1]), ...(idx.textByCap.get(cid) || []).map(row => row[0])].filter(Boolean);
+  return [...new Map(names.map(name => [norm(name), name])).values()];
+}
+function aggregateTextStyles(captureIds){
+  const styles = new Map();
+  for (const cid of captureIds) for (const [fam, weight, size, occurrences] of idx.textByCap.get(cid) || []) {
+    const key = [norm(fam), weight || "", size || ""].join("|");
+    if (!styles.has(key)) styles.set(key, { fam, weight, size, occurrences:0, captures:new Set() });
+    const style = styles.get(key); style.occurrences += occurrences || 0; style.captures.add(cid);
+  }
+  return [...styles.values()].sort((a,b) => b.occurrences - a.occurrences);
+}
 const PROJECTIONS = {
   domains: cid => [(idx.cById.get(cid) || [])[1]],
-  families: cid => (idx.fontsByCap.get(cid) || []).map(([f]) => norm(f)),
+  families: cid => captureFamilies(cid).map(norm),
   terms: cid => (idx.termsByCap.get(cid) || []).map(([t]) => t),
   facets: cid => (idx.termsByCap.get(cid) || []).map(([t]) => termFacet(t))
 };
@@ -534,9 +581,8 @@ function routeFor(c){
   const id = c.type === "video" ? String(c.id).split(":")[0] : c.id;
   return ROUTE_TYPES[c.type] ? ROUTE_TYPES[c.type] + "|" + id : "all";
 }
-function foot(){
+function foot(c){
   const D0 = D_ || {};
-  const c = cols[cols.length - 1];
   let route = routeFor(c);
   const isSingleCap = route.startsWith("cap|");
   if (isSingleCap) {
@@ -547,11 +593,12 @@ function foot(){
     }
   }
   const set = baseSet(route);
-  const labels = { captures:"captures", domains:"domains", families:"families", terms:"terms", facets:"facets", colors:"colors", motion:"motion", video:"video" };
+  const labels = { captures:"captures", domains:"domains", families:"families", text:"text styles", terms:"terms", facets:"facets", colors:"colors", motion:"motion", video:"video" };
   const items = Object.entries(labels).flatMap(([kind, label]) => {
     if (kind === "captures" && isSingleCap) return [];
-    const n = derive(set, kind).size;
-    return n ? [L.filter(route, kind, n.toLocaleString() + " " + label)] : [];
+    const n = kind === "text" ? aggregateTextStyles([...set]).length : derive(set, kind).size;
+    const suffix = kind === "colors" ? "captures with colors" : label;
+    return n ? [L.filter(route, kind, n.toLocaleString() + " " + suffix)] : [];
   });
   const relCount = relations.length;
   items.push(L.fs(Object.keys(D0.font_similarity_results || {}).length + " font-sim"));
@@ -568,84 +615,59 @@ function downloadText(filename, content){
 }
 const __rawCache = new Map();
 let __rawSeq = 0;
-const fontSrc = { byFam: new Map(), faces: 0 };
+const fontSrc = { byFam:new Map(), byObservation:new Map(), faces:0 };
 let specimenText = (() => { try { return localStorage.getItem("fudge-specimen-text") || "Aa — Structure, meaning, interface."; } catch (_) { return "Aa — Structure, meaning, interface."; } })();
 const specTxt = () => esc(specimenText);
 function initFontSources(g){
   const facesEl = document.getElementById("font-faces");
   if (!facesEl) return;
   fontSrc.byFam.clear();
+  fontSrc.byObservation.clear();
   fontSrc.faces = 0;
-  const byFam = new Map();
-  for (const rows of Object.values(g || {})) {
+  const byFam = new Map(), css = [];
+  const makeFace = (rows, key) => {
+    const seen = new Set();
+    const urls = rows.slice().sort((a,b) => (a.source_index||0)-(b.source_index||0) || (a.format||"").localeCompare(b.format||"")).filter(r => !seen.has(r.url) && seen.add(r.url));
+    if (!urls.length) return null;
+    const face = "fudge-src-" + (++fontSrc.faces), first = urls.find(r => r.format === "woff2") || urls[0];
+    const srcs = urls.map(r => "url('" + r.url.replace(/["'\\]/g, "") + "') format('" + (r.format || "woff2") + "')").join(",");
+    css.push("@font-face{font-family:'" + face + "';src:" + srcs + ";font-weight:100 900;font-display:swap}");
+    return { face, url:first.url, format:first.format, count:urls.length, key };
+  };
+  for (const [captureId, rows] of Object.entries(g || {})) {
+    const byObservation = new Map();
     for (const r of rows) {
       if (!r || !r.url || !r.family) continue;
       const key = norm(r.family);
       if (!byFam.has(key)) byFam.set(key, []);
       byFam.get(key).push(r);
+      const observationKey = captureId + ":" + r.observation_index;
+      if (!byObservation.has(observationKey)) byObservation.set(observationKey, []);
+      byObservation.get(observationKey).push(r);
     }
+    for (const [key, sourceRows] of byObservation) { const face = makeFace(sourceRows, key); if (face) fontSrc.byObservation.set(key, face); }
   }
-  const css = [];
   for (const [key, rows] of byFam) {
-    const seen = new Set();
-    const urls = rows
-      .sort((a, b) => (a.source_index || 0) - (b.source_index || 0) || (a.format || "").localeCompare(b.format || ""))
-      .filter(r => !seen.has(r.url) && seen.add(r.url));
-    if (!urls.length) continue;
-    const srcs = urls.map(r => "url('" + r.url.replace(/["'\\]/g, "") + "') format('" + (r.format || "woff2") + "')").join(",");
-    const face = "fudge-src-" + (++fontSrc.faces);
-    const first = urls.find(r => r.format === "woff2") || urls[0];
-    fontSrc.byFam.set(key, [{ face, url: first.url, format: first.format, count: urls.length }]);
-    css.push("@font-face{font-family:'" + face + "';src:" + srcs + ";font-weight:100 900;font-display:swap}");
+    const face = makeFace(rows, key); if (face) fontSrc.byFam.set(key, face);
   }
   facesEl.textContent = css.join("");
 }
-function specimenFace(fam){
-  const e = specimenSrc(fam);
-  return e ? e.face : null;
+const specimenSrc = (fam, captureId, observationIndex) => captureId != null && observationIndex != null ? fontSrc.byObservation.get(captureId + ":" + observationIndex) || null : fontSrc.byFam.get(norm(fam || "")) || null;
+function safeFontStack(stack, fam){
+  const value = String(stack || fam || "sans-serif").replace(/[<>;{}]/g, "").trim();
+  return value || "sans-serif";
 }
-function specimenSrc(fam){
-  const list = fontSrc.byFam.get(norm(fam || ""));
-  if (!list || !list.length) return null;
-  return list.find(r => r.format === "woff2") || list[0];
+function specimenCss(fam, fallbackStack, captureId, observationIndex){
+  const face = specimenSrc(fam, captureId, observationIndex)?.face;
+  return "font-family:" + (face ? "'" + face + "', " : "") + safeFontStack(fallbackStack, fam);
 }
-function specimenCss(fam, fallbackStack){
-  const face = specimenFace(fam);
-  return "font-family:" + (face ? "'" + face + "', " : "") + (fallbackStack || "'" + String(fam || "").replace(/["'<>]/g, "") + "',sans-serif");
-}
-function srcLine(fam){
-  const e = specimenSrc(fam);
+function srcLine(fam, captureId, observationIndex, representative = false){
+  const e = specimenSrc(fam, captureId, observationIndex);
   if (!e) return "";
-  return '<div class="font-src" title="' + esc(e.url) + '"><b>src</b> ' + esc(e.url.replace(/^https?:\/\//,"").replace(/\/[^/]+\.[a-z0-9]+$/i,"/…")) + " · " + esc(e.format || "") + "</div>";
+  return '<div class="font-src" title="' + escAttr(e.url) + '"><b>' + (representative ? "representative src" : "src") + "</b> " + esc(e.url.replace(/^https?:\/\//,"").replace(/\/[^/]+\.[a-z0-9]+$/i,"/…")) + " · " + esc(e.format || "") + "</div>";
 }
-function samplePalette(img, cid){
-  const box = document.getElementById("shot-pal-" + cid);
-  if (!box) return;
-  try {
-    const w = 64, h = Math.max(1, Math.round((img.naturalHeight || 400) * w / (img.naturalWidth || 640)));
-    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
-    const ctx = cv.getContext("2d");
-    ctx.drawImage(img, 0, 0, w, h);
-    const data = ctx.getImageData(0, 0, w, h).data;
-    const tally = new Map();
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i] >> 4, g = data[i+1] >> 4, b = data[i+2] >> 4;
-      const k = (r << 8) | (g << 4) | b;
-      tally.set(k, (tally.get(k) || 0) + 1);
-    }
-    const total = w * h;
-    const top = [...tally.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
-    const cells = top.map(([k]) => '<i style="background:#' + k.toString(16).padStart(3, "0") + '"></i>').join("");
-    const rows = top.map(([k, n]) => {
-      const hexc = "#" + k.toString(16).padStart(3, "0");
-      return '<div class="row" style="cursor:default"><span class="sw" style="background:' + hexc + '"></span><span class="t">sampled</span><span class="s">' + hexc + " · " + Math.round(n / total * 100) + "%</span></div>";
-    }).join("");
-    box.innerHTML = '<h4>screenshot palette <span class="n">sampled at view time</span></h4>' +
-      '<div class="hint">corpus has no measured colors for this capture — derived from the screenshot</div>' +
-      '<div class="shot-pal-strip">' + cells + '</div>' + rows;
-  } catch (e) {
-    box.innerHTML = '<div class="empty">palette unavailable — screenshot is cross-origin</div>';
-  }
+function sourceNote(fam, stack, captureId, observationIndex){
+  return srcLine(fam, captureId, observationIndex, captureId == null || observationIndex == null) || '<div class="font-src"><b>fallback</b> exact source not retained · ' + esc(safeFontStack(stack, fam)) + "</div>";
 }
 const SECTION_SOURCE = {
   colors:"color_roles", backgrounds:"backgrounds", fonts:"font_obs", typography:"type_roles",
@@ -696,11 +718,19 @@ function capFallback(cp){
   const hue = seed % 360;
   return 'linear-gradient(135deg,hsl(' + hue + ' 13% 25%),hsl(' + ((hue + 32) % 360) + ' 12% 62%))';
 }
+const intHex = value => "#" + Number(value).toString(16).padStart(6, "0").slice(-6);
+function legacyPalette(rows){
+  if (!rows.length) return "";
+  return '<div class="sec"><h4>legacy palette <span class="n">' + rows.length + '</span></h4><div class="hint">retained corpus palette</div>' +
+    rowsHtml(rows, row => { const rgb = Array.isArray(row) ? row[0] : row, frequency = Array.isArray(row) ? row[1] : null; return '<div class="row" style="cursor:default"><span class="sw" style="background:' + intHex(rgb) + '"></span><span class="t">palette</span><span class="s">' + intHex(rgb) + (frequency ? " · " + frequency + "×" : "") + "</span></div>"; }, 24) + "</div>";
+}
 function capRow(cp, meta, note){
   if (!cp) return "";
   const id = cp[0];
   const sub = (note ? note + " " : "") + esc(cp[1].replace("https://","")) + (cp[2] && cp[2] !== "/" ? " · " + esc(cp[2]) : "");
-  const m = meta || fmtDate(cp[4]) + " · " + (idx.colorsByCap.get(id)||[]).length + " colors · " + (idx.fontsByCap.get(id)||[]).length + " fonts · " + (idx.termsByCap.get(id)||[]).length + " terms";
+  const measuredColors = (idx.colorsByCap.get(id)||[]).length, legacyColors = (idx.legacyColorsByCap.get(id)||[]).length;
+  const colorMeta = [measuredColors ? measuredColors + " measured" : "", legacyColors ? legacyColors + " legacy" : ""].filter(Boolean).join("+") || "0";
+  const m = meta || fmtDate(cp[4]) + " · " + colorMeta + " colors · " + captureFamilies(id).length + " families · " + (idx.termsByCap.get(id)||[]).length + " terms";
   return '<button class="capture-row" onclick="hop(\'capture\',' + id + ',\'' + esc(cp[3].slice(0,34)) + '\')">' +
     '<span class="capture-thumb" data-capture="' + id + '" style="background-image:' + capFallback(cp) + '" onclick="event.stopPropagation();openLightbox(this,' + id + ')">' +
     '<img loading="lazy" decoding="async" src="' + esc(cp[5]) + '" alt="" onload="this.classList.add(\'loaded\')" onerror="this.classList.add(\'missing\')">' +
@@ -764,7 +794,7 @@ function vStructure(c){
     (children.length ? '<div class="sec"><h4>children <span class="n">' + children.length + '</span></h4>' + rowsHtml(children, ([r, j]) =>
       '<button class="row" onclick="hop(\'structure\',\'' + cid + ":" + j + '\',\'' + esc(String(termLabel(r[3])).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(r[3])) + '</span><span class="s">child</span></button>') + "</div>" : "") +
     '<div class="sec"><h4>raw row</h4><pre class="raw">' + esc(JSON.stringify({ capture_id: cid, structure_id: sid, parent_structure_id: parent, term_id: tid, x_q: sx, y_q: sy, width_q: sw, height_q: sh, confidence_ppm: conf, evidence_kind: "model" }, null, 2)) + "</pre></div>" +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 
 function vMotion(c){
@@ -784,7 +814,7 @@ function vMotion(c){
       ["bytes", (bytes/1048576).toFixed(2) + " MB", true],
       ["resolution", w + " × " + h, true],
       ["object", '<a class="ext" href="' + esc(obj) + '" target="_blank">' + esc(obj) + " ↗</a>", false]
-    ]) + foot() + "</div>";
+    ]) + foot(c) + "</div>";
 }
 function vVideo(c){
   const [cid, i] = String(c.id).split(":").map(Number);
@@ -801,7 +831,7 @@ function vVideo(c){
       ["bounds", "x " + v[1] + " · y " + v[2] + " · w " + v[3] + " · h " + v[4], true],
       ["coverage", Math.round(v[5]/10000) + "%", true],
       ["occurrences", String(v[6]||1), true]
-    ]) + foot() + "</div>";
+    ]) + foot(c) + "</div>";
 }
 
 function vRuntime(c){
@@ -844,7 +874,7 @@ function vRuntime(c){
     '<div class="sec"><h4>catalogue</h4>' + KV([
       ["observed→canonical matches", Object.keys(D_.catalog_matches||{}).length.toLocaleString(), true]
     ]) + "</div>" +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 
 const VIEWS = { home:vHome, domain:vDomain, capture:vCapture, term:vTerm, facet:vFacet, family:vFamily, designer:vDesigner, vendor:vVendor, browse:vBrowse, index:vIndex, structure:vStructure, motion:vMotion, video:vVideo, runtime:vRuntime, section:vSection, row:vRow, rawCapture:vRawCapture, relations:vRelations, relation:vRelation, fontSim:vFontSim, fontLookup:vFontLookup, embeddings:vEmbeddings };
@@ -884,7 +914,7 @@ function vDomain(c){
       rowsHtml(topPaths, ([p, n]) => '<button class="chip" onclick="hop(\'browse\',\'path\',\'' + escId(p) + '\')">' + esc(p || "/") + " · " + n + "</button>") + "</div>" +
     '<div class="sec"><h4>captures <span class="n">' + caps.length + '</span></h4>' +
     rowsHtml(caps, cp => capRow(cp), 30) + "</div>" +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 
 const SECTION_DESC = {
@@ -955,11 +985,11 @@ function vRow(c){
     '<div class="sec"><div class="associated-capture">' + capRow(cp, "capture #" + cid) + "</div></div>" +
     (hasGeo ? '<div class="sec">' + boundsMap(cp, [obj.x_q, obj.y_q, obj.width_q, obj.height_q], key + " #" + (idxN + 1)) + "</div>" : "") +
     (obj.r != null ? '<div class="sec"><span class="sw big" style="background:' + hex(obj.r, obj.g, obj.b) + '"></span></div>' : "") +
-    (obj.declared_family ? '<div class="sec"><div class="type-sample" style="' + specimenCss(obj.declared_family, "'" + String(obj.declared_family).replace(/["'<>]/g,"") + "',sans-serif") + ';font-size:22px">' + specTxt() + '</div>' + (srcLine(obj.declared_family) || "") + "</div>" : "") +
+    (obj.declared_family ? '<div class="sec"><div class="type-sample" style="' + escAttr(specimenCss(obj.declared_family, obj.computed_css_stack) + ";font-size:22px") + '">' + specTxt() + '</div>' + sourceNote(obj.declared_family, obj.computed_css_stack, cid, obj.observation_index) + "</div>" : "") +
     '<p class="prose">' + esc(SECTION_DESC[key] || key) + "</p>" +
     KV(kv) +
     '<div class="sec"><h4>JSON</h4><div class="actions"><button class="action" onclick="downloadText(\'capture-' + cid + '-' + key + '-row' + idxN + '.json\', JSON.stringify(__rawCache.get(' + rowId + ')))">download JSON</button></div><pre class="raw">' + esc(JSON.stringify(obj, null, 2)) + "</pre></div>" +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 function domainProfile(origin, exceptCid){
   if (!origin) return null;
@@ -968,7 +998,7 @@ function domainProfile(origin, exceptCid){
   for (const cp of caps) {
     const cid = cp[0];
     if (cid === exceptCid) continue;
-    const score = (idx.colorsByCap.get(cid)||[]).length + (idx.bgByCap.get(cid)||[]).length + (idx.fontsByCap.get(cid)||[]).length +
+    const score = (idx.colorsByCap.get(cid)||[]).length + (idx.legacyColorsByCap.get(cid)||[]).length + (idx.bgByCap.get(cid)||[]).length + (idx.fontsByCap.get(cid)||[]).length +
       (idx.typeByCap.get(cid)||[]).length + (idx.textByCap.get(cid)||[]).length + (idx.termsByCap.get(cid)||[]).length +
       ((idx.gradientsByCap.get(cid)||[]).length) + ((idx.structuresByCap.get(cid)||[]).length);
     if (score > bestScore) { bestScore = score; best = cp; }
@@ -976,7 +1006,7 @@ function domainProfile(origin, exceptCid){
   if (!best || !bestScore) return null;
   const cid = best[0];
   return { cid, cp: best, score: bestScore,
-    colors: idx.colorsByCap.get(cid) || [], bg: idx.bgByCap.get(cid) || [], fonts: idx.fontsByCap.get(cid) || [],
+    colors: idx.colorsByCap.get(cid) || [], legacyColors: idx.legacyColorsByCap.get(cid) || [], bg: idx.bgByCap.get(cid) || [], fonts: idx.fontsByCap.get(cid) || [],
     types: idx.typeByCap.get(cid) || [], texts: idx.textByCap.get(cid) || [], grads: idx.gradientsByCap.get(cid) || [],
     terms: idx.termsByCap.get(cid) || [] };
 }
@@ -984,6 +1014,7 @@ function vCapture(c){
   const id = c.id, cp = idx.cById.get(id);
   if (!cp) return head(c) + '<div class="cbody"><div class="empty">capture not found</div></div>';
   const colors = idx.colorsByCap.get(id) || [];
+  const legacyColors = idx.legacyColorsByCap.get(id) || [];
   const bg = idx.bgByCap.get(id) || [];
   const fonts = idx.fontsByCap.get(id) || [];
   const texts = idx.textByCap.get(id) || [];
@@ -994,14 +1025,7 @@ function vCapture(c){
   const motion = idx.motionByCap.get(id);
   const vids = idx.videoByCap.get(id) || [];
   const grads = idx.gradientsByCap.get(id) || [];
-  const tmap = new Map();
-  for (const [fam, w, size, occ] of texts) {
-    const k = norm(fam);
-    if (!tmap.has(k)) tmap.set(k, { fam, w: [], size: [], occ: 0 });
-    const e = tmap.get(k);
-    e.w.push(w); e.size.push(size); e.occ += occ;
-  }
-  const textAgg = [...tmap.values()].map(e => [e.fam, Math.min(...e.w.filter(Boolean)), Math.max(...e.size.filter(Boolean)), e.occ]).sort((a,b) => b[3]-a[3]);
+  const textAgg = aggregateTextStyles([id]);
   const terms = idx.termsByCap.get(id) || [];
   const sim = similarCaptures(id);
   const pathCaps = idx.cByPath.get(cp[2]) || [];
@@ -1010,7 +1034,7 @@ function vCapture(c){
   const lkTheme = cp[7] && cp[7] !== "unknown" ? L.browse("theme", cp[7], cp[7]) : "—";
   const lkDevice = cp[6] && cp[6] !== "unknown" ? L.browse("device", cp[6], cp[6]) : "—";
   const lkState = cp[8] && cp[8] !== "unknown" ? L.browse("state", cp[8], cp[8]) : "—";
-  const famNames = fs => [...new Set(fs.map(f => f[0]))].slice(0, 3).map(esc).join(" · ");
+  const famNames = fs => [...new Set(fs.map(f => f.fam ?? f[0]).filter(Boolean))].slice(0, 3).map(esc).join(" · ");
   const pal = '<div class="palette-mini">' + colors.slice(0, 8).map(c => '<i style="background:' + hex(c[1], c[2], c[3]) + '"></i>').join("") + "</div>";
   const rows = [];
   if (motion) rows.push(evRow("Recorded motion", "▶ " + (motion[4]/1000).toFixed(1) + "s · " + motion[5] + "×" + motion[6] + " · " + (motion[3]/1048576).toFixed(1) + " MB", 1, "motion", id, "motion #" + id));
@@ -1021,14 +1045,19 @@ function vCapture(c){
   if (colors.length) colsRows.push(evRow("Measured colors", colors.slice(0,3).map(cl => hex(cl[1],cl[2],cl[3])).join(" · "), colors.length, "section", id + ":colors", "Measured colors", pal));
   if (dom && dom.colors.length) colsRows.push(evRow("Domain colors", dom.colors.slice(0,3).map(cl => hex(cl[1],cl[2],cl[3])).join(" · "), dom.colors.length, "browse", "filter|dom|" + cp[1] + "|colors", "Domain colors · capture #" + dom.cid,
     '<div class="palette-mini">' + dom.colors.slice(0,8).map(cl => '<i style="background:' + hex(cl[1],cl[2],cl[3]) + '"></i>').join("") + "</div>"));
+  if (dom && dom.legacyColors.length) colsRows.push(evRow("Domain legacy palette", dom.legacyColors.slice(0,3).map(row => intHex(Array.isArray(row) ? row[0] : row)).join(" · "), dom.legacyColors.length, "capture", dom.cid, "Domain legacy palette"));
   if (bg.length) colsRows.push(evRow("Backgrounds", bg.slice(0,2).map(b => hex(b[0],b[1],b[2])).join(" · "), bg.length, "section", id + ":backgrounds", "Backgrounds"));
   if (dom && dom.bg.length) colsRows.push(evRow("Domain backgrounds", dom.bg.slice(0,2).map(b => hex(b[0],b[1],b[2])).join(" · "), dom.bg.length, "browse", "filter|dom|" + cp[1] + "|colors", "Domain backgrounds"));
   if (fonts.length) colsRows.push(evRow("Fonts", famNames(fonts), fonts.length, "section", id + ":fonts", "Fonts"));
   if (dom && dom.fonts.length) colsRows.push(evRow("Domain fonts", [...new Set(dom.fonts.map(f => f[0]))].slice(0,3).map(esc).join(" · "), dom.fonts.length, "browse", "filter|dom|" + cp[1] + "|families", "Domain fonts"));
   if (types.length) colsRows.push(evRow("Typography", types.slice(0,3).map(t => t[0]).join(" · "), types.length, "section", id + ":typography", "Typography"));
   if (dom && dom.types.length) colsRows.push(evRow("Domain typography", [...new Set(dom.types.map(t => t[0]))].slice(0,3).join(" · "), dom.types.length, "browse", "filter|dom|" + cp[1] + "|typography", "Domain typography"));
-  if (textAgg.length) colsRows.push(evRow("Text styles", famNames(textAgg), textAgg.length, "section", id + ":text", "Text styles"));
-  if (dom && dom.texts.length) colsRows.push(evRow("Domain text styles", [...new Set(dom.texts.map(t => t[0]).filter(Boolean))].slice(0,3).map(esc).join(" · "), dom.texts.length, "browse", "filter|dom|" + cp[1] + "|families", "Domain text styles"));
+  if (textAgg.length) colsRows.push(evRow("Text styles", famNames(textAgg) || "family not retained · weight & size available", textAgg.length, "section", id + ":text", "Text styles"));
+  if (dom && dom.texts.length) {
+    const names = [...new Set(dom.texts.map(t => t[0]).filter(Boolean))].slice(0,3).map(esc).join(" · ");
+    const count = aggregateTextStyles((idx.cByDomain.get(cp[1]) || []).map(row => row[0])).length;
+    colsRows.push(evRow("Domain text styles", names || "family not retained · weight & size available", count, "browse", "filter|dom|" + cp[1] + "|text", "Domain text styles"));
+  }
   const colsGroup = colsRows.length ? '<div class="sec"><h4>colors & typography</h4>' + colsRows.join("") + "</div>" : "";
   const layoutRows = [];
   if (structs.length) layoutRows.push(evRow("Structures", [...new Set(structs.map(s => termLabel(s[3])))].slice(0,3).map(esc).join(" · "), structs.length, "section", id + ":structures", "Structures"));
@@ -1057,8 +1086,9 @@ function vCapture(c){
     '<div class="sec">' + (motion
       ? '<div class="motion-player" style="aspect-ratio:' + motion[5] + '/' + motion[6] + '"><video data-capture="' + id + '" controls muted loop playsinline autoplay preload="metadata" poster="' + esc(cp[5]) + '" src="' + esc(motion[1]) + '" onclick="openLightbox(this,' + id + ')"></video></div>' +
         '<div class="media-meta"><span>WebM</span><span>' + (motion[4]/1000).toFixed(1) + "s</span><span>" + motion[5] + " × " + motion[6] + '</span><span>' + (motion[3]/1048576).toFixed(2) + " MB</span></div>"
-      : '<div class="shot-wrap" style="background-image:' + capFallback(cp) + '"><div class="shot-fallback">preview unavailable</div><img class="shot" data-capture="' + id + '" loading="lazy" decoding="async" src="' + esc(cp[5]) + '" alt="" onclick="openLightbox(this,' + id + ')" onload="this.classList.add(\'loaded\');' + (colors.length || bg.length || dom ? "" : "samplePalette(this," + id + ")") + '" onerror="this.style.display=\'none\';this.previousElementSibling.style.display=\'block\'"></div>') + "</div>" +
-    (colors.length || bg.length || dom || motion ? "" : '<div class="sec" id="shot-pal-' + id + '"></div>') +
+      : '<div class="shot-wrap" style="background-image:' + capFallback(cp) + '"><div class="shot-fallback">preview unavailable</div><img class="shot" data-capture="' + id + '" loading="lazy" decoding="async" src="' + esc(cp[5]) + '" alt="" onclick="openLightbox(this,' + id + ')" onload="this.classList.add(\'loaded\')" onerror="this.style.display=\'none\';this.previousElementSibling.style.display=\'block\'"></div>') + "</div>" +
+    legacyPalette(legacyColors) +
+    (!colors.length && !bg.length && !legacyColors.length && !dom ? '<div class="system-callout">No palette is present in the loaded Explorer bundle for this capture.</div>' : "") +
     KV([
       ["id", '<span class="mono">#' + id + "</span>", true],
       ["domain", L.dom(cp[1]), false],
@@ -1070,7 +1100,7 @@ function vCapture(c){
     ]) +
     domNote +
     motionGroup + colsGroup + layoutGroup + roleGroup + simGroup + dataGroup +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 
 function vSection(c){
@@ -1091,8 +1121,7 @@ function vSection(c){
         '<button class="row" onclick="hop(\'row\',\'' + id + '|backgrounds|' + i + '\',\'background row ' + (i + 1) + '\')"><span class="sw" style="background:' + hex(row[0], row[1], row[2]) + '"></span><span class="t">dominant</span><span class="s">' + hex(row[0], row[1], row[2]) + (row[5] ? " · " + row[5] : "") + "</span></button>");
   } else if (key === "fonts") {
     body = rowsHtml(idx.fontsByCap.get(id) || [], (row, i) => {
-      const fam = row[0], stack = row[1], wmin = row[2], wmax = row[3], share = row[4], occ = row[5];
-      const famCss = String(fam||"").replace(/["'<>]/g,"");
+      const fam = row[0], stack = row[1], wmin = row[2], wmax = row[3], share = row[4], occ = row[5], observationIndex = row[6];
       const sharePct = share != null ? (share/10000).toFixed(share >= 10000 ? 0 : 1) + "%" : "";
       const m = famResolve(fam);
       const resolved = m && norm(m[1]) !== norm(fam) ? m[1] : null;
@@ -1100,33 +1129,19 @@ function vSection(c){
         '<span class="main"><span class="primary"><span class="font-highlight">' + esc(fam || "—") + '</span></span>' +
         (stack || resolved ? '<span class="secondary">' + (stack ? esc(stack) : "") + (stack && resolved ? " · " : "") + (resolved ? "<b>" + esc(resolved) + "</b>" : "") + '</span>' : "") + '</span>' +
         '<span class="s">' + (wmin !== wmax ? wmin + "–" + wmax : wmin) + (sharePct ? " · " + sharePct : "") + (occ ? " · " + occ + "×" : "") + '</span></button>' +
-        '<div class="type-sample" style="' + specimenCss(fam, "'" + famCss + "',sans-serif") + ';font-size:15px;margin:-1px 0 8px">' + specTxt() + '</div>' +
-        (srcLine(fam) || "");
+        '<div class="type-sample" style="' + escAttr(specimenCss(fam, stack, id, observationIndex) + ";font-size:15px;margin:-1px 0 8px") + '">' + specTxt() + '</div>' +
+        sourceNote(fam, stack, id, observationIndex);
     });
   } else if (key === "typography") {
     body = rowsHtml(idx.typeByCap.get(id) || [], (row, i) => {
       const role = row[1], fam = row[2], w = row[3], size = row[4];
       const m = famResolve(fam);
-      const famCss = String(fam||"").replace(/["'<>]/g,"");
       return '<button class="row" onclick="hop(\'row\',\'' + id + '|typography|' + i + '\',\'type row ' + (i + 1) + '\')"><span class="t">' + L.term("typography.role." + role, role) + " · " + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + "</span></button>" +
-        '<div class="type-sample" style="' + specimenCss(fam, "'" + famCss + "',sans-serif") + ';font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">' + specTxt() + '</div>' +
-        (srcLine(fam) || "");
+        '<div class="type-sample" style="' + escAttr(specimenCss(fam) + ";font-weight:" + (w||400) + ";font-size:" + Math.min(24,Math.max(13,(size||14000)/1000)) + "px") + '">' + specTxt() + '</div>' +
+        sourceNote(fam);
     });
   } else if (key === "text") {
-    const texts = idx.textByCap.get(id) || [];
-    const tmap = new Map();
-    for (const [fam, w, size, occ] of texts) {
-      const k = norm(fam);
-      if (!tmap.has(k)) tmap.set(k, { fam, w: [], size: [], occ: 0 });
-      const e = tmap.get(k);
-      e.w.push(w); e.size.push(size); e.occ += occ;
-    }
-    const agg = [...tmap.values()].map(e => [e.fam, Math.min(...e.w.filter(Boolean)), Math.max(...e.size.filter(Boolean)), e.occ]).sort((a,b) => b[3]-a[3]);
-    body = rowsHtml(agg, (row, i) => {
-      const fam = row[0], w = row[1], size = row[2], occ = row[3];
-      const m = famResolve(fam);
-      return '<button class="row" onclick="hop(\'row\',\'' + id + '|text|' + i + '\',\'text row ' + (i + 1) + '\')"><span class="t">' + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' + (w || "") + " · " + px(size) + (occ ? " · " + occ + "×" : "") + "</span></button>";
-    }, 60);
+    body = textStyleRows([id]);
   } else if (key === "structures") {
     body = rowsHtml(idx.structuresByCap.get(id) || [], (r, i) =>
       '<button class="row" onclick="hop(\'structure\',\'' + id + ":" + i + '\',\'' + esc(String(termLabel(r[3])).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(r[3])) + '</span><span class="s">' + Math.round(r[4]/100) + "% × " + Math.round(r[6]/100) + "% · " + Math.round(r[7]/10000) + "%</span></button>");
@@ -1165,6 +1180,7 @@ function vSection(c){
   const rawId = raw ? ++__rawSeq : 0;
   if (raw) __rawCache.set(rawId, raw);
   let count = raw ? raw.length : 0;
+  if (key === "text") count = aggregateTextStyles([id]).length;
   if (key === "sim") count = similarCaptures(id).length;
   if (key === "samepath") count = (idx.cByPath.get(cp[2]) || []).filter(x => x[1] !== cp[1]).length;
   return head({ type:"section", id:c.id, label }, count) +
@@ -1174,7 +1190,7 @@ function vSection(c){
     '<div class="sec"><h4>' + (key === "samepath" ? "same path" : key.replace(/_/g, " ")) + ' <span class="n">' + count + '</span></h4>' +
     (body || '<div class="empty">no data for this capture</div>') + "</div>" +
     (raw ? '<div class="sec"><h4>JSON</h4><div class="actions"><button class="action" onclick="downloadText(\'capture-' + id + '-' + key + '.json\', JSON.stringify(__rawCache.get(' + rawId + ')))">download JSON</button></div><pre class="raw">' + esc(JSON.stringify(raw, null, 2)) + "</pre></div>" : "") +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 
 function vTerm(c){
@@ -1204,7 +1220,7 @@ function vTerm(c){
       const cp = idx.cById.get(cid);
       return '<button class="row" onclick="hop(\'structure\',\'' + cid + ":" + i + '\',\'' + esc((cp?cp[3]:"").slice(0,34)) + '\')"><span class="t">' + esc(cp ? cp[3] : "capture " + cid) + '</span><span class="s">' + (cp ? cp[1].replace("https://","") : "") + "</span></button>";
     }, 20) + "</div>" : "") +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 
 function vFacet(c){
@@ -1221,7 +1237,7 @@ function vFacet(c){
     rowsHtml(tids, tid =>
       '<button class="row" title="' + esc(termDef(tid)) + '" onclick="hop(\'term\',\'' + escId(tid) + '\',\'' + esc(String(termLabel(tid)).slice(0,34)) + '\')"><span class="t"><span class="term-highlight">' + esc(termLabel(tid)) +
       '</span></span><span class="s">' + (idx.capsByTerm.get(tid)||[]).length + " captures</span></button>") + "</div>" +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 
 function vFamily(c){
@@ -1234,19 +1250,22 @@ function vFamily(c){
   const sameV = (v ? idx.fByVendor.get(v[0])||[] : []).filter(x => x[0] !== f[0]);
   const users = idx.capsByFam.get(norm(f[1])) || [];
   const dupes = (idx.famGroups.get(norm(f[1])) || []).filter(x => x[0] !== f[0]);
-  const cooc = new Map();
-  for (const [cid] of users) for (const [fam2] of idx.fontsByCap.get(cid) || []) {
-    if (norm(fam2) === norm(f[1])) continue;
-    const k = norm(fam2);
-    cooc.set(k, (cooc.get(k) || 0) + 1);
+  const cooc = new Map(), coocNames = new Map();
+  for (const cid of new Set(users.map(([id]) => id))) {
+    const seen = new Set();
+    for (const [fam2] of idx.fontsByCap.get(cid) || []) {
+      const k = norm(fam2);
+      if (k === norm(f[1]) || seen.has(k)) continue;
+      seen.add(k); cooc.set(k, (cooc.get(k) || 0) + 1);
+      if (!coocNames.has(k)) coocNames.set(k, fam2);
+    }
   }
   const coocRows = [...cooc.entries()].sort((a,b) => b[1]-a[1]).slice(0, 6);
-  const famCss = String(f[1]||"").replace(/["'<>]/g,"");
   return head(c, rels.length + " releases") +
     '<div class="cbody">' +
     '<p class="prose">' + L.fam(f[0], f[1]) + (dg ? " by " + L.designer(dg[0], dg[1]) : "") + (v ? ", sold by " + L.vendor(v[0], v[1]) : "") + ". " + rels.length + " releases." + "</p>" +
-    '<div class="font-specimen" style="' + specimenCss(f[1], "'" + famCss + "',sans-serif") + '">' + esc(f[1]) + '</div>' +
-    '<div class="font-meta">Aa Bb Cc · 0123456789' + (srcLine(f[1]) ? " · " + srcLine(f[1]).replace(/^<div class="font-src"/, '<span class="font-src" style="margin:0;display:inline"').replace(/<\/div>$/, "</span>") : "") + '</div>' +
+    '<div class="font-specimen" style="' + escAttr(specimenCss(f[1])) + '">' + esc(f[1]) + '</div>' +
+    '<div class="font-meta">Aa Bb Cc · 0123456789' + (srcLine(f[1], null, null, true) ? " · " + srcLine(f[1], null, null, true).replace(/^<div class="font-src"/, '<span class="font-src" style="margin:0;display:inline"').replace(/<\/div>$/, "</span>") : "") + '</div>' +
     (dupes.length ? '<div class="sec"><h4>possible duplicates <span class="n">same name · ' + dupes.length + '</span></h4><div class="hint">' + esc(f[1]) + " appears " + (dupes.length + 1) + " times in the catalogue. The corpus alias table (family → canonical) exists but holds no reviewed links yet — these are same-name candidates.</div>" +
       rowsHtml(dupes, x => '<button class="row" onclick="hop(\'family\',' + x[0] + ',\'' + esc(x[1].slice(0,34)) + '\')"><span class="t">' + esc(x[1]) + '</span><span class="s">#' + x[0] + (idx.relCount.get(x[0]) ? " · " + idx.relCount.get(x[0]) + " releases" : "") + "</span></button>", 12) + "</div>" : "") +
     (sameDg.length ? '<div class="sec"><h4>other families by ' + esc(dg[1].slice(0,26)) + '</h4>' + rowsHtml(sameDg, x =>
@@ -1257,7 +1276,8 @@ function vFamily(c){
       capRow(idx.cById.get(cid)), 20) + "</div>" : "") +
     (coocRows.length ? '<div class="sec"><h4>often seen with <span class="n">co-occurring</span></h4>' + rowsHtml(coocRows, ([k, n]) => {
       const m = famResolve(k);
-      return '<button class="row" onclick="hop(\'family\',' + (m ? m[0] : 0) + ',\'' + esc((m ? m[1] : k).slice(0,34)) + '\')"><span class="t">' + esc(m ? m[1] : k) + '</span><span class="s">' + n + " shared captures</span></button>";
+      return m ? navRow("family", m[0], m[1], n + " shared captures")
+        : '<div class="row" style="cursor:default"><span class="t">' + esc(coocNames.get(k) || k) + '</span><span class="s">observed only · ' + n + " shared captures</span></div>";
     }) + "</div>" : "") +
     (() => {
       let simRows = null;
@@ -1274,7 +1294,7 @@ function vFamily(c){
     '<div class="sec"><h4>releases <span class="n">' + rels.length + '</span></h4>' +
     rowsHtml(rels, r =>
       '<div class="row" style="cursor:default"><span class="t mono">' + esc(r[1]) + '</span><span class="s">' + (r[3] ? '<a class="ext" href="' + esc(r[3]) + '" target="_blank">source ↗</a>' : esc(r[2].slice(0,8))) + "</span></div>") + "</div>" +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 
 function vProvider(c, type){
@@ -1297,28 +1317,45 @@ function countBy(caps, project){
 function filteredCaptureRows(caps, test, meta, after){
   return rowsHtml(caps.filter(test), cid => capRow(idx.cById.get(cid), meta(cid)) + (after ? after(cid) : ""), 120);
 }
+function textStyleRows(caps){
+  return rowsHtml(aggregateTextStyles(caps), style => {
+    const family = style.fam ? famResolve(style.fam) : null;
+    const label = style.fam ? (family ? L.fam(family[0], style.fam) : esc(style.fam)) : '<span class="font-highlight">family not retained</span>';
+    const meta = [style.weight, px(style.size), style.captures.size + " captures", style.occurrences + "×"].filter(Boolean).join(" · ");
+    return '<div class="row" style="cursor:default"><span class="t">' + label + '</span><span class="s">' + meta + "</span></div>" +
+      (style.fam ? '<div class="type-sample" style="' + escAttr(specimenCss(style.fam) + ";font-weight:" + (style.weight || 400) + ";font-size:" + Math.min(24,Math.max(13,(style.size||14000)/1000)) + "px") + '">' + specTxt() + "</div>" + sourceNote(style.fam) : "");
+  }, 120);
+}
 const FILTER_ROWS = {
   captures: caps => rowsHtml(caps.map(cid => idx.cById.get(cid)).filter(Boolean), cp => capRow(cp), 120),
   domains: caps => rowsHtml(countBy(caps, cid => [(idx.cById.get(cid) || [])[1]]), ([origin, n]) =>
     navRow("domain", origin, origin.replace("https://",""), n + " captures", favicon(origin) + " " + esc(origin.replace("https://",""))), 120),
-  families: caps => rowsHtml(countBy(caps, cid => (idx.fontsByCap.get(cid) || []).map(([f]) => norm(f))), ([name, n]) => {
+  families: caps => rowsHtml(countBy(caps, cid => [...new Set(captureFamilies(cid).map(norm))]), ([name, n]) => {
     const family = famResolve(name);
     return family ? navRow("family", family[0], family[1], n + " captures", '<span class="font-highlight">' + esc(family[1]) + "</span>")
       : '<div class="row" style="cursor:default"><span class="t">' + esc(name) + '</span><span class="s">' + n + " captures</span></div>";
   }, 120),
+  text: textStyleRows,
   terms: caps => rowsHtml(countBy(caps, cid => (idx.termsByCap.get(cid) || []).map(([t]) => t)), ([term, n]) =>
     navRow("term", term, termLabel(term), n + " captures", '<span class="term-highlight">' + esc(termLabel(term)) + "</span>"), 120),
   facets: caps => rowsHtml(countBy(caps, cid => (idx.termsByCap.get(cid) || []).map(([t]) => termFacet(t))), ([facet, n]) =>
     navRow("facet", facet, facet, n + " captures", esc(facet.replace(/_/g, " "))), 120),
   motion: caps => filteredCaptureRows(caps, cid => idx.motionByCap.has(cid), cid => { const m = idx.motionByCap.get(cid); return "▶ " + Math.round(m[4]/1000) + "s · " + (m[3]/1048576).toFixed(1) + " MB"; }),
   video: caps => filteredCaptureRows(caps, cid => idx.videoByCap.has(cid) || idx.embeddedById.has(cid), cid => { const rows = idx.videoByCap.get(cid) || []; return rows.length + " element" + (rows.length === 1 ? "" : "s") + (rows.length ? " · max " + Math.round(Math.max(...rows.map(r => r[5]))/10000) + "%" : ""); }),
-  colors: caps => filteredCaptureRows(caps, cid => (idx.colorsByCap.get(cid) || []).length, cid => (idx.colorsByCap.get(cid) || []).length + " colors", cid =>
-    '<div class="palette-mini">' + idx.colorsByCap.get(cid).slice(0, 10).map(cl => '<i style="background:' + hex(cl[1], cl[2], cl[3]) + '"></i>').join("") + "</div>"),
+  colors: caps => filteredCaptureRows(caps, CAPTURE_FILTERS.colors, cid => {
+    const modern = idx.colorsByCap.get(cid) || [], legacy = idx.legacyColorsByCap.get(cid) || [];
+    return [modern.length ? modern.length + " measured" : "", legacy.length ? legacy.length + " legacy" : ""].filter(Boolean).join(" · ") + " colors";
+  }, cid => {
+    const modern = idx.colorsByCap.get(cid) || [], legacy = idx.legacyColorsByCap.get(cid) || [];
+    const modernStrip = modern.length ? '<div class="palette-mini" title="measured colors">' + modern.slice(0,10).map(cl => '<i style="background:' + hex(cl[1],cl[2],cl[3]) + '"></i>').join("") + "</div>" : "";
+    const legacyStrip = legacy.length ? '<div class="palette-mini" title="legacy palette">' + legacy.slice(0,10).map(row => '<i style="background:' + intHex(Array.isArray(row) ? row[0] : row) + '"></i>').join("") + "</div>" : "";
+    return modernStrip + legacyStrip;
+  }),
   gradients: caps => filteredCaptureRows(caps, cid => (idx.gradientsByCap.get(cid) || []).length, cid => { const n = idx.gradientsByCap.get(cid).length; return n + " gradient" + (n === 1 ? "" : "s"); }),
   typography: caps => {
     const seen = new Map();
     for (const cid of caps) for (const row of idx.typeByCap.get(cid) || []) if (!seen.has(row[1] + "|" + norm(row[2] || ""))) seen.set(row[1] + "|" + norm(row[2] || ""), row);
-    return rowsHtml([...seen.values()], row => { const role = row[1], fam = row[2], w = row[3], size = row[4], family = famResolve(fam); return '<div class="row" style="cursor:default"><span class="t">' + L.term("typography.role." + role, role) + " · " + (family ? L.fam(family[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + '</span></div><div class="type-sample" style="' + specimenCss(fam) + ';font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">' + specTxt() + "</div>" + (srcLine(fam) || ""); }, 120);
+    return rowsHtml([...seen.values()], row => { const role = row[1], fam = row[2], w = row[3], size = row[4], family = famResolve(fam); return '<div class="row" style="cursor:default"><span class="t">' + L.term("typography.role." + role, role) + " · " + (family ? L.fam(family[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + '</span></div><div class="type-sample" style="' + escAttr(specimenCss(fam) + ";font-weight:" + (w||400) + ";font-size:" + Math.min(24,Math.max(13,(size||14000)/1000)) + "px") + '">' + specTxt() + "</div>" + sourceNote(fam); }, 120);
   }
 };
 function vBrowse(c){
@@ -1331,10 +1368,12 @@ function vBrowse(c){
     const dk = value.slice(value.lastIndexOf("|") + 1);
     const set = baseSet(route);
     const caps = [...set].sort((a, b) => (idx.cById.get(b) || [4])[4] - (idx.cById.get(a) || [4])[4]);
-    const title = dk === "captures" ? caps.length + " captures" : caps.length + " captures · " + dk;
-    const desc = "Filtered " + dk + " from " + (route === "all" ? "the whole corpus" : route.split("|")[0] === "cap" ? "capture #" + route.split("|")[1] : route.split("|")[0] + " " + decodeURIComponent(route.split("|").slice(1).join("|"))) + ".";
+    const itemCount = dk === "families" || dk === "domains" || dk === "terms" || dk === "facets" ? derive(set, dk).size
+      : dk === "text" ? aggregateTextStyles(caps).length : caps.length;
+    const title = dk === "captures" ? caps.length + " captures" : itemCount + " " + (dk === "text" ? "text styles" : dk);
+    const desc = "Filtered " + dk + " from " + (route === "all" ? "the whole corpus" : route.split("|")[0] === "cap" ? "capture #" + route.split("|")[1] : route.split("|")[0] + " " + route.split("|").slice(1).join("|")) + ".";
     const body = FILTER_ROWS[dk] ? FILTER_ROWS[dk](caps) : "";
-    return listPage(c, title, desc, dk.replace(/_/g, " "), caps.length, body || '<div class="empty">nothing in this filter</div>');
+    return listPage(c, title, desc, dk.replace(/_/g, " "), itemCount, body || '<div class="empty">nothing in this filter</div>');
   }
   if (kind === "fonts") {
     const names = [...new Set([...idx.capsByFam.keys(), ...D_.families.map(f => norm(f[1]))])].sort();
@@ -1366,7 +1405,7 @@ function vBrowse(c){
         const maxCov = rows.length ? Math.max(...rows.map(r => r[5])) : 0;
         return capRow(cp, rows.length + " element" + (rows.length === 1 ? "" : "s") + " · " + Math.round(maxCov/10000) + "% max");
       }, 120) + "</div>" +
-      foot() + "</div>";
+      foot(c) + "</div>";
   }
   if (kind === "captures") {
     const list = D_.captures.slice().sort((a,b) => b[4]-a[4]).slice(0, 200);
@@ -1397,7 +1436,7 @@ function vRawCapture(c){
     '<p class="prose">Raw capture identity fields as bundled in this corpus snapshot.</p>' +
     KV(Object.entries(obj).map(([k, v]) => [k, v == null ? "—" : (k === "origin" ? L.dom(v) : k === "path" ? L.browse("path", v, v || "/") : k === "image_url" ? '<a class="ext" href="' + esc(v) + '" target="_blank">' + esc(v) + " ↗</a>" : esc(String(v))), k === "id" || k === "captured_at" || k === "image_url"])) +
     '<div class="sec"><h4>JSON</h4><div class="actions"><button class="action" onclick="downloadText(\'capture-' + id + '.json\', JSON.stringify(__rawCache.get(' + rowId + ')))">download JSON</button></div><pre class="raw">' + esc(JSON.stringify(obj, null, 2)) + "</pre></div>" +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 function vRelations(c){
   const rels = relations;
@@ -1414,7 +1453,7 @@ function vRelations(c){
   return head(c, rels.length + " relations") +
     '<div class="cbody">' +
     '<p class="prose">' + rels.length + " relations in the corpus schema. Open one to inspect its columns." + "</p>" +
-    out + foot() + "</div>";
+    out + foot(c) + "</div>";
 }
 function vRelation(c){
   const r = relations.find(x => x.name === c.id);
@@ -1433,7 +1472,7 @@ function vRelation(c){
     (r.columns || []).map(col =>
       '<div class="schema-column"><span class="name"><span class="mono">' + esc(col.name) + '</span>' + (col.key ? '<span class="key-badge">key</span>' : "") + '</span><span class="type">' + esc(col.type || "") + "</span></div>").join("") + "</div>" +
     '<div class="sec"><h4>JSON</h4><pre class="raw">' + esc(JSON.stringify(r, null, 2)) + "</pre></div>" +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 function vFontSim(c){
   const s = D_.font_similarity || {};
@@ -1452,7 +1491,7 @@ function vFontSim(c){
     '<div class="sec"><h4>lookups <span class="n">' + lookups.length + '</span></h4>' +
     rowsHtml(lookups, name =>
       '<button class="row" onclick="hop(\'fontLookup\',\'' + escId(name) + '\',\'' + esc(name.slice(0,34)) + '\')"><span class="t"><span class="font-highlight">' + esc(name) + '</span></span><span class="s">' + (D_.font_similarity_results[name] || []).length + " results</span></button>") + "</div>" +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 function vFontLookup(c){
   const rows = (D_.font_similarity_results || {})[c.id] || [];
@@ -1466,7 +1505,7 @@ function vFontLookup(c){
       return '<button class="row" onclick="hop(\'family\',' + r.family_id + ',\'' + esc(r.family.slice(0,34)) + '\')"><span class="t"><span class="font-highlight">' + esc(r.family) + '</span></span><span class="s">' + Math.round(r.score * 100) + '%</span></button>' +
         '<div class="confbar"><i style="width:' + Math.round(Math.min(1, r.score) * 100) + '%"></i></div>';
     }) + "</div>" +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 function vEmbeddings(c){
   const rt = D_.embedding_runtime || {};
@@ -1488,7 +1527,7 @@ function vEmbeddings(c){
       const n = (D_.ann[cid] || []).length;
       return capRow(cp, n + " neighbours");
     }) + "</div>" +
-    foot() + "</div>";
+    foot(c) + "</div>";
 }
 
 function vIndex(c){
@@ -1500,7 +1539,7 @@ function vIndex(c){
       '<div class="sec"><h4>facets</h4>' + facets.map(f => {
         const n = Object.keys(D_.terms).filter(t => D_.terms[t][2] === f).length;
         return '<button class="chip" onclick="hop(\'facet\',\'' + escId(f) + '\',\'' + esc(f) + '\')">' + esc(f.replace(/_/g," ")) + " · " + n + "</button>";
-      }).join("") + "</div>" + foot() + "</div>";
+      }).join("") + "</div>" + foot(c) + "</div>";
   }
   const rows = kind === "domains" ? [...idx.cByDomain.entries()].sort((a,b) => b[1].length-a[1].length)
     : [...D_.families].sort((a,b) => (idx.relCount.get(b[0])||0)-(idx.relCount.get(a[0])||0));
@@ -1509,7 +1548,7 @@ function vIndex(c){
     (kind === "domains"
       ? rowsHtml(rows, ([origin, caps]) => '<button class="row" onclick="hop(\'domain\',\'' + escId(origin) + '\',\'' + esc(origin.replace("https://","").slice(0,34)) + '\')"><span class="t">' + favicon(origin) + ' ' + esc(origin.replace("https://","")) + '</span><span class="s">' + caps.length + " caps</span></button>", 80)
       : rowsHtml(rows, f => '<button class="row" onclick="hop(\'family\',' + f[0] + ',\'' + esc(f[1].slice(0,34)) + '\')"><span class="t">' + esc(f[1]) + '</span><span class="s">' + (idx.relCount.get(f[0])||0) + " releases</span></button>", 80)) +
-    "</div>" + foot() + "</div>";
+    "</div>" + foot(c) + "</div>";
 }
 
 /* ---------- capture hover preview (ported) ---------- */
@@ -1569,7 +1608,10 @@ lb.innerHTML =
 document.body.appendChild(lb);
 let lbIds = [], lbIdx = 0, lbOpen = false;
 const lbEl = { stage: lb.querySelector(".lb-stage"), img: lb.querySelector(".lb-img"), vid: lb.querySelector(".lb-video"), close: lb.querySelector(".lb-close"), prev: lb.querySelector(".lb-prev"), next: lb.querySelector(".lb-next"), cap: lb.querySelector(".lb-cap"), title: lb.querySelector(".lb-title"), sub: lb.querySelector(".lb-sub"), count: lb.querySelector(".lb-count") };
-function lbCollect(){ lbIds = [...document.querySelectorAll("[data-capture]")].map(e => String(e.dataset.capture)); }
+function lbCollect(el){
+  const root = el.closest(".col") || document;
+  lbIds = [...new Set([...root.querySelectorAll("[data-capture]")].map(node => String(node.dataset.capture)))];
+}
 function lbFinalRect(id, arOverride){
   const m = idx.motionByCap.get(Number(id));
   const ar = arOverride || (m ? Math.max(0.3, m[5] / m[6]) : 1.6);
@@ -1611,7 +1653,7 @@ function lbLoad(id){
 }
 function openLightbox(el, id){
   if (!idx.cById.has(Number(id))) return;
-  lbCollect();
+  lbCollect(el);
   lbIdx = lbIds.indexOf(String(id)); if (lbIdx < 0){ lbIds.unshift(String(id)); lbIdx = 0; }
   lb.classList.add("on");
   const r = el.getBoundingClientRect();
@@ -1736,13 +1778,18 @@ resultsEl.addEventListener("click", e => {
 });
 document.addEventListener("keydown", e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"){ e.preventDefault(); qEl.focus(); qEl.select(); }
-  if (e.key === "Escape" && document.activeElement !== qEl && !lbOpen && cols.length > 1){ cols.pop(); renderCols(false); syncHash(); }
+  if (e.key === "Escape" && document.activeElement !== qEl && !lbOpen && cols.length > 1) setColumns(cols.slice(0, -1));
 });
-window.addEventListener("hashchange", () => { if (suppressHash) return; openHash(location.hash); });
+function restoreRoute(){
+  if (suppressHash) return;
+  if (!openHash(location.hash)) setColumns([homeColumn()], { historyMode:"replace" });
+}
+window.addEventListener("hashchange", restoreRoute);
+window.addEventListener("popstate", restoreRoute);
 
 /* ---------- boot ---------- */
 
-const STATIC_RESOURCES = { data:"data.json", gradients:"gradients.json", fontSources:"font_sources.json", relations:"relations.json" };
+const STATIC_RESOURCES = { data:"data.json", gradients:"gradients.json", fontSources:"font_sources.json", relations:"relations.json", legacyColors:"legacy_colors.json" };
 const suppliedConfig = window.FUDGE_EXPLORER_CONFIG || {};
 const explorerConfig = Object.assign({ endpoint:new URLSearchParams(location.search).get("api"), request:{} }, suppliedConfig, {
   resources:Object.assign({}, STATIC_RESOURCES, suppliedConfig.resources)
@@ -1759,17 +1806,19 @@ function normalizeBundle(payload){
     data,
     gradients: payload.gradients ?? data.gradients ?? {},
     fontSources: payload.fontSources ?? payload.font_sources ?? data.font_sources ?? {},
-    relations: payload.relations ?? data.relations ?? []
+    relations: payload.relations ?? data.relations ?? [],
+    legacyColors: payload.legacyColors ?? payload.legacy_colors ?? data.legacy_colors ?? {}
   };
 }
 const dataSources = {
   static(resources = STATIC_RESOURCES){
     return { kind:"static", async load({ signal }){
-      const [data, gradients, fontSources, schema] = await Promise.all([
+      const [data, gradients, fontSources, schema, legacyColors] = await Promise.all([
         requestJson(resources.data, signal), requestJson(resources.gradients, signal),
-        requestJson(resources.fontSources, signal), requestJson(resources.relations, signal)
+        requestJson(resources.fontSources, signal), requestJson(resources.relations, signal),
+        requestJson(resources.legacyColors, signal)
       ].map((request, i) => i ? request.catch(() => undefined) : request));
-      return { data, gradients, fontSources, relations:schema };
+      return { data, gradients, fontSources, relations:schema, legacyColors };
     }};
   },
   service(endpoint){
@@ -1782,26 +1831,25 @@ function selectDataSource(){
 }
 let dataSource = selectDataSource();
 function installBundle(bundle){
-  const { data:d, gradients:g, fontSources:fs, relations:rels } = bundle;
+  const { data:d, gradients:g, fontSources:fs, relations:rels, legacyColors } = bundle;
   resultsEl.classList.remove("on"); resultsEl.innerHTML = ""; qEl.value = ""; hlFns = [];
   clearTimeout(hvTimer); hvEl.classList.remove("open"); lbClose(); lbIds = [];
-  D_ = Object.assign({}, d, { gradients:g });
+  D_ = Object.assign({}, d, { gradients:g, legacy_colors:legacyColors });
   relations = rels;
+  bundleGeneration++;
   buildIndexes();
   initFontSources(fs);
+  const legacyColorCount = Object.values(legacyColors).reduce((sum, rows) => sum + rows.length, 0);
   document.getElementById("meta").textContent =
     d.domains.length.toLocaleString() + " domains · " + d.captures.length.toLocaleString() + " captures · " +
     d.families.length.toLocaleString() + " families · " + Object.keys(d.terms).length + " terms · " +
-    d.color_roles.length.toLocaleString() + " color values · " + d.font_obs.length.toLocaleString() + " font observations · " + (d.ann?Object.keys(d.ann).length:0) + " ANN pivots · " + (d.motion_assets||[]).length.toLocaleString() + " motion · " + (d.font_similarity_results?Object.keys(d.font_similarity_results).length:0) + " font-sim" +
+    d.color_roles.length.toLocaleString() + " measured colors · " + legacyColorCount.toLocaleString() + " legacy palette colors · " + d.font_obs.length.toLocaleString() + " font observations · " + (d.ann?Object.keys(d.ann).length:0) + " ANN pivots · " + (d.motion_assets||[]).length.toLocaleString() + " motion · " + (d.font_similarity_results?Object.keys(d.font_similarity_results).length:0) + " font-sim" +
     (d.text_styles ? " · " + d.text_styles.length.toLocaleString() + " text styles" : "") +
     (d.hist_fonts ? " · " + d.hist_fonts.length.toLocaleString() + " legacy attributions" : "") +
     (Object.keys(g).length ? " · " + Object.keys(g).length + " gradient captures" : "") +
-    (Object.keys(fs).length ? " · " + fontSrc.faces + " font sources" : "") +
+    (Object.keys(fs).length ? " · " + fontSrc.faces + " font preview faces" : "") +
     (rels.length ? " · " + rels.length + " relations" : "");
-  cols.length = 0;
-  cols.push(column("home", "", "The dataset"));
-  renderCols(false);
-  openHash(location.hash);
+  if (!openHash(location.hash, true)) setColumns([homeColumn()], { historyMode:"replace" });
 }
 async function reload(){
   if (loadController) loadController.abort();
