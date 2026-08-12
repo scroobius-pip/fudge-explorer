@@ -39,6 +39,9 @@
   .theme-icon { font-size:12px; color:var(--mut); }
   .theme-select { font:inherit; font-size:10.5px; color:var(--mut); border:1px solid var(--line); border-radius:99px; background:var(--surface, var(--color-surface)); padding:2px 9px; outline:none; cursor:pointer; }
   .theme-select:hover { border-color:var(--line-strong, var(--color-line-strong)); color:var(--ink); }
+  .spec-control { display:inline-flex; align-items:center; gap:5px; color:var(--mut); flex:0 0 auto; }
+  .spec-input { width:120px; min-width:0; font:inherit; font-size:10.5px; color:var(--ink); border:none; border-bottom:1px solid var(--color-input-border); padding:3px 0 2px; outline:none; background:transparent; }
+  .spec-input:focus { border-bottom-color:var(--ink); }
   .favicon { position:relative; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:3px; overflow:hidden; background:var(--color-favicon-bg); border:1px solid rgba(0,0,0,.06); flex:0 0 auto; font-size:9px; font-weight:600; color:var(--mut); vertical-align:-3px; }
   .favicon .fl { position:absolute; inset:0; display:grid; place-items:center; }
   .favicon.inline { width:13px; height:13px; font-size:7px; border-radius:2px; vertical-align:-2px; margin-right:3px; align-self:center; }
@@ -163,6 +166,8 @@
   .bounds-map:after { content:""; position:absolute; inset:0; background:var(--color-overlay, rgba(255,255,255,.4)); }
   .bounds-box { position:absolute; border:2px solid var(--entity-structure); background:color-mix(in srgb, var(--entity-structure) 15%, transparent); z-index:1; min-width:2px; min-height:2px; }
   .bounds-label { position:absolute; z-index:2; left:5px; bottom:4px; background:var(--color-overlay-strong, rgba(255,255,255,.9)); padding:2px 4px; font-size:9px; color:var(--entity-structure); }
+  .geometry { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; margin:-6px 0 12px; }
+  .geometry span { min-width:0; padding:3px 4px; background:var(--soft); color:var(--mut); text-align:center; font-size:9px; font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; border-radius:2px; }
   .sdot { width:6px; height:6px; border-radius:50%; flex:0 0 auto; }
   .raw { white-space:pre-wrap; word-break:break-word; border:1px solid var(--color-line); background:var(--color-code-bg); padding:10px; font:10px/1.55 ui-monospace,Menlo,monospace; max-height:300px; overflow:auto; }
   #cap-hover { position:fixed; z-index:1000; display:none; width:min(520px,calc(100vw - 24px)); background:var(--color-surface); border:1px solid var(--color-line-strong); box-shadow:var(--color-shadow); pointer-events:none; padding:7px; }
@@ -197,6 +202,8 @@
   .shot-pal-strip { display:flex; height:10px; margin:6px 0 8px; overflow:hidden; border-radius:2px; border:1px solid var(--line); }
   .shot-pal-strip i { flex:1; min-width:2px; }
   .mono { font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:10.5px; overflow-wrap:anywhere; }
+  .system-callout { margin:0 0 12px; padding:7px 9px; border-left:2px solid var(--gray); background:var(--soft); color:var(--mut); font-size:10.5px; line-height:1.52; overflow-wrap:anywhere; }
+  .system-callout b { color:var(--ink); }
   .font-highlight { color:var(--orange); font-weight:570; }
   .schema-column { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:7px 10px; padding:5px 0; border-bottom:1px solid var(--line); font-size:11px; }
   .schema-column .name { min-width:0; overflow-wrap:anywhere; }
@@ -213,6 +220,10 @@
   <label class="theme-control" title="Theme">
     <span class="theme-icon" aria-hidden="true">◐</span>
     <select id="theme-picker" class="theme-select" aria-label="Theme"></select>
+  </label>
+  <label class="spec-control" title="Specimen text — applies to all type previews">
+    <span class="theme-icon" aria-hidden="true">Aa</span>
+    <input id="spec" class="spec-input" type="text" placeholder="type to preview…" autocomplete="off" spellcheck="false">
   </label>
   <div class="wrap">
     <input class="search" id="q" type="search" placeholder="Search anything…  ↑↓ Enter · Esc closes column" autocomplete="off" spellcheck="false">
@@ -386,6 +397,10 @@ const L = {
   browse:(kind, value, label) => '<a class="lk" onclick="hop(\'browse\',\'' + kind + '\',\'' + esc(String(label||value||"").slice(0,40)) + '\')">' + esc(label||value||"") + "</a>",
   fs:    (label) => '<a class="lk fam" onclick="hop(\'fontSim\',\'font-similarity\',\'' + esc(String(label||"").slice(0,40)) + '\')">' + esc(label||"font similarity") + "</a>",
   rel:   (label) => '<a class="lk" onclick="hop(\'relations\',\'relations\',\'' + esc(String(label||"").slice(0,40)) + '\')">' + esc(label||"relations") + "</a>",
+  run:   (label) => '<a class="lk" onclick="hop(\'runtime\',\'runtime\',\'' + esc(String(label||"").slice(0,40)) + '\')">' + esc(label||"runtime") + "</a>",
+  sec:   (cid, key, label) => '<a class="lk" onclick="hop(\'section\',\'' + cid + ':' + key + '\',\'' + esc(String(label||"").slice(0,40)) + '\')">' + esc(label||key) + "</a>",
+  motion:(cid, label) => '<a class="lk motion-badge" onclick="hop(\'motion\',\'' + cid + '\',\'motion #' + cid + '\')">' + esc(label||"motion") + "</a>",
+  filter:(route, kind, label) => '<a class="lk" onclick="hop(\'browse\',\'' + escId("filter|" + route + "|" + kind) + '\',\'' + esc(String(label||"").slice(0,40)) + '\')">' + esc(label||kind) + "</a>",
   index: (kind, label) => '<a class="lk" onclick="hop(\'index\',\'' + kind + '\',\'' + esc(String(label||"").slice(0,40)) + '\')">' + esc(label||kind) + "</a>"
 };
 
@@ -467,7 +482,84 @@ function head(c, n){
     '<span class="t">' + esc(c.label) + '</span>' + (n ? '<span class="n">' + n + "</span>" : "") +
     (c.type !== "home" ? '<span class="x">✕</span>' : "") + "</div>";
 }
-const foot = () => '<div class="foot">' + L.index("domains","all domains") + " · " + L.index("families","all families") + " · " + L.index("facets","all facets") + " · " + L.browse("motion","motion","motion") + " · " + L.browse("video","video","page video") + " · " + L.browse("fonts","fonts","all fonts") + " · " + L.fs("font similarity") + " · " + L.rel("relations") + " · " + L.index("runtime","runtime") + "</div>";
+/* ---------- generic filtered views ---------- */
+
+function baseSet(route){
+  const s = new Set();
+  if (!route || route === "all") {
+    for (const cp of (D_ && D_.captures) || []) s.add(cp[0]);
+    return s;
+  }
+  if (route.startsWith("filter|")) {
+    const inner = route.slice(7);
+    const i = inner.lastIndexOf("|");
+    return derive(baseSet(inner.slice(0, i)), inner.slice(i + 1));
+  }
+  const k = route.split("|")[0], v = route.split("|")[1];
+  if (k === "cap") { s.add(Number(v)); return s; }
+  if (k === "mov") { const m = idx.motionByCap.get(Number(v)); if (m) s.add(m[0]); return s; }
+  if (k === "vid") { const cid = Number(v); if (idx.videoByCap.has(cid) || idx.embeddedById.has(cid)) s.add(cid); return s; }
+  if (k === "dom") { for (const cp of idx.cByDomain.get(v) || []) s.add(cp[0]); return s; }
+  if (k === "fam") { const f = idx.fById.get(Number(v)); for (const [cid] of (f ? (idx.capsByFam.get(norm(f[1])) || []) : [])) s.add(cid); return s; }
+  if (k === "ter") { for (const [cid] of (idx.capsByTerm.get(v) || [])) s.add(cid); return s; }
+  if (k === "fac") { for (const t of Object.keys(D_.terms || {})) if ((D_.terms[t] || [])[2] === v) for (const [cid] of (idx.capsByTerm.get(t) || [])) s.add(cid); return s; }
+  return s;
+}
+function derive(set, kind){
+  const out = new Set();
+  if (kind === "captures") return set;
+  if (kind === "motion") { for (const cid of set) if (idx.motionByCap.has(cid)) out.add(cid); return out; }
+  if (kind === "video") { for (const cid of set) if (idx.videoByCap.has(cid) || idx.embeddedById.has(cid)) out.add(cid); return out; }
+  if (kind === "colors") { for (const cid of set) if ((idx.colorsByCap.get(cid) || []).length) out.add(cid); return out; }
+  if (kind === "gradients") { for (const cid of set) if ((idx.gradientsByCap.get(cid) || []).length) out.add(cid); return out; }
+  if (kind === "domains") { for (const cid of set) { const o = (idx.cById.get(cid) || [])[1]; if (o) out.add(o); } return out; }
+  if (kind === "families") { for (const cid of set) for (const [f] of (idx.fontsByCap.get(cid) || [])) out.add(norm(f)); return out; }
+  if (kind === "terms") { for (const cid of set) for (const [t] of (idx.termsByCap.get(cid) || [])) out.add(t); return out; }
+  if (kind === "facets") { for (const cid of set) for (const [t] of (idx.termsByCap.get(cid) || [])) { const f = (D_.terms[t] || [])[2]; if (f) out.add(f); } return out; }
+  return set;
+}
+function routeFor(c){
+  if (!c) return "all";
+  const t = c.type;
+  if (t === "capture" || t === "section" || t === "row" || t === "rawCapture") return "cap|" + String(c.id).split(":")[0].split("|")[0];
+  if (t === "motion") return "mov|" + c.id;
+  if (t === "video") return "vid|" + String(c.id).split(":")[0];
+  if (t === "domain") return "dom|" + c.id;
+  if (t === "family") return "fam|" + c.id;
+  if (t === "term") return "ter|" + c.id;
+  if (t === "facet") return "fac|" + c.id;
+  if (t === "browse") return String(c.id).startsWith("filter|") ? c.id : "all";
+  return "all";
+}
+function foot(){
+  const D0 = D_ || {};
+  const c = cols[cols.length - 1];
+  let route = routeFor(c);
+  const isSingleCap = route.startsWith("cap|");
+  if (isSingleCap) {
+    const s = baseSet(route);
+    if (!derive(s, "colors").size && !derive(s, "families").size && !derive(s, "terms").size) {
+      const cp = idx.cById.get(Number(route.split("|")[1]));
+      if (cp && idx.cByDomain.get(cp[1]).length > 1) route = "dom|" + cp[1];
+    }
+  }
+  const set = baseSet(route);
+  const items = [];
+  const add = (k, n, label) => { if (n > 0) items.push(L.filter(route, k, label)); };
+  if (!isSingleCap) add("captures", set.size, set.size.toLocaleString() + " captures");
+  const doms = derive(set, "domains"); add("domains", doms.size, doms.size + " domains");
+  const fams = derive(set, "families"); add("families", fams.size, fams.size + " families");
+  const ters = derive(set, "terms"); add("terms", ters.size, ters.size + " terms");
+  const fcs = derive(set, "facets"); add("facets", fcs.size, fcs.size + " facets");
+  const col = derive(set, "colors"); add("colors", col.size, col.size + " colors");
+  const mov = derive(set, "motion"); add("motion", mov.size, mov.size + " motion");
+  const vid = derive(set, "video"); add("video", vid.size, vid.size + " video");
+  const relCount = (window.RELATIONS || []).length;
+  items.push(L.fs(Object.keys(D0.font_similarity_results || {}).length + " font-sim"));
+  items.push(relCount ? L.rel(relCount + " relations") : L.rel("relations"));
+  items.push(L.run("runtime"));
+  return '<div class="foot">' + items.join(" · ") + "</div>";
+}
 function fmtDateTime(ms){ return new Date(ms).toLocaleString(undefined, { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }); }
 function downloadText(filename, content){
   const url = URL.createObjectURL(new Blob([content], { type:"application/json" }));
@@ -478,22 +570,32 @@ function downloadText(filename, content){
 const __rawCache = new Map();
 let __rawSeq = 0;
 const fontSrc = { byFam: new Map(), faces: 0 };
+let specimenText = (() => { try { return localStorage.getItem("fudge-specimen-text") || "Aa — Structure, meaning, interface."; } catch (_) { return "Aa — Structure, meaning, interface."; } })();
+const specTxt = () => esc(specimenText);
 function initFontSources(g){
   const facesEl = document.getElementById("font-faces");
   if (!facesEl) return;
-  const css = [];
-  const seen = new Set();
+  const byFam = new Map();
   for (const rows of Object.values(g || {})) {
     for (const r of rows) {
-      if (!r || !r.url || seen.has(r.url)) continue;
-      seen.add(r.url);
-      const key = norm(r.family || "");
-      if (!fontSrc.byFam.has(key)) fontSrc.byFam.set(key, []);
-      const face = "fudge-src-" + (++fontSrc.faces);
-      const entry = Object.assign({}, r, { face });
-      fontSrc.byFam.get(key).push(entry);
-      css.push("@font-face{font-family:'" + face + "';src:url('" + r.url.replace(/["'\\]/g, "") + "') format('" + (r.format || "woff2") + "');font-weight:100 900;font-display:swap}");
+      if (!r || !r.url || !r.family) continue;
+      const key = norm(r.family);
+      if (!byFam.has(key)) byFam.set(key, []);
+      byFam.get(key).push(r);
     }
+  }
+  const css = [];
+  for (const [key, rows] of byFam) {
+    const seen = new Set();
+    const urls = rows
+      .sort((a, b) => (a.source_index || 0) - (b.source_index || 0) || (a.format || "").localeCompare(b.format || ""))
+      .filter(r => !seen.has(r.url) && seen.add(r.url));
+    if (!urls.length) continue;
+    const srcs = urls.map(r => "url('" + r.url.replace(/["'\\]/g, "") + "') format('" + (r.format || "woff2") + "')").join(",");
+    const face = "fudge-src-" + (++fontSrc.faces);
+    const first = urls.find(r => r.format === "woff2") || urls[0];
+    fontSrc.byFam.set(key, [{ face, url: first.url, format: first.format, count: urls.length }]);
+    css.push("@font-face{font-family:'" + face + "';src:" + srcs + ";font-weight:100 900;font-display:swap}");
   }
   facesEl.textContent = css.join("");
 }
@@ -651,6 +753,7 @@ function vStructure(c){
     '<div class="cbody">' +
     '<div class="bounds-map" style="' + bg + '"><div class="bounds-box" style="left:' + (sx/100) + '%;top:' + (sy/100) + '%;width:' + (sw/100) + '%;height:' + (sh/100) + '%"></div>' +
     '<div class="bounds-label">' + esc(termLabel(tid)) + '</div></div>' +
+    '<div class="geometry"><span>x ' + sx + '</span><span>y ' + sy + '</span><span>w ' + sw + '</span><span>h ' + sh + '</span></div>' +
     '<p class="prose">' + L.term(tid) + " is a resolved region in " + L.cap(cid, cap ? cap[3] : "capture " + cid) + ".</p>" +
     KV([
       ["structure_id", String(sid), true],
@@ -693,6 +796,7 @@ function vVideo(c){
   return head(c, Math.round(v[5]/10000) + "% coverage") +
     '<div class="cbody">' +
     '<div class="bounds-map" style="' + bg + '"><div class="bounds-box" style="left:' + (v[1]/100) + '%;top:' + (v[2]/100) + '%;width:' + (v[3]/100) + '%;height:' + (v[4]/100) + '%"></div><div class="bounds-label">video</div></div>' +
+    '<div class="geometry"><span>x ' + v[1] + '</span><span>y ' + v[2] + '</span><span>w ' + v[3] + '</span><span>h ' + v[4] + '</span></div>' +
     (cap ? '<div class="sec"><h4>capture</h4><div class="associated-capture">' + capRow(cap, "capture #" + cid) + "</div></div>" : "") +
     '<p class="prose">Measured video element in ' + L.cap(cid, cap ? cap[3] : "capture " + cid) + ".</p>" +
     KV([
@@ -865,12 +969,33 @@ function vRow(c){
   return head(c, "row " + (idxN + 1)) +
     '<div class="cbody">' +
     '<div class="sec"><div class="associated-capture">' + capRow(cp, "capture #" + cid) + "</div></div>" +
-    (hasGeo ? '<div class="sec"><div class="bounds-map" style="' + bg + '"><div class="bounds-box" style="left:' + (obj.x_q/100) + '%;top:' + (obj.y_q/100) + '%;width:' + (obj.width_q/100) + '%;height:' + (obj.height_q/100) + '%"></div><div class="bounds-label">' + esc(key) + ' #' + (idxN + 1) + '</div></div></div>' : "") +
+    (hasGeo ? '<div class="sec"><div class="bounds-map" style="' + bg + '"><div class="bounds-box" style="left:' + (obj.x_q/100) + '%;top:' + (obj.y_q/100) + '%;width:' + (obj.width_q/100) + '%;height:' + (obj.height_q/100) + '%"></div><div class="bounds-label">' + esc(key) + ' #' + (idxN + 1) + '</div></div>' +
+      '<div class="geometry"><span>x ' + obj.x_q + '</span><span>y ' + obj.y_q + '</span><span>w ' + obj.width_q + '</span><span>h ' + obj.height_q + '</span></div></div>' : "") +
     (obj.r != null ? '<div class="sec"><span class="sw big" style="background:' + hex(obj.r, obj.g, obj.b) + '"></span></div>' : "") +
+    (obj.declared_family ? '<div class="sec"><div class="type-sample" style="' + specimenCss(obj.declared_family, "'" + String(obj.declared_family).replace(/["'<>]/g,"") + "',sans-serif") + ';font-size:22px">' + specTxt() + '</div>' + (srcLine(obj.declared_family) || "") + "</div>" : "") +
     '<p class="prose">' + esc(SECTION_DESC[key] || key) + "</p>" +
     KV(kv) +
     '<div class="sec"><h4>JSON</h4><div class="actions"><button class="action" onclick="downloadText(\'capture-' + cid + '-' + key + '-row' + idxN + '.json\', JSON.stringify(__rawCache.get(' + rowId + ')))">download JSON</button></div><pre class="raw">' + esc(JSON.stringify(obj, null, 2)) + "</pre></div>" +
     foot() + "</div>";
+}
+function domainProfile(origin, exceptCid){
+  if (!origin) return null;
+  const caps = idx.cByDomain.get(origin) || [];
+  let best = null, bestScore = 0;
+  for (const cp of caps) {
+    const cid = cp[0];
+    if (cid === exceptCid) continue;
+    const score = (idx.colorsByCap.get(cid)||[]).length + (idx.bgByCap.get(cid)||[]).length + (idx.fontsByCap.get(cid)||[]).length +
+      (idx.typeByCap.get(cid)||[]).length + (idx.textByCap.get(cid)||[]).length + (idx.termsByCap.get(cid)||[]).length +
+      ((idx.gradientsByCap.get(cid)||[]).length) + ((idx.structuresByCap.get(cid)||[]).length);
+    if (score > bestScore) { bestScore = score; best = cp; }
+  }
+  if (!best || !bestScore) return null;
+  const cid = best[0];
+  return { cid, cp: best, score: bestScore,
+    colors: idx.colorsByCap.get(cid) || [], bg: idx.bgByCap.get(cid) || [], fonts: idx.fontsByCap.get(cid) || [],
+    types: idx.typeByCap.get(cid) || [], texts: idx.textByCap.get(cid) || [], grads: idx.gradientsByCap.get(cid) || [],
+    terms: idx.termsByCap.get(cid) || [] };
 }
 function vCapture(c){
   const id = c.id, cp = idx.cById.get(id);
@@ -908,21 +1033,33 @@ function vCapture(c){
   if (motion) rows.push(evRow("Recorded motion", "▶ " + (motion[4]/1000).toFixed(1) + "s · " + motion[5] + "×" + motion[6] + " · " + (motion[3]/1048576).toFixed(1) + " MB", 1, "motion", id, "motion #" + id));
   if (vids.length) rows.push(evRow("Page video", vids.length + " element" + (vids.length === 1 ? "" : "s") + " · max " + Math.round(Math.max(...vids.map(v => v[5]))/10000) + "%", vids.length, "section", id + ":video", "Page video"));
   const motionGroup = rows.length ? '<div class="sec"><h4>motion</h4>' + rows.join("") + "</div>" : "";
+  const dom = (!colors.length && !bg.length && !fonts.length && !types.length && !texts.length && !terms.length) ? domainProfile(cp[1], id) : null;
   const colsRows = [];
   if (colors.length) colsRows.push(evRow("Measured colors", colors.slice(0,3).map(cl => hex(cl[1],cl[2],cl[3])).join(" · "), colors.length, "section", id + ":colors", "Measured colors", pal));
+  if (dom && dom.colors.length) colsRows.push(evRow("Domain colors", dom.colors.slice(0,3).map(cl => hex(cl[1],cl[2],cl[3])).join(" · "), dom.colors.length, "browse", "filter|dom|" + cp[1] + "|colors", "Domain colors · capture #" + dom.cid,
+    '<div class="palette-mini">' + dom.colors.slice(0,8).map(cl => '<i style="background:' + hex(cl[1],cl[2],cl[3]) + '"></i>').join("") + "</div>"));
   if (bg.length) colsRows.push(evRow("Backgrounds", bg.slice(0,2).map(b => hex(b[0],b[1],b[2])).join(" · "), bg.length, "section", id + ":backgrounds", "Backgrounds"));
+  if (dom && dom.bg.length) colsRows.push(evRow("Domain backgrounds", dom.bg.slice(0,2).map(b => hex(b[0],b[1],b[2])).join(" · "), dom.bg.length, "browse", "filter|dom|" + cp[1] + "|colors", "Domain backgrounds"));
   if (fonts.length) colsRows.push(evRow("Fonts", famNames(fonts), fonts.length, "section", id + ":fonts", "Fonts"));
+  if (dom && dom.fonts.length) colsRows.push(evRow("Domain fonts", [...new Set(dom.fonts.map(f => f[0]))].slice(0,3).map(esc).join(" · "), dom.fonts.length, "browse", "filter|dom|" + cp[1] + "|families", "Domain fonts"));
   if (types.length) colsRows.push(evRow("Typography", types.slice(0,3).map(t => t[0]).join(" · "), types.length, "section", id + ":typography", "Typography"));
+  if (dom && dom.types.length) colsRows.push(evRow("Domain typography", [...new Set(dom.types.map(t => t[0]))].slice(0,3).join(" · "), dom.types.length, "browse", "filter|dom|" + cp[1] + "|typography", "Domain typography"));
   if (textAgg.length) colsRows.push(evRow("Text styles", famNames(textAgg), textAgg.length, "section", id + ":text", "Text styles"));
+  if (dom && dom.texts.length) colsRows.push(evRow("Domain text styles", [...new Set(dom.texts.map(t => t[0]).filter(Boolean))].slice(0,3).map(esc).join(" · "), dom.texts.length, "browse", "filter|dom|" + cp[1] + "|families", "Domain text styles"));
   const colsGroup = colsRows.length ? '<div class="sec"><h4>colors & typography</h4>' + colsRows.join("") + "</div>" : "";
   const layoutRows = [];
   if (structs.length) layoutRows.push(evRow("Structures", [...new Set(structs.map(s => termLabel(s[3])))].slice(0,3).map(esc).join(" · "), structs.length, "section", id + ":structures", "Structures"));
   if (grads.length) layoutRows.push(evRow("Gradients", [...new Set(grads.map(g => g.kind))].join(" · "), grads.length, "section", id + ":gradients", "Gradients"));
+  if (dom && dom.grads.length) layoutRows.push(evRow("Domain gradients", [...new Set(dom.grads.map(g => g.kind))].join(" · "), dom.grads.length, "browse", "filter|dom|" + cp[1] + "|gradients", "Domain gradients"));
   const layoutGroup = layoutRows.length ? '<div class="sec"><h4>layout & effects</h4>' + layoutRows.join("") + "</div>" : "";
   const roleRows = [];
   if (terms.length) roleRows.push(evRow("Ontology terms", terms.slice(0,3).map(([t]) => termLabel(t)).map(esc).join(" · "), terms.length, "section", id + ":terms", "Ontology terms"));
+  if (dom && dom.terms.length) roleRows.push(evRow("Domain terms", dom.terms.slice(0,3).map(([t]) => termLabel(t)).map(esc).join(" · "), dom.terms.length, "browse", "filter|dom|" + cp[1] + "|terms", "Domain terms"));
   if (hists.length) roleRows.push(evRow("Legacy attributions", hists.slice(0,3).map(h => h[2]).map(esc).join(" · "), hists.length, "section", id + ":hist", "Legacy attributions"));
   const roleGroup = roleRows.length ? '<div class="sec"><h4>design roles</h4>' + roleRows.join("") + "</div>" : "";
+  const domNote = dom
+    ? '<div class="system-callout">This capture predates measured design evidence — showing the <b>domain profile</b> from ' + L.cap(dom.cid, "capture #" + dom.cid) + " (" + fmtDate(dom.cp[4]) + ") instead.</div>"
+    : "";
   const simRows = [];
   if (ann.length) simRows.push(evRow("Visual neighbors", ann.length + " nearest captures", ann.length, "section", id + ":ann", "Visual neighbors"));
   if (sim.length) simRows.push(evRow("Similar by terms", sim.length + " captures sharing terms", sim.length, "section", id + ":sim", "Similar by terms"));
@@ -937,8 +1074,8 @@ function vCapture(c){
     '<div class="sec">' + (motion
       ? '<div class="motion-player" style="aspect-ratio:' + motion[5] + '/' + motion[6] + '"><video data-capture="' + id + '" controls muted loop playsinline autoplay preload="metadata" poster="' + esc(cp[5]) + '" src="' + esc(motion[1]) + '" onclick="openLightbox(this,' + id + ')"></video></div>' +
         '<div class="media-meta"><span>WebM</span><span>' + (motion[4]/1000).toFixed(1) + "s</span><span>" + motion[5] + " × " + motion[6] + '</span><span>' + (motion[3]/1048576).toFixed(2) + " MB</span></div>"
-      : '<div class="shot-wrap" style="background-image:' + capFallback(cp) + '"><div class="shot-fallback">preview unavailable</div><img class="shot" data-capture="' + id + '" loading="lazy" decoding="async" src="' + esc(cp[5]) + '" alt="" onclick="openLightbox(this,' + id + ')" onload="this.classList.add(\'loaded\');' + (colors.length || bg.length ? "" : "samplePalette(this," + id + ")") + '" onerror="this.style.display=\'none\';this.previousElementSibling.style.display=\'block\'"></div>') + "</div>" +
-    (colors.length || bg.length || motion ? "" : '<div class="sec" id="shot-pal-' + id + '"></div>') +
+      : '<div class="shot-wrap" style="background-image:' + capFallback(cp) + '"><div class="shot-fallback">preview unavailable</div><img class="shot" data-capture="' + id + '" loading="lazy" decoding="async" src="' + esc(cp[5]) + '" alt="" onclick="openLightbox(this,' + id + ')" onload="this.classList.add(\'loaded\');' + (colors.length || bg.length || dom ? "" : "samplePalette(this," + id + ")") + '" onerror="this.style.display=\'none\';this.previousElementSibling.style.display=\'block\'"></div>') + "</div>" +
+    (colors.length || bg.length || dom || motion ? "" : '<div class="sec" id="shot-pal-' + id + '"></div>') +
     KV([
       ["id", '<span class="mono">#' + id + "</span>", true],
       ["domain", L.dom(cp[1]), false],
@@ -948,6 +1085,7 @@ function vCapture(c){
       ["theme", lkTheme, false],
       ["state", lkState, false]
     ]) +
+    domNote +
     motionGroup + colsGroup + layoutGroup + roleGroup + simGroup + dataGroup +
     foot() + "</div>";
 }
@@ -970,10 +1108,17 @@ function vSection(c){
         '<button class="row" onclick="hop(\'row\',\'' + id + '|backgrounds|' + i + '\',\'background row ' + (i + 1) + '\')"><span class="sw" style="background:' + hex(row[0], row[1], row[2]) + '"></span><span class="t">dominant</span><span class="s">' + hex(row[0], row[1], row[2]) + (row[5] ? " · " + row[5] : "") + "</span></button>");
   } else if (key === "fonts") {
     body = rowsHtml(idx.fontsByCap.get(id) || [], (row, i) => {
-      const fam = row[2], stack = row[3], wmin = row[4], wmax = row[5], occ = row[7];
+      const fam = row[0], stack = row[1], wmin = row[2], wmax = row[3], share = row[4], occ = row[5];
+      const famCss = String(fam||"").replace(/["'<>]/g,"");
+      const sharePct = share != null ? (share/10000).toFixed(share >= 10000 ? 0 : 1) + "%" : "";
       const m = famResolve(fam);
-      return '<button class="row" onclick="hop(\'row\',\'' + id + '|fonts|' + i + '\',\'font row ' + (i + 1) + '\')"><span class="t">' + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' +
-        (wmin !== wmax ? wmin + "–" + wmax : wmin) + (occ ? " · " + occ + "×" : "") + "</span></button>";
+      const resolved = m && norm(m[1]) !== norm(fam) ? m[1] : null;
+      return '<button class="row" onclick="hop(\'row\',\'' + id + '|fonts|' + i + '\',\'font row ' + (i + 1) + '\')">' +
+        '<span class="main"><span class="primary"><span class="font-highlight">' + esc(fam || "—") + '</span></span>' +
+        (stack || resolved ? '<span class="secondary">' + (stack ? esc(stack) : "") + (stack && resolved ? " · " : "") + (resolved ? "<b>" + esc(resolved) + "</b>" : "") + '</span>' : "") + '</span>' +
+        '<span class="s">' + (wmin !== wmax ? wmin + "–" + wmax : wmin) + (sharePct ? " · " + sharePct : "") + (occ ? " · " + occ + "×" : "") + '</span></button>' +
+        '<div class="type-sample" style="' + specimenCss(fam, "'" + famCss + "',sans-serif") + ';font-size:15px;margin:-1px 0 8px">' + specTxt() + '</div>' +
+        (srcLine(fam) || "");
     });
   } else if (key === "typography") {
     body = rowsHtml(idx.typeByCap.get(id) || [], (row, i) => {
@@ -981,7 +1126,7 @@ function vSection(c){
       const m = famResolve(fam);
       const famCss = String(fam||"").replace(/["'<>]/g,"");
       return '<button class="row" onclick="hop(\'row\',\'' + id + '|typography|' + i + '\',\'type row ' + (i + 1) + '\')"><span class="t">' + L.term("typography.role." + role, role) + " · " + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + "</span></button>" +
-        '<div class="type-sample" style="' + specimenCss(fam, "'" + famCss + "',sans-serif") + ';font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">Aa — Structure, meaning, interface.</div>' +
+        '<div class="type-sample" style="' + specimenCss(fam, "'" + famCss + "',sans-serif") + ';font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">' + specTxt() + '</div>' +
         (srcLine(fam) || "");
     });
   } else if (key === "text") {
@@ -1175,7 +1320,87 @@ L.designer = (id, name) => '<a class="lk fam" onclick="hop(\'designer\',' + id +
 L.vendor = (id, name) => '<a class="lk fam" onclick="hop(\'vendor\',' + id + ',\'' + esc(String(name||"").slice(0,40)) + '\')">' + esc(name||("vendor " + id)) + "</a>";
 
 function vBrowse(c){
-  const kind = c.id, value = c.label;
+  const kind0 = c.id;
+  let kind = kind0, value = c.label;
+  const pipe = String(kind0).indexOf("|");
+  if (pipe > 0) { kind = kind0.slice(0, pipe); value = kind0.slice(pipe + 1); }
+  if (kind === "filter") {
+    const route = value.slice(0, value.lastIndexOf("|"));
+    const dk = value.slice(value.lastIndexOf("|") + 1);
+    const set = baseSet(route);
+    const caps = [...set].sort((a, b) => (idx.cById.get(b) || [4])[4] - (idx.cById.get(a) || [4])[4]);
+    const title = dk === "captures" ? caps.length + " captures" : caps.length + " captures · " + dk;
+    const desc = "Filtered " + dk + " from " + (route === "all" ? "the whole corpus" : route.split("|")[0] === "cap" ? "capture #" + route.split("|")[1] : route.split("|")[0] + " " + decodeURIComponent(route.split("|").slice(1).join("|"))) + ".";
+    let body = "";
+    if (dk === "captures") {
+      body = rowsHtml(caps.map(cid => idx.cById.get(cid)).filter(Boolean), cp => capRow(cp), 120);
+    } else if (dk === "domains") {
+      const counts = new Map();
+      for (const cid of caps) { const o = (idx.cById.get(cid) || [])[1]; if (o) counts.set(o, (counts.get(o) || 0) + 1); }
+      body = rowsHtml([...counts.entries()].sort((a, b) => b[1] - a[1]), ([o, n]) =>
+        '<button class="row" onclick="hop(\'domain\',\'' + escId(o) + '\',\'' + esc(o.replace("https://","").slice(0,34)) + '\')"><span class="t">' + favicon(o) + ' ' + esc(o.replace("https://","")) + '</span><span class="s">' + n + " captures</span></button>", 120);
+    } else if (dk === "families") {
+      const counts = new Map();
+      for (const cid of caps) for (const [f] of (idx.fontsByCap.get(cid) || [])) { const k = norm(f); counts.set(k, (counts.get(k) || 0) + 1); }
+      body = rowsHtml([...counts.entries()].sort((a, b) => b[1] - a[1]), ([k, n]) => {
+        const m = famResolve(k);
+        return (m
+          ? '<button class="row" onclick="hop(\'family\',' + m[0] + ',\'' + esc(m[1].slice(0,34)) + '\')"><span class="t"><span class="font-highlight">' + esc(m[1]) + '</span></span><span class="s">' + n + " captures</span></button>"
+          : '<div class="row" style="cursor:default"><span class="t">' + esc(k) + '</span><span class="s">' + n + " captures</span></div>");
+      }, 120);
+    } else if (dk === "terms") {
+      const counts = new Map();
+      for (const cid of caps) for (const [t] of (idx.termsByCap.get(cid) || [])) counts.set(t, (counts.get(t) || 0) + 1);
+      body = rowsHtml([...counts.entries()].sort((a, b) => b[1] - a[1]), ([t, n]) =>
+        '<button class="row" onclick="hop(\'term\',\'' + escId(t) + '\',\'' + esc(String(termLabel(t)).slice(0,34)) + '\')"><span class="t"><span class="term-highlight">' + esc(termLabel(t)) + '</span></span><span class="s">' + n + " captures</span></button>", 120);
+    } else if (dk === "facets") {
+      const counts = new Map();
+      for (const cid of caps) for (const [t] of (idx.termsByCap.get(cid) || [])) { const f = (D_.terms[t] || [])[2]; if (f) counts.set(f, (counts.get(f) || 0) + 1); }
+      body = rowsHtml([...counts.entries()].sort((a, b) => b[1] - a[1]), ([f, n]) =>
+        '<button class="row" onclick="hop(\'facet\',\'' + escId(f) + '\',\'' + esc(f) + '\')"><span class="t">' + esc(f.replace(/_/g, " ")) + '</span><span class="s">' + n + " captures</span></button>", 120);
+    } else if (dk === "motion") {
+      body = rowsHtml(caps.filter(cid => idx.motionByCap.has(cid)), cid => {
+        const m = idx.motionByCap.get(cid);
+        return capRow(idx.cById.get(cid), "\u25b6 " + Math.round(m[4]/1000) + "s · " + (m[3]/1048576).toFixed(1) + " MB");
+      }, 120);
+    } else if (dk === "video") {
+      body = rowsHtml(caps.filter(cid => idx.videoByCap.has(cid) || idx.embeddedById.has(cid)), cid => {
+        const rows = idx.videoByCap.get(cid) || [];
+        return capRow(idx.cById.get(cid), rows.length + " element" + (rows.length === 1 ? "" : "s") + (rows.length ? " · max " + Math.round(Math.max(...rows.map(r => r[5]))/10000) + "%" : ""));
+      }, 120);
+    } else if (dk === "colors") {
+      body = rowsHtml(caps.filter(cid => (idx.colorsByCap.get(cid) || []).length), cid => {
+        const cols = idx.colorsByCap.get(cid) || [];
+        return capRow(idx.cById.get(cid), cols.length + " colors") +
+          '<div class="palette-mini">' + cols.slice(0, 10).map(cl => '<i style="background:' + hex(cl[1], cl[2], cl[3]) + '"></i>').join("") + "</div>";
+      }, 120);
+    } else if (dk === "gradients") {
+      body = rowsHtml(caps.filter(cid => (idx.gradientsByCap.get(cid) || []).length), cid => {
+        const g = idx.gradientsByCap.get(cid) || [];
+        return capRow(idx.cById.get(cid), g.length + " gradient" + (g.length === 1 ? "" : "s"));
+      }, 120);
+    } else if (dk === "typography") {
+      const seen = new Map();
+      for (const cid of caps) for (const row of (idx.typeByCap.get(cid) || [])) {
+        const k = row[1] + "|" + norm(row[2] || "");
+        if (!seen.has(k)) seen.set(k, row);
+      }
+      body = rowsHtml([...seen.values()], (row) => {
+        const role = row[1], fam = row[2], w = row[3], size = row[4];
+        const m = famResolve(fam);
+        const famCss = String(fam||"").replace(/["'<>]/g,"");
+        return '<div class="row" style="cursor:default"><span class="t">' + L.term("typography.role." + role, role) + " · " + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + "</span></div>" +
+          '<div class="type-sample" style="' + specimenCss(fam, "'" + famCss + "',sans-serif") + ';font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">' + specTxt() + '</div>' +
+          (srcLine(fam) || "");
+      }, 120);
+    }
+    return head(c, title) +
+      '<div class="cbody">' +
+      '<p class="prose">' + desc + "</p>" +
+      '<div class="sec"><h4>' + dk.replace(/_/g, " ") + ' <span class="n">' + caps.length + '</span></h4>' +
+      (body || '<div class="empty">nothing in this filter</div>') + "</div>" +
+      foot() + "</div>";
+  }
   if (kind === "fonts") {
     const names = [...new Set([...idx.capsByFam.keys(), ...D_.families.map(f => norm(f[1]))])].sort();
     const rows = names.map(k => {
@@ -1199,7 +1424,7 @@ function vBrowse(c){
       '<div class="cbody">' +
       '<p class="prose">All recorded WebM motion assets, longest first.</p>' +
       '<div class="sec"><h4>recordings <span class="n">' + list.length + '</span></h4>' +
-      rowsHtml(list, m => capRow(idx.cById.get(m[0]), "▶ " + Math.round(m[4]/1000) + "s · " + (m[3]/1048576).toFixed(1) + " MB"), 120) + "</div>" +
+      rowsHtml(list, m => capRow(idx.cById.get(m[0]), "\u25b6 " + Math.round(m[4]/1000) + "s · " + (m[3]/1048576).toFixed(1) + " MB"), 120) + "</div>" +
       foot() + "</div>";
   }
   if (kind === "video") {
@@ -1235,11 +1460,12 @@ function vBrowse(c){
   const label = kind === "path" ? (value || "/") : kind + " · " + value;
   return head({ type:"browse", label, id:kind }, caps.length + " captures") +
     '<div class="cbody">' +
-    '<p class="prose">' + caps.length + " captures" + (kind === "path" ? " at path " + esc(value || "/") + " across " + domains + " domains" : " with " + kind + " “" + esc(value) + "”") + ".</p>" +
+    '<p class="prose">' + caps.length + " captures" + (kind === "path" ? " at path " + esc(value || "/") + " across " + domains + " domains" : " with " + kind + " \u201c" + esc(value) + "\u201d") + ".</p>" +
     '<div class="sec"><h4>captures <span class="n">' + caps.length + '</span></h4>' +
     rowsHtml(list, cp => capRow(cp), 60) + "</div>" +
     foot() + "</div>";
 }
+
 function vRawCapture(c){
   const id = Number(c.id);
   const cp = idx.cById.get(id);
@@ -1522,6 +1748,15 @@ document.addEventListener("keydown", e => {
 
 const qEl = document.getElementById("q");
 const resultsEl = document.getElementById("results");
+const specEl = document.getElementById("spec");
+if (specEl) {
+  specEl.value = specimenText;
+  specEl.addEventListener("input", () => {
+    specimenText = specEl.value;
+    document.querySelectorAll(".type-sample").forEach(el => { el.textContent = specimenText; });
+    try { localStorage.setItem("fudge-specimen-text", specimenText); } catch (_) {}
+  });
+}
 let hlIdx = 0, hlFns = [];
 function doSearch(){
   const s = qEl.value.trim().toLowerCase();
