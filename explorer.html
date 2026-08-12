@@ -234,16 +234,10 @@
 <main id="cols"></main>
 
 <script>
-let D_ = null;
-const idx = { cById:new Map(), cByDomain:new Map(), termsByCap:new Map(), capsByTerm:new Map(),
-  fById:new Map(), dgById:new Map(), vById:new Map(), fByDesigner:new Map(), fByVendor:new Map(),
-  relsById:new Map(), relCount:new Map(), colorsByCap:new Map(), bgByCap:new Map(),
-  fontsByCap:new Map(), typeByCap:new Map(), famByNorm:new Map(), capsByFam:new Map(),
-  famGroups:new Map(),
-  textByCap:new Map(), histByCap:new Map(), structuresByCap:new Map(),
-  annByCap:new Map(), motionByCap:new Map(), videoByCap:new Map(), embeddedById:new Set(), gradientsByCap:new Map(),
-  simRes:new Map(), catMatch:new Map(),
-  cByPath:new Map(), cByTheme:new Map(), cByDevice:new Map(), cByState:new Map() };
+let D_ = null, relations = [];
+const INDEX_MAPS = ["cById","cByDomain","termsByCap","capsByTerm","fById","dgById","vById","fByDesigner","fByVendor","relsById","relCount","colorsByCap","bgByCap","fontsByCap","typeByCap","famByNorm","capsByFam","famGroups","textByCap","histByCap","structuresByCap","annByCap","motionByCap","videoByCap","gradientsByCap","simRes","catMatch","cByPath","cByTheme","cByDevice","cByState"];
+const createIndexes = () => Object.assign(Object.fromEntries(INDEX_MAPS.map(k => [k, new Map()])), { embeddedById:new Set() });
+let idx = createIndexes();
 const colsEl = document.getElementById("cols");
 const TYPE = {
   home:{label:"dataset",color:"var(--entity-ink)"}, domain:{label:"domain",color:"var(--entity-domain)"},
@@ -259,10 +253,17 @@ const TYPE = {
   embeddings:{label:"embeddings",color:"var(--entity-color)"}
 };
 const MAXCOLS = 7;
+const NUMERIC_VIEWS = new Set(["capture","family","designer","vendor","motion","rawCapture"]);
 
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function escAttr(s){ return esc(s).replace(/"/g,"&quot;"); }
 function escId(s){ return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
 function fmtDate(ms){ return new Date(ms).toISOString().slice(0,10); }
+const column = (type, id, label) => ({ type, id:NUMERIC_VIEWS.has(type) ? Number(id) : id, label });
+function pushMap(map, key, value){
+  if (!map.has(key)) map.set(key, []);
+  map.get(key).push(value);
+}
 const termLabel = t => String((D_.terms[t] && D_.terms[t][0]) || t || "");
 const termFacet = t => (D_.terms[t] && D_.terms[t][2]) || "";
 const termDef   = t => (D_.terms[t] && D_.terms[t][1]) || "";
@@ -290,92 +291,74 @@ const hex = (r,g,b) => "#" + [r,g,b].map(v => Math.max(0,Math.min(255,v)).toStri
 const px = m => m == null ? "" : (m/1000 >= 10 ? Math.round(m/1000) : (m/1000).toFixed(1)) + "px";
 
 function buildIndexes() {
+  idx = createIndexes();
   for (const c of D_.captures) {
     idx.cById.set(c[0], c);
-    if (!idx.cByDomain.has(c[1])) idx.cByDomain.set(c[1], []);
-    idx.cByDomain.get(c[1]).push(c);
-    if (!idx.cByPath.has(c[2])) idx.cByPath.set(c[2], []);
-    idx.cByPath.get(c[2]).push(c);
-    if (!idx.cByTheme.has(c[7])) idx.cByTheme.set(c[7], []);
-    idx.cByTheme.get(c[7]).push(c);
-    if (!idx.cByDevice.has(c[6])) idx.cByDevice.set(c[6], []);
-    idx.cByDevice.get(c[6]).push(c);
-    if (!idx.cByState.has(c[8])) idx.cByState.set(c[8], []);
-    idx.cByState.get(c[8]).push(c);
+    pushMap(idx.cByDomain, c[1], c);
+    pushMap(idx.cByPath, c[2], c);
+    pushMap(idx.cByTheme, c[7], c);
+    pushMap(idx.cByDevice, c[6], c);
+    pushMap(idx.cByState, c[8], c);
   }
   for (const [cid, tid, conf] of D_.assignments) {
-    if (!idx.termsByCap.has(cid)) idx.termsByCap.set(cid, []);
-    idx.termsByCap.get(cid).push([tid, conf]);
-    if (!idx.capsByTerm.has(tid)) idx.capsByTerm.set(tid, []);
-    idx.capsByTerm.get(tid).push([cid, conf]);
+    pushMap(idx.termsByCap, cid, [tid, conf]);
+    pushMap(idx.capsByTerm, tid, [cid, conf]);
   }
   for (const f of D_.families) {
     idx.fById.set(f[0], f);
     idx.famByNorm.set(norm(f[1]), f);
     const n = norm(f[1]);
-    if (!idx.famGroups.has(n)) idx.famGroups.set(n, []);
-    idx.famGroups.get(n).push(f);
-    if (f[2] != null) { if (!idx.fByDesigner.has(f[2])) idx.fByDesigner.set(f[2], []); idx.fByDesigner.get(f[2]).push(f); }
-    if (f[3] != null) { if (!idx.fByVendor.has(f[3])) idx.fByVendor.set(f[3], []); idx.fByVendor.get(f[3]).push(f); }
+    pushMap(idx.famGroups, n, f);
+    if (f[2] != null) pushMap(idx.fByDesigner, f[2], f);
+    if (f[3] != null) pushMap(idx.fByVendor, f[3], f);
   }
   for (const dg of D_.designers) idx.dgById.set(dg[0], dg);
   for (const v of D_.vendors) idx.vById.set(v[0], v);
   for (const r of D_.releases) {
-    if (!idx.relsById.has(r[0])) idx.relsById.set(r[0], []);
-    idx.relsById.get(r[0]).push(r);
+    pushMap(idx.relsById, r[0], r);
     idx.relCount.set(r[0], (idx.relCount.get(r[0])||0) + 1);
   }
   for (const [cid, role, r, g, b, a, occ] of D_.color_roles) {
-    if (!idx.colorsByCap.has(cid)) idx.colorsByCap.set(cid, []);
-    idx.colorsByCap.get(cid).push([role, r, g, b, a, occ]);
+    pushMap(idx.colorsByCap, cid, [role, r, g, b, a, occ]);
   }
   for (const [cid, r, g, b, a, occ] of D_.backgrounds) {
-    if (!idx.bgByCap.has(cid)) idx.bgByCap.set(cid, []);
-    idx.bgByCap.get(cid).push([r, g, b, a, occ]);
+    pushMap(idx.bgByCap, cid, [r, g, b, a, occ]);
   }
   for (const [cid, rows] of Object.entries(D_.gradients || {})) {
     idx.gradientsByCap.set(Number(cid), rows);
   }
   for (const [cid, oi, fam, stack, wmin, wmax, share, occ] of D_.font_obs) {
-    if (!idx.fontsByCap.has(cid)) idx.fontsByCap.set(cid, []);
-    idx.fontsByCap.get(cid).push([fam, stack, wmin, wmax, share, occ]);
+    pushMap(idx.fontsByCap, cid, [fam, stack, wmin, wmax, share, occ]);
     const n = norm(fam);
-    if (!idx.capsByFam.has(n)) idx.capsByFam.set(n, []);
-    idx.capsByFam.get(n).push([cid, fam]);
+    pushMap(idx.capsByFam, n, [cid, fam]);
   }
   for (const [cid, role, fam, w, size, lh, share] of D_.type_roles) {
-    if (!idx.typeByCap.has(cid)) idx.typeByCap.set(cid, []);
-    idx.typeByCap.get(cid).push([role, fam, w, size, lh, share]);
+    pushMap(idx.typeByCap, cid, [role, fam, w, size, lh, share]);
   }
   for (const row of D_.text_styles || []) {
     /* [cid, declared_family, weight, size_milli_px, occurrence_count] */
     const [cid, fam, w, size, occ] = row;
-    if (!idx.textByCap.has(cid)) idx.textByCap.set(cid, []);
-    idx.textByCap.get(cid).push([fam, w, size, occ]);
+    pushMap(idx.textByCap, cid, [fam, w, size, occ]);
   }
   for (const row of D_.hist_fonts || []) {
     /* [cid, family_id, family_name, sub_family_name, legacy_link_count] */
     const [cid, fid, name, sub, links] = row;
-    if (!idx.histByCap.has(cid)) idx.histByCap.set(cid, []);
-    idx.histByCap.get(cid).push([fid, name, sub, links]);
+    pushMap(idx.histByCap, cid, [fid, name, sub, links]);
   }
   for (const row of D_.structures || []) {
     /* [cid, structure_id, parent_structure_id, term_id, x_q, y_q, width_q, height_q, confidence_ppm] */
     const [cid, sid, parent, tid, x, y, w, h, conf] = row;
-    if (!idx.structuresByCap.has(cid)) idx.structuresByCap.set(cid, []);
-    idx.structuresByCap.get(cid).push([sid, parent, tid, x, y, w, h, conf]);
+    pushMap(idx.structuresByCap, cid, [sid, parent, tid, x, y, w, h, conf]);
   }
   for (const [cid, rows] of Object.entries(D_.ann || {})) {
-    if (!idx.annByCap.has(Number(cid))) idx.annByCap.set(Number(cid), []);
-    idx.annByCap.get(Number(cid)).push(...rows.map(r => [r[0], r[1]]));
+    for (const r of rows) pushMap(idx.annByCap, Number(cid), [r[0], r[1]]);
   }
   for (const r of D_.motion_assets || []) {
     /* [cid, object_key, media_type, byte_length, duration_ms, width_px, height_px] */
     idx.motionByCap.set(r[0], r);
   }
   for (const v of D_.video_observations || []) {
-    if (!idx.videoByCap.has(v.capture_id)) idx.videoByCap.set(v.capture_id, []);
-    idx.videoByCap.get(v.capture_id).push([v.observation_index, v.x_q, v.y_q, v.width_q, v.height_q, v.coverage_ppm, v.occurrence_count]);
+    pushMap(idx.videoByCap, v.capture_id, [v.observation_index, v.x_q, v.y_q, v.width_q, v.height_q, v.coverage_ppm, v.occurrence_count]);
   }
   for (const c of D_.embedded_video_captures || []) idx.embeddedById.add(c.id);
   for (const [name, rows] of Object.entries(D_.font_similarity_results || {})) {
@@ -410,7 +393,7 @@ const cols = [];
 let suppressHash = false;
 function syncHash(){
   const last = cols[cols.length-1];
-  const id = last && last.type === "browse" ? last.id + "|" + last.label : last ? String(last.id) : "";
+  const id = last && last.type === "browse" ? "~" + JSON.stringify([last.id, last.label]) : last ? String(last.id) : "";
   const h = last && last.type !== "home" ? "#" + encodeURIComponent(last.type) + "/" + encodeURIComponent(id) : "";
   if (location.hash === h) return;
   suppressHash = true;
@@ -431,11 +414,13 @@ function openHash(hash){
   else if (type === "term") label = String(termLabel(id) || id);
   else if (type === "family") { const f = idx.fById.get(Number(id)); if (f) label = f[1]; }
   else if (type === "browse") {
-    const sep = id.indexOf("|");
-    if (sep > 0) { label = id.slice(sep + 1); id = id.slice(0, sep); }
+    if (id.startsWith("~[")) {
+      try { [id, label] = JSON.parse(id.slice(1)); } catch (_) { return false; }
+    }
+    else { const sep = id.lastIndexOf("|"); if (sep > 0) { label = id.slice(sep + 1); id = id.slice(0, sep); } }
   }
   cols.length = 0;
-  cols.push({ type:"home", id:"", label:"The dataset" }, { type, id, label });
+  cols.push(column("home", "", "The dataset"), column(type, id, label));
   renderCols(false);
   return true;
 }
@@ -444,14 +429,14 @@ function closeCol(i){ if (i === 0) return; cols.splice(i); renderCols(false); sy
 function hop(type, id, label){
   const last = cols[cols.length-1];
   if (last && last.type === type && last.id === id) return;
-  cols.push({ type, id, label });
+  cols.push(column(type, id, label));
   if (cols.length > MAXCOLS) cols.splice(1, cols.length - MAXCOLS);
   renderCols(true);
   syncHash();
 }
 function fresh(type, id, label){
   cols.length = 0;
-  cols.push({ type:"home", id:"", label:"The dataset" }, { type, id, label });
+  cols.push(column("home", "", "The dataset"), column(type, id, label));
   renderCols(true);
   syncHash();
 }
@@ -461,18 +446,31 @@ const rowsHtml = (list, fn, limit) => {
   const more = limit && list.length > limit ? '<div class="empty">+ ' + (list.length - limit) + " more</div>" : "";
   return cut.map(fn).join("") + more;
 };
+function navRow(type, id, label, meta, content, className = "row"){
+  const handler = "hop(" + [type, id, String(label || "").slice(0,34)].map(JSON.stringify).join(",") + ")";
+  return '<button class="' + escAttr(className) + '" onclick="' + escAttr(handler) + '"><span class="t">' + (content == null ? esc(label) : content) + '</span><span class="s">' + esc(meta || "") + "</span></button>";
+}
 function renderCols(animate){
   colsEl.innerHTML = "";
   cols.forEach((c, i) => {
     const el = document.createElement("div");
     el.className = "col" + (animate && i === cols.length-1 ? " enter" : "") + (i === cols.length-1 ? " active" : "");
-    el.innerHTML = VIEWS[c.type](c);
-    if (i > 0) {
-      el.querySelector(".chead").addEventListener("click", () => retractTo(i-1));
-      const x = el.querySelector(".x");
-      if (x) x.addEventListener("click", e => { e.stopPropagation(); closeCol(i); });
-    }
     colsEl.appendChild(el);
+    const mount = html => {
+      if (!el.isConnected) return;
+      el.innerHTML = html;
+      if (i > 0) {
+        const header = el.querySelector(".chead");
+        if (header) header.addEventListener("click", () => retractTo(i-1));
+        const x = el.querySelector(".x");
+        if (x) x.addEventListener("click", e => { e.stopPropagation(); closeCol(i); });
+      }
+    };
+    const output = VIEWS[c.type](c);
+    if (output && typeof output.then === "function") {
+      mount(head(c) + '<div class="cbody"><div class="empty">loading…</div></div>');
+      output.then(mount, error => mount(head(c) + '<div class="cbody"><div class="empty">' + esc(error) + "</div></div>"));
+    } else mount(output);
   });
   colsEl.scrollLeft = colsEl.scrollWidth;
 }
@@ -482,54 +480,59 @@ function head(c, n){
     '<span class="t">' + esc(c.label) + '</span>' + (n ? '<span class="n">' + n + "</span>" : "") +
     (c.type !== "home" ? '<span class="x">✕</span>' : "") + "</div>";
 }
+const page = (c, n, content) => head(c, n) + '<div class="cbody">' + content + "</div>";
+const section = (title, content, count) => '<div class="sec"><h4>' + title + (count == null ? "" : ' <span class="n">' + count + "</span>") + "</h4>" + content + "</div>";
+const listPage = (c, metric, prose, title, count, content) => page(c, metric, '<p class="prose">' + prose + "</p>" + section(title, content, count) + foot());
 /* ---------- generic filtered views ---------- */
 
+const ROUTE_SOURCES = {
+  all: () => D_.captures.map(cp => cp[0]),
+  cap: v => [Number(v)],
+  mov: v => idx.motionByCap.has(Number(v)) ? [Number(v)] : [],
+  vid: v => idx.videoByCap.has(Number(v)) || idx.embeddedById.has(Number(v)) ? [Number(v)] : [],
+  dom: v => (idx.cByDomain.get(v) || []).map(cp => cp[0]),
+  fam: v => ((idx.capsByFam.get(norm((idx.fById.get(Number(v)) || [])[1])) || []).map(([cid]) => cid)),
+  ter: v => (idx.capsByTerm.get(v) || []).map(([cid]) => cid),
+  fac: v => Object.keys(D_.terms).filter(t => termFacet(t) === v).flatMap(t => (idx.capsByTerm.get(t) || []).map(([cid]) => cid))
+};
+const CAPTURE_FILTERS = {
+  motion: cid => idx.motionByCap.has(cid),
+  video: cid => idx.videoByCap.has(cid) || idx.embeddedById.has(cid),
+  colors: cid => (idx.colorsByCap.get(cid) || []).length,
+  gradients: cid => (idx.gradientsByCap.get(cid) || []).length,
+  typography: cid => (idx.typeByCap.get(cid) || []).length
+};
+const PROJECTIONS = {
+  domains: cid => [(idx.cById.get(cid) || [])[1]],
+  families: cid => (idx.fontsByCap.get(cid) || []).map(([f]) => norm(f)),
+  terms: cid => (idx.termsByCap.get(cid) || []).map(([t]) => t),
+  facets: cid => (idx.termsByCap.get(cid) || []).map(([t]) => termFacet(t))
+};
 function baseSet(route){
-  const s = new Set();
-  if (!route || route === "all") {
-    for (const cp of (D_ && D_.captures) || []) s.add(cp[0]);
-    return s;
-  }
+  if (!route) route = "all";
   if (route.startsWith("filter|")) {
     const inner = route.slice(7);
     const i = inner.lastIndexOf("|");
-    return derive(baseSet(inner.slice(0, i)), inner.slice(i + 1));
+    const set = baseSet(inner.slice(0, i)), test = CAPTURE_FILTERS[inner.slice(i + 1)];
+    return test ? new Set([...set].filter(test)) : set;
   }
-  const k = route.split("|")[0], v = route.split("|")[1];
-  if (k === "cap") { s.add(Number(v)); return s; }
-  if (k === "mov") { const m = idx.motionByCap.get(Number(v)); if (m) s.add(m[0]); return s; }
-  if (k === "vid") { const cid = Number(v); if (idx.videoByCap.has(cid) || idx.embeddedById.has(cid)) s.add(cid); return s; }
-  if (k === "dom") { for (const cp of idx.cByDomain.get(v) || []) s.add(cp[0]); return s; }
-  if (k === "fam") { const f = idx.fById.get(Number(v)); for (const [cid] of (f ? (idx.capsByFam.get(norm(f[1])) || []) : [])) s.add(cid); return s; }
-  if (k === "ter") { for (const [cid] of (idx.capsByTerm.get(v) || [])) s.add(cid); return s; }
-  if (k === "fac") { for (const t of Object.keys(D_.terms || {})) if ((D_.terms[t] || [])[2] === v) for (const [cid] of (idx.capsByTerm.get(t) || [])) s.add(cid); return s; }
-  return s;
+  const i = route.indexOf("|"), kind = i < 0 ? route : route.slice(0, i), value = i < 0 ? "" : route.slice(i + 1);
+  return new Set((ROUTE_SOURCES[kind] || (() => []))(value));
 }
 function derive(set, kind){
-  const out = new Set();
   if (kind === "captures") return set;
-  if (kind === "motion") { for (const cid of set) if (idx.motionByCap.has(cid)) out.add(cid); return out; }
-  if (kind === "video") { for (const cid of set) if (idx.videoByCap.has(cid) || idx.embeddedById.has(cid)) out.add(cid); return out; }
-  if (kind === "colors") { for (const cid of set) if ((idx.colorsByCap.get(cid) || []).length) out.add(cid); return out; }
-  if (kind === "gradients") { for (const cid of set) if ((idx.gradientsByCap.get(cid) || []).length) out.add(cid); return out; }
-  if (kind === "domains") { for (const cid of set) { const o = (idx.cById.get(cid) || [])[1]; if (o) out.add(o); } return out; }
-  if (kind === "families") { for (const cid of set) for (const [f] of (idx.fontsByCap.get(cid) || [])) out.add(norm(f)); return out; }
-  if (kind === "terms") { for (const cid of set) for (const [t] of (idx.termsByCap.get(cid) || [])) out.add(t); return out; }
-  if (kind === "facets") { for (const cid of set) for (const [t] of (idx.termsByCap.get(cid) || [])) { const f = (D_.terms[t] || [])[2]; if (f) out.add(f); } return out; }
-  return set;
+  const test = CAPTURE_FILTERS[kind];
+  if (test) return new Set([...set].filter(test));
+  const project = PROJECTIONS[kind];
+  return project ? new Set([...set].flatMap(project).filter(Boolean)) : set;
 }
+const ROUTE_TYPES = { capture:"cap", motion:"mov", video:"vid", domain:"dom", family:"fam", term:"ter", facet:"fac" };
 function routeFor(c){
   if (!c) return "all";
-  const t = c.type;
-  if (t === "capture" || t === "section" || t === "row" || t === "rawCapture") return "cap|" + String(c.id).split(":")[0].split("|")[0];
-  if (t === "motion") return "mov|" + c.id;
-  if (t === "video") return "vid|" + String(c.id).split(":")[0];
-  if (t === "domain") return "dom|" + c.id;
-  if (t === "family") return "fam|" + c.id;
-  if (t === "term") return "ter|" + c.id;
-  if (t === "facet") return "fac|" + c.id;
-  if (t === "browse") return String(c.id).startsWith("filter|") ? c.id : "all";
-  return "all";
+  if (["capture","section","row","rawCapture"].includes(c.type)) return "cap|" + String(c.id).split(/[:|]/)[0];
+  if (c.type === "browse") return String(c.id).startsWith("filter|") ? c.id : "all";
+  const id = c.type === "video" ? String(c.id).split(":")[0] : c.id;
+  return ROUTE_TYPES[c.type] ? ROUTE_TYPES[c.type] + "|" + id : "all";
 }
 function foot(){
   const D0 = D_ || {};
@@ -544,17 +547,13 @@ function foot(){
     }
   }
   const set = baseSet(route);
-  const items = [];
-  const add = (k, n, label) => { if (n > 0) items.push(L.filter(route, k, label)); };
-  if (!isSingleCap) add("captures", set.size, set.size.toLocaleString() + " captures");
-  const doms = derive(set, "domains"); add("domains", doms.size, doms.size + " domains");
-  const fams = derive(set, "families"); add("families", fams.size, fams.size + " families");
-  const ters = derive(set, "terms"); add("terms", ters.size, ters.size + " terms");
-  const fcs = derive(set, "facets"); add("facets", fcs.size, fcs.size + " facets");
-  const col = derive(set, "colors"); add("colors", col.size, col.size + " colors");
-  const mov = derive(set, "motion"); add("motion", mov.size, mov.size + " motion");
-  const vid = derive(set, "video"); add("video", vid.size, vid.size + " video");
-  const relCount = (window.RELATIONS || []).length;
+  const labels = { captures:"captures", domains:"domains", families:"families", terms:"terms", facets:"facets", colors:"colors", motion:"motion", video:"video" };
+  const items = Object.entries(labels).flatMap(([kind, label]) => {
+    if (kind === "captures" && isSingleCap) return [];
+    const n = derive(set, kind).size;
+    return n ? [L.filter(route, kind, n.toLocaleString() + " " + label)] : [];
+  });
+  const relCount = relations.length;
   items.push(L.fs(Object.keys(D0.font_similarity_results || {}).length + " font-sim"));
   items.push(relCount ? L.rel(relCount + " relations") : L.rel("relations"));
   items.push(L.run("runtime"));
@@ -575,6 +574,8 @@ const specTxt = () => esc(specimenText);
 function initFontSources(g){
   const facesEl = document.getElementById("font-faces");
   if (!facesEl) return;
+  fontSrc.byFam.clear();
+  fontSrc.faces = 0;
   const byFam = new Map();
   for (const rows of Object.values(g || {})) {
     for (const r of rows) {
@@ -646,18 +647,15 @@ function samplePalette(img, cid){
     box.innerHTML = '<div class="empty">palette unavailable — screenshot is cross-origin</div>';
   }
 }
+const SECTION_SOURCE = {
+  colors:"color_roles", backgrounds:"backgrounds", fonts:"font_obs", typography:"type_roles",
+  text:"text_styles", structures:"structures", terms:"assignments", hist:"hist_fonts"
+};
 function sectionRaw(key, cid){
-  if (key === "colors") return D_.color_roles.filter(r => r[0] === cid);
-  if (key === "backgrounds") return D_.backgrounds.filter(r => r[0] === cid);
-  if (key === "fonts") return D_.font_obs.filter(r => r[0] === cid);
-  if (key === "typography") return D_.type_roles.filter(r => r[0] === cid);
-  if (key === "text") return D_.text_styles.filter(r => r[0] === cid);
-  if (key === "structures") return D_.structures.filter(r => r[0] === cid);
+  if (SECTION_SOURCE[key]) return (D_[SECTION_SOURCE[key]] || []).filter(r => r[0] === cid);
   if (key === "gradients") return (D_.gradients || {})[cid] || [];
-  if (key === "terms") return D_.assignments.filter(r => r[0] === cid);
-  if (key === "hist") return D_.hist_fonts.filter(r => r[0] === cid);
   if (key === "ann") return (D_.ann || {})[cid] || [];
-  if (key === "video") return D_.video_observations.filter(r => r.capture_id === cid);
+  if (key === "video") return (D_.video_observations || []).filter(r => r.capture_id === cid);
   return null;
 }
 function evRow(title, preview, count, type, id, label, palette){
@@ -688,6 +686,11 @@ function gradientRow(row, bgHex){
 }
 const KV = rows => '<div class="kv">' + rows.map(([k, v, mono]) =>
   '<div class="r"><span class="k">' + k + '</span><span class="v' + (mono ? " mono" : "") + '">' + v + "</span></div>").join("") + "</div>";
+function boundsMap(cp, bounds, label){
+  const [x, y, w, h] = bounds;
+  return '<div class="bounds-map" style="' + (cp ? "background-image:url('" + esc(cp[5]) + "')" : "") + '"><div class="bounds-box" style="left:' + (x/100) + '%;top:' + (y/100) + '%;width:' + (w/100) + '%;height:' + (h/100) + '%"></div><div class="bounds-label">' + esc(label) + '</div></div>' +
+    '<div class="geometry"><span>x ' + x + '</span><span>y ' + y + '</span><span>w ' + w + '</span><span>h ' + h + "</span></div>";
+}
 function capFallback(cp){
   const seed = [...String(cp ? cp[1] || cp[0] : "")].reduce((s, ch) => s + ch.charCodeAt(0), 0);
   const hue = seed % 360;
@@ -746,14 +749,10 @@ function vStructure(c){
   const [sid, parent, tid, sx, sy, sw, sh, conf] = x;
   const cap = idx.cById.get(cid);
   const children = rows.map((r, j) => [r, j]).filter(([r]) => r[1] === sid);
-  const pRow = parent == null ? null : rows.map((r, j) => [r, j]).find(([r]) => r[0] === sid && false) || null;
   const pIdx = parent == null ? -1 : rows.findIndex(r => r[0] === parent);
-  const bg = cap ? 'background-image:url(\'' + esc(cap[5]) + '\')' : "";
   return head(c, termLabel(tid)) +
     '<div class="cbody">' +
-    '<div class="bounds-map" style="' + bg + '"><div class="bounds-box" style="left:' + (sx/100) + '%;top:' + (sy/100) + '%;width:' + (sw/100) + '%;height:' + (sh/100) + '%"></div>' +
-    '<div class="bounds-label">' + esc(termLabel(tid)) + '</div></div>' +
-    '<div class="geometry"><span>x ' + sx + '</span><span>y ' + sy + '</span><span>w ' + sw + '</span><span>h ' + sh + '</span></div>' +
+    boundsMap(cap, [sx, sy, sw, sh], termLabel(tid)) +
     '<p class="prose">' + L.term(tid) + " is a resolved region in " + L.cap(cid, cap ? cap[3] : "capture " + cid) + ".</p>" +
     KV([
       ["structure_id", String(sid), true],
@@ -792,11 +791,9 @@ function vVideo(c){
   const v = (idx.videoByCap.get(cid)||[])[i];
   if (!v) return head(c) + '<div class="cbody"><div class="empty">video observation not found</div></div>';
   const cap = idx.cById.get(cid);
-  const bg = cap ? "background-image:url('" + esc(cap[5]) + "')" : "";
   return head(c, Math.round(v[5]/10000) + "% coverage") +
     '<div class="cbody">' +
-    '<div class="bounds-map" style="' + bg + '"><div class="bounds-box" style="left:' + (v[1]/100) + '%;top:' + (v[2]/100) + '%;width:' + (v[3]/100) + '%;height:' + (v[4]/100) + '%"></div><div class="bounds-label">video</div></div>' +
-    '<div class="geometry"><span>x ' + v[1] + '</span><span>y ' + v[2] + '</span><span>w ' + v[3] + '</span><span>h ' + v[4] + '</span></div>' +
+    boundsMap(cap, v.slice(1, 5), "video") +
     (cap ? '<div class="sec"><h4>capture</h4><div class="associated-capture">' + capRow(cap, "capture #" + cid) + "</div></div>" : "") +
     '<p class="prose">Measured video element in ' + L.cap(cid, cap ? cap[3] : "capture " + cid) + ".</p>" +
     KV([
@@ -919,20 +916,8 @@ const ROW_FIELDS = {
   video: ["capture_id","observation_index","media_kind","x_q","y_q","width_q","height_q","coverage_ppm","occurrence_count","evidence_kind"]
 };
 function rowObject(key, raw, cid){
-  switch (key) {
-    case "colors": { const [cid2, role, r, g, b, a, occ] = raw; return { capture_id: cid2, role, r, g, b, alpha_ppm: a, occurrence_count: occ }; }
-    case "backgrounds": { const [cid2, r, g, b, a, occ] = raw; return { capture_id: cid2, r, g, b, alpha_ppm: a, occurrence_count: occ }; }
-    case "fonts": { const [cid2, oi, fam, stack, wmin, wmax, share, occ] = raw; return { capture_id: cid2, observation_index: oi, declared_family: fam, computed_css_stack: stack, weight_min: wmin, weight_max: wmax, character_share_ppm: share, occurrence_count: occ }; }
-    case "typography": { const [cid2, role, fam, w, size, lh, share] = raw; return { capture_id: cid2, role, declared_family: fam, weight: w, size_milli_px: size, line_height_milli_px: lh, character_share_ppm: share }; }
-    case "text": { const [cid2, fam, w, size, occ] = raw; return { capture_id: cid2, declared_family: fam, weight: w, size_milli_px: size, occurrence_count: occ }; }
-    case "structures": { const [cid2, sid, parent, tid, x, y, w, h, conf] = raw; return { capture_id: cid2, structure_id: sid, parent_structure_id: parent, term_id: tid, x_q: x, y_q: y, width_q: w, height_q: h, confidence_ppm: conf }; }
-    case "gradients": return Object.assign({}, raw, { capture_id: cid });
-    case "terms": { const [cid2, tid, conf] = raw; return { capture_id: cid2, term_id: tid, confidence: conf }; }
-    case "hist": { const [cid2, fid, name, sub, links] = raw; return { capture_id: cid2, family_id: fid, family_name: name, sub_family_name: sub, legacy_link_count: links }; }
-    case "ann": { const [nid, dist] = raw; return { capture_id: nid, distance: dist }; }
-    case "video": return Object.assign({}, raw);
-    default: return raw;
-  }
+  if (!Array.isArray(raw)) return Object.assign({}, raw, key === "gradients" ? { capture_id:cid } : {});
+  return Object.assign(Object.fromEntries((ROW_FIELDS[key] || []).map((field, i) => [field, raw[i]])), key === "gradients" ? { capture_id:cid } : {});
 }
 function rowVal(key, field, v){
   if (v == null || v === "") return "—";
@@ -963,14 +948,12 @@ function vRow(c){
     kv.push([f, rowVal(key, f, obj[f]), typeof obj[f] === "string" && obj[f].length > 48]);
   }
   const hasGeo = obj.x_q != null && obj.y_q != null && obj.width_q != null && obj.height_q != null;
-  const bg = hasGeo ? "background-image:url('" + esc(cp[5]) + "')" : "";
   const rowId = ++__rawSeq;
   __rawCache.set(rowId, obj);
   return head(c, "row " + (idxN + 1)) +
     '<div class="cbody">' +
     '<div class="sec"><div class="associated-capture">' + capRow(cp, "capture #" + cid) + "</div></div>" +
-    (hasGeo ? '<div class="sec"><div class="bounds-map" style="' + bg + '"><div class="bounds-box" style="left:' + (obj.x_q/100) + '%;top:' + (obj.y_q/100) + '%;width:' + (obj.width_q/100) + '%;height:' + (obj.height_q/100) + '%"></div><div class="bounds-label">' + esc(key) + ' #' + (idxN + 1) + '</div></div>' +
-      '<div class="geometry"><span>x ' + obj.x_q + '</span><span>y ' + obj.y_q + '</span><span>w ' + obj.width_q + '</span><span>h ' + obj.height_q + '</span></div></div>' : "") +
+    (hasGeo ? '<div class="sec">' + boundsMap(cp, [obj.x_q, obj.y_q, obj.width_q, obj.height_q], key + " #" + (idxN + 1)) + "</div>" : "") +
     (obj.r != null ? '<div class="sec"><span class="sw big" style="background:' + hex(obj.r, obj.g, obj.b) + '"></span></div>' : "") +
     (obj.declared_family ? '<div class="sec"><div class="type-sample" style="' + specimenCss(obj.declared_family, "'" + String(obj.declared_family).replace(/["'<>]/g,"") + "',sans-serif") + ';font-size:22px">' + specTxt() + '</div>' + (srcLine(obj.declared_family) || "") + "</div>" : "") +
     '<p class="prose">' + esc(SECTION_DESC[key] || key) + "</p>" +
@@ -1294,31 +1277,50 @@ function vFamily(c){
     foot() + "</div>";
 }
 
-function vDesigner(c){
-  const dg = idx.dgById.get(c.id);
-  if (!dg) return head(c) + '<div class="cbody"><div class="empty">designer not found</div></div>';
-  const fams = idx.fByDesigner.get(c.id) || [];
-  return head(c, fams.length + " families") +
-    '<div class="cbody">' +
-    '<p class="prose">' + L.designer(dg[0], dg[1]) + " — " + fams.length + " families in the catalogue." + (dg[2] ? ' <a class="ext" href="' + esc(dg[2]) + '" target="_blank">' + esc(dg[2]) + " ↗</a>" : "") + "</p>" +
-    '<div class="sec"><h4>families <span class="n">' + fams.length + '</span></h4>' +
-    rowsHtml(fams, f => '<button class="row" onclick="hop(\'family\',' + f[0] + ',\'' + esc(f[1].slice(0,34)) + '\')"><span class="t">' + esc(f[1]) + '</span><span class="s">#' + f[0] + "</span></button>") + "</div>" +
-    foot() + "</div>";
+function vProvider(c, type){
+  const entity = idx[type === "designer" ? "dgById" : "vById"].get(c.id);
+  if (!entity) return head(c) + '<div class="cbody"><div class="empty">' + type + " not found</div></div>";
+  const fams = idx[type === "designer" ? "fByDesigner" : "fByVendor"].get(c.id) || [];
+  const prose = L[type](entity[0], entity[1]) + " — " + fams.length + " families in the catalogue." + (entity[2] ? ' <a class="ext" href="' + esc(entity[2]) + '" target="_blank">' + esc(entity[2]) + " ↗</a>" : "");
+  return listPage(c, fams.length + " families", prose, "families", fams.length, rowsHtml(fams, f => navRow("family", f[0], f[1], "#" + f[0])));
 }
-function vVendor(c){
-  const v = idx.vById.get(c.id);
-  if (!v) return head(c) + '<div class="cbody"><div class="empty">vendor not found</div></div>';
-  const fams = idx.fByVendor.get(c.id) || [];
-  return head(c, fams.length + " families") +
-    '<div class="cbody">' +
-    '<p class="prose">' + L.vendor(v[0], v[1]) + " — " + fams.length + " families in the catalogue." + (v[2] ? ' <a class="ext" href="' + esc(v[2]) + '" target="_blank">' + esc(v[2]) + " ↗</a>" : "") + "</p>" +
-    '<div class="sec"><h4>families <span class="n">' + fams.length + '</span></h4>' +
-    rowsHtml(fams, f => '<button class="row" onclick="hop(\'family\',' + f[0] + ',\'' + esc(f[1].slice(0,34)) + '\')"><span class="t">' + esc(f[1]) + '</span><span class="s">#' + f[0] + "</span></button>") + "</div>" +
-    foot() + "</div>";
-}
+function vDesigner(c){ return vProvider(c, "designer"); }
+function vVendor(c){ return vProvider(c, "vendor"); }
 L.designer = (id, name) => '<a class="lk fam" onclick="hop(\'designer\',' + id + ',\'' + esc(String(name||"").slice(0,40)) + '\')">' + esc(name||("designer " + id)) + "</a>";
 L.vendor = (id, name) => '<a class="lk fam" onclick="hop(\'vendor\',' + id + ',\'' + esc(String(name||"").slice(0,40)) + '\')">' + esc(name||("vendor " + id)) + "</a>";
 
+function countBy(caps, project){
+  const counts = new Map();
+  for (const cid of caps) for (const value of project(cid).filter(Boolean)) counts.set(value, (counts.get(value) || 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1]);
+}
+function filteredCaptureRows(caps, test, meta, after){
+  return rowsHtml(caps.filter(test), cid => capRow(idx.cById.get(cid), meta(cid)) + (after ? after(cid) : ""), 120);
+}
+const FILTER_ROWS = {
+  captures: caps => rowsHtml(caps.map(cid => idx.cById.get(cid)).filter(Boolean), cp => capRow(cp), 120),
+  domains: caps => rowsHtml(countBy(caps, cid => [(idx.cById.get(cid) || [])[1]]), ([origin, n]) =>
+    navRow("domain", origin, origin.replace("https://",""), n + " captures", favicon(origin) + " " + esc(origin.replace("https://",""))), 120),
+  families: caps => rowsHtml(countBy(caps, cid => (idx.fontsByCap.get(cid) || []).map(([f]) => norm(f))), ([name, n]) => {
+    const family = famResolve(name);
+    return family ? navRow("family", family[0], family[1], n + " captures", '<span class="font-highlight">' + esc(family[1]) + "</span>")
+      : '<div class="row" style="cursor:default"><span class="t">' + esc(name) + '</span><span class="s">' + n + " captures</span></div>";
+  }, 120),
+  terms: caps => rowsHtml(countBy(caps, cid => (idx.termsByCap.get(cid) || []).map(([t]) => t)), ([term, n]) =>
+    navRow("term", term, termLabel(term), n + " captures", '<span class="term-highlight">' + esc(termLabel(term)) + "</span>"), 120),
+  facets: caps => rowsHtml(countBy(caps, cid => (idx.termsByCap.get(cid) || []).map(([t]) => termFacet(t))), ([facet, n]) =>
+    navRow("facet", facet, facet, n + " captures", esc(facet.replace(/_/g, " "))), 120),
+  motion: caps => filteredCaptureRows(caps, cid => idx.motionByCap.has(cid), cid => { const m = idx.motionByCap.get(cid); return "▶ " + Math.round(m[4]/1000) + "s · " + (m[3]/1048576).toFixed(1) + " MB"; }),
+  video: caps => filteredCaptureRows(caps, cid => idx.videoByCap.has(cid) || idx.embeddedById.has(cid), cid => { const rows = idx.videoByCap.get(cid) || []; return rows.length + " element" + (rows.length === 1 ? "" : "s") + (rows.length ? " · max " + Math.round(Math.max(...rows.map(r => r[5]))/10000) + "%" : ""); }),
+  colors: caps => filteredCaptureRows(caps, cid => (idx.colorsByCap.get(cid) || []).length, cid => (idx.colorsByCap.get(cid) || []).length + " colors", cid =>
+    '<div class="palette-mini">' + idx.colorsByCap.get(cid).slice(0, 10).map(cl => '<i style="background:' + hex(cl[1], cl[2], cl[3]) + '"></i>').join("") + "</div>"),
+  gradients: caps => filteredCaptureRows(caps, cid => (idx.gradientsByCap.get(cid) || []).length, cid => { const n = idx.gradientsByCap.get(cid).length; return n + " gradient" + (n === 1 ? "" : "s"); }),
+  typography: caps => {
+    const seen = new Map();
+    for (const cid of caps) for (const row of idx.typeByCap.get(cid) || []) if (!seen.has(row[1] + "|" + norm(row[2] || ""))) seen.set(row[1] + "|" + norm(row[2] || ""), row);
+    return rowsHtml([...seen.values()], row => { const role = row[1], fam = row[2], w = row[3], size = row[4], family = famResolve(fam); return '<div class="row" style="cursor:default"><span class="t">' + L.term("typography.role." + role, role) + " · " + (family ? L.fam(family[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + '</span></div><div class="type-sample" style="' + specimenCss(fam) + ';font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">' + specTxt() + "</div>" + (srcLine(fam) || ""); }, 120);
+  }
+};
 function vBrowse(c){
   const kind0 = c.id;
   let kind = kind0, value = c.label;
@@ -1331,75 +1333,8 @@ function vBrowse(c){
     const caps = [...set].sort((a, b) => (idx.cById.get(b) || [4])[4] - (idx.cById.get(a) || [4])[4]);
     const title = dk === "captures" ? caps.length + " captures" : caps.length + " captures · " + dk;
     const desc = "Filtered " + dk + " from " + (route === "all" ? "the whole corpus" : route.split("|")[0] === "cap" ? "capture #" + route.split("|")[1] : route.split("|")[0] + " " + decodeURIComponent(route.split("|").slice(1).join("|"))) + ".";
-    let body = "";
-    if (dk === "captures") {
-      body = rowsHtml(caps.map(cid => idx.cById.get(cid)).filter(Boolean), cp => capRow(cp), 120);
-    } else if (dk === "domains") {
-      const counts = new Map();
-      for (const cid of caps) { const o = (idx.cById.get(cid) || [])[1]; if (o) counts.set(o, (counts.get(o) || 0) + 1); }
-      body = rowsHtml([...counts.entries()].sort((a, b) => b[1] - a[1]), ([o, n]) =>
-        '<button class="row" onclick="hop(\'domain\',\'' + escId(o) + '\',\'' + esc(o.replace("https://","").slice(0,34)) + '\')"><span class="t">' + favicon(o) + ' ' + esc(o.replace("https://","")) + '</span><span class="s">' + n + " captures</span></button>", 120);
-    } else if (dk === "families") {
-      const counts = new Map();
-      for (const cid of caps) for (const [f] of (idx.fontsByCap.get(cid) || [])) { const k = norm(f); counts.set(k, (counts.get(k) || 0) + 1); }
-      body = rowsHtml([...counts.entries()].sort((a, b) => b[1] - a[1]), ([k, n]) => {
-        const m = famResolve(k);
-        return (m
-          ? '<button class="row" onclick="hop(\'family\',' + m[0] + ',\'' + esc(m[1].slice(0,34)) + '\')"><span class="t"><span class="font-highlight">' + esc(m[1]) + '</span></span><span class="s">' + n + " captures</span></button>"
-          : '<div class="row" style="cursor:default"><span class="t">' + esc(k) + '</span><span class="s">' + n + " captures</span></div>");
-      }, 120);
-    } else if (dk === "terms") {
-      const counts = new Map();
-      for (const cid of caps) for (const [t] of (idx.termsByCap.get(cid) || [])) counts.set(t, (counts.get(t) || 0) + 1);
-      body = rowsHtml([...counts.entries()].sort((a, b) => b[1] - a[1]), ([t, n]) =>
-        '<button class="row" onclick="hop(\'term\',\'' + escId(t) + '\',\'' + esc(String(termLabel(t)).slice(0,34)) + '\')"><span class="t"><span class="term-highlight">' + esc(termLabel(t)) + '</span></span><span class="s">' + n + " captures</span></button>", 120);
-    } else if (dk === "facets") {
-      const counts = new Map();
-      for (const cid of caps) for (const [t] of (idx.termsByCap.get(cid) || [])) { const f = (D_.terms[t] || [])[2]; if (f) counts.set(f, (counts.get(f) || 0) + 1); }
-      body = rowsHtml([...counts.entries()].sort((a, b) => b[1] - a[1]), ([f, n]) =>
-        '<button class="row" onclick="hop(\'facet\',\'' + escId(f) + '\',\'' + esc(f) + '\')"><span class="t">' + esc(f.replace(/_/g, " ")) + '</span><span class="s">' + n + " captures</span></button>", 120);
-    } else if (dk === "motion") {
-      body = rowsHtml(caps.filter(cid => idx.motionByCap.has(cid)), cid => {
-        const m = idx.motionByCap.get(cid);
-        return capRow(idx.cById.get(cid), "\u25b6 " + Math.round(m[4]/1000) + "s · " + (m[3]/1048576).toFixed(1) + " MB");
-      }, 120);
-    } else if (dk === "video") {
-      body = rowsHtml(caps.filter(cid => idx.videoByCap.has(cid) || idx.embeddedById.has(cid)), cid => {
-        const rows = idx.videoByCap.get(cid) || [];
-        return capRow(idx.cById.get(cid), rows.length + " element" + (rows.length === 1 ? "" : "s") + (rows.length ? " · max " + Math.round(Math.max(...rows.map(r => r[5]))/10000) + "%" : ""));
-      }, 120);
-    } else if (dk === "colors") {
-      body = rowsHtml(caps.filter(cid => (idx.colorsByCap.get(cid) || []).length), cid => {
-        const cols = idx.colorsByCap.get(cid) || [];
-        return capRow(idx.cById.get(cid), cols.length + " colors") +
-          '<div class="palette-mini">' + cols.slice(0, 10).map(cl => '<i style="background:' + hex(cl[1], cl[2], cl[3]) + '"></i>').join("") + "</div>";
-      }, 120);
-    } else if (dk === "gradients") {
-      body = rowsHtml(caps.filter(cid => (idx.gradientsByCap.get(cid) || []).length), cid => {
-        const g = idx.gradientsByCap.get(cid) || [];
-        return capRow(idx.cById.get(cid), g.length + " gradient" + (g.length === 1 ? "" : "s"));
-      }, 120);
-    } else if (dk === "typography") {
-      const seen = new Map();
-      for (const cid of caps) for (const row of (idx.typeByCap.get(cid) || [])) {
-        const k = row[1] + "|" + norm(row[2] || "");
-        if (!seen.has(k)) seen.set(k, row);
-      }
-      body = rowsHtml([...seen.values()], (row) => {
-        const role = row[1], fam = row[2], w = row[3], size = row[4];
-        const m = famResolve(fam);
-        const famCss = String(fam||"").replace(/["'<>]/g,"");
-        return '<div class="row" style="cursor:default"><span class="t">' + L.term("typography.role." + role, role) + " · " + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + "</span></div>" +
-          '<div class="type-sample" style="' + specimenCss(fam, "'" + famCss + "',sans-serif") + ';font-weight:' + (w||400) + ';font-size:' + Math.min(24,Math.max(13,(size||14000)/1000)) + 'px">' + specTxt() + '</div>' +
-          (srcLine(fam) || "");
-      }, 120);
-    }
-    return head(c, title) +
-      '<div class="cbody">' +
-      '<p class="prose">' + desc + "</p>" +
-      '<div class="sec"><h4>' + dk.replace(/_/g, " ") + ' <span class="n">' + caps.length + '</span></h4>' +
-      (body || '<div class="empty">nothing in this filter</div>') + "</div>" +
-      foot() + "</div>";
+    const body = FILTER_ROWS[dk] ? FILTER_ROWS[dk](caps) : "";
+    return listPage(c, title, desc, dk.replace(/_/g, " "), caps.length, body || '<div class="empty">nothing in this filter</div>');
   }
   if (kind === "fonts") {
     const names = [...new Set([...idx.capsByFam.keys(), ...D_.families.map(f => norm(f[1]))])].sort();
@@ -1408,24 +1343,16 @@ function vBrowse(c){
       const uses = idx.capsByFam.get(k) || [];
       return { k, f, n: uses.length };
     }).filter(x => x.n || x.f);
-    return head(c, rows.length + " names") +
-      '<div class="cbody">' +
-      '<p class="prose">All observed and catalogue font family names, alphabetically.</p>' +
-      '<div class="sec"><h4>font names <span class="n">' + rows.length + '</span></h4>' +
-      rowsHtml(rows.slice(0, 240), ({ k, f, n }) =>
+    const body = rowsHtml(rows.slice(0, 240), ({ k, f, n }) =>
         (f
           ? '<button class="row" onclick="hop(\'family\',' + f[0] + ',\'' + esc(f[1].slice(0,34)) + '\')"><span class="t"><span class="font-highlight">' + esc(f[1]) + '</span></span><span class="s">' + (n ? n + " captures" : "catalogue") + "</span></button>"
-          : '<div class="row" style="cursor:default"><span class="t">' + esc(k) + '</span><span class="s">observed only</span></div>')) + "</div>" +
-      foot() + "</div>";
+          : '<div class="row" style="cursor:default"><span class="t">' + esc(k) + '</span><span class="s">observed only</span></div>'));
+    return listPage(c, rows.length + " names", "All observed and catalogue font family names, alphabetically.", "font names", rows.length, body);
   }
   if (kind === "motion") {
     const list = (D_.motion_assets||[]).slice().sort((a,b) => b[4]-a[4]);
-    return head(c, list.length + " recordings") +
-      '<div class="cbody">' +
-      '<p class="prose">All recorded WebM motion assets, longest first.</p>' +
-      '<div class="sec"><h4>recordings <span class="n">' + list.length + '</span></h4>' +
-      rowsHtml(list, m => capRow(idx.cById.get(m[0]), "\u25b6 " + Math.round(m[4]/1000) + "s · " + (m[3]/1048576).toFixed(1) + " MB"), 120) + "</div>" +
-      foot() + "</div>";
+    return listPage(c, list.length + " recordings", "All recorded WebM motion assets, longest first.", "recordings", list.length,
+      rowsHtml(list, m => capRow(idx.cById.get(m[0]), "\u25b6 " + Math.round(m[4]/1000) + "s · " + (m[3]/1048576).toFixed(1) + " MB"), 120));
   }
   if (kind === "video") {
     const list = (D_.embedded_video_captures||[]).slice().sort((a,b) => b.captured_at - a.captured_at);
@@ -1443,12 +1370,7 @@ function vBrowse(c){
   }
   if (kind === "captures") {
     const list = D_.captures.slice().sort((a,b) => b[4]-a[4]).slice(0, 200);
-    return head(c, D_.captures.length + " corpus") +
-      '<div class="cbody">' +
-      '<p class="prose">All captures, newest first.</p>' +
-      '<div class="sec"><h4>captures <span class="n">' + list.length + '</span></h4>' +
-      rowsHtml(list, cp => capRow(cp)) + "</div>" +
-      foot() + "</div>";
+    return listPage(c, D_.captures.length + " corpus", "All captures, newest first.", "captures", list.length, rowsHtml(list, cp => capRow(cp)));
   }
   let caps = [];
   if (kind === "path") caps = idx.cByPath.get(value) || [];
@@ -1458,12 +1380,8 @@ function vBrowse(c){
   const domains = new Set(caps.map(x => x[1])).size;
   const list = caps.slice().sort((a,b) => b[4]-a[4]);
   const label = kind === "path" ? (value || "/") : kind + " · " + value;
-  return head({ type:"browse", label, id:kind }, caps.length + " captures") +
-    '<div class="cbody">' +
-    '<p class="prose">' + caps.length + " captures" + (kind === "path" ? " at path " + esc(value || "/") + " across " + domains + " domains" : " with " + kind + " \u201c" + esc(value) + "\u201d") + ".</p>" +
-    '<div class="sec"><h4>captures <span class="n">' + caps.length + '</span></h4>' +
-    rowsHtml(list, cp => capRow(cp), 60) + "</div>" +
-    foot() + "</div>";
+  const prose = caps.length + " captures" + (kind === "path" ? " at path " + esc(value || "/") + " across " + domains + " domains" : " with " + kind + " \u201c" + esc(value) + "\u201d") + ".";
+  return listPage({ type:"browse", label, id:kind }, caps.length + " captures", prose, "captures", caps.length, rowsHtml(list, cp => capRow(cp), 60));
 }
 
 function vRawCapture(c){
@@ -1482,7 +1400,7 @@ function vRawCapture(c){
     foot() + "</div>";
 }
 function vRelations(c){
-  const rels = window.RELATIONS || [];
+  const rels = relations;
   const groups = new Map();
   for (const r of rels) {
     const g = r.group || "other";
@@ -1499,7 +1417,7 @@ function vRelations(c){
     out + foot() + "</div>";
 }
 function vRelation(c){
-  const r = (window.RELATIONS || []).find(x => x.name === c.id);
+  const r = relations.find(x => x.name === c.id);
   if (!r) return head(c) + '<div class="cbody"><div class="empty">relation not found</div></div>';
   return head(c, (r.keys || 0) + "+" + (r.nonkeys || 0)) +
     '<div class="cbody">' +
@@ -1778,7 +1696,7 @@ function doSearch(){
   if (designers.length) groups.push({ g:"designers", items: designers.map(x => ({ t:x[1], s:"designer", c:"var(--entity-designer)", fn:() => fresh("designer", x[0], x[1].slice(0,40)) })) });
   const vendors = D_.vendors.filter(x => x[1].toLowerCase().includes(s)).slice(0,5);
   if (vendors.length) groups.push({ g:"foundries", items: vendors.map(x => ({ t:x[1], s:"vendor", c:"var(--entity-designer)", fn:() => fresh("vendor", x[0], x[1].slice(0,40)) })) });
-  const rels2 = (window.RELATIONS || []).filter(r => r.name.toLowerCase().includes(s)).slice(0,6);
+  const rels2 = relations.filter(r => r.name.toLowerCase().includes(s)).slice(0,6);
   if (rels2.length) groups.push({ g:"relations", items: rels2.map(r => ({ t:r.name, s:(r.keys||0) + "+" + (r.nonkeys||0), c:"var(--entity-neutral)", fn:() => fresh("relation", r.name, r.name.slice(0,40)) })) });
   const lookups = Object.keys(D_.font_similarity_results || {}).filter(n => n.toLowerCase().includes(s)).slice(0,5);
   if (lookups.length) groups.push({ g:"similarity lookups", items: lookups.map(n => ({ t:n, s:(D_.font_similarity_results[n]||[]).length + " results", c:"var(--entity-family)", fn:() => fresh("fontLookup", n, n.slice(0,40)) })) });
@@ -1824,15 +1742,51 @@ window.addEventListener("hashchange", () => { if (suppressHash) return; openHash
 
 /* ---------- boot ---------- */
 
-Promise.all([
-  fetch("data.json").then(r => r.json()),
-  fetch("gradients.json").then(r => r.json()).catch(() => ({})),
-  fetch("font_sources.json").then(r => r.json()).catch(() => ({})),
-  fetch("relations.json").then(r => r.json()).catch(() => [])
-]).then(([d, g, fs, rels]) => {
-  D_ = d;
-  D_.gradients = g;
-  window.RELATIONS = rels;
+const STATIC_RESOURCES = { data:"data.json", gradients:"gradients.json", fontSources:"font_sources.json", relations:"relations.json" };
+const suppliedConfig = window.FUDGE_EXPLORER_CONFIG || {};
+const explorerConfig = Object.assign({ endpoint:new URLSearchParams(location.search).get("api"), request:{} }, suppliedConfig, {
+  resources:Object.assign({}, STATIC_RESOURCES, suppliedConfig.resources)
+});
+let loadController;
+async function requestJson(url, signal){
+  const response = await fetch(url, Object.assign({}, explorerConfig.request, { signal }));
+  if (!response.ok) throw new Error(response.status + " " + response.statusText + " · " + url);
+  return response.json();
+}
+function normalizeBundle(payload){
+  const data = payload.data || payload.snapshot || payload;
+  return {
+    data,
+    gradients: payload.gradients ?? data.gradients ?? {},
+    fontSources: payload.fontSources ?? payload.font_sources ?? data.font_sources ?? {},
+    relations: payload.relations ?? data.relations ?? []
+  };
+}
+const dataSources = {
+  static(resources = STATIC_RESOURCES){
+    return { kind:"static", async load({ signal }){
+      const [data, gradients, fontSources, schema] = await Promise.all([
+        requestJson(resources.data, signal), requestJson(resources.gradients, signal),
+        requestJson(resources.fontSources, signal), requestJson(resources.relations, signal)
+      ].map((request, i) => i ? request.catch(() => undefined) : request));
+      return { data, gradients, fontSources, relations:schema };
+    }};
+  },
+  service(endpoint){
+    return { kind:"service", async load({ signal }){ return requestJson(endpoint, signal); } };
+  }
+};
+function selectDataSource(){
+  if (explorerConfig.source && typeof explorerConfig.source.load === "function") return explorerConfig.source;
+  return explorerConfig.endpoint ? dataSources.service(explorerConfig.endpoint) : dataSources.static(explorerConfig.resources);
+}
+let dataSource = selectDataSource();
+function installBundle(bundle){
+  const { data:d, gradients:g, fontSources:fs, relations:rels } = bundle;
+  resultsEl.classList.remove("on"); resultsEl.innerHTML = ""; qEl.value = ""; hlFns = [];
+  clearTimeout(hvTimer); hvEl.classList.remove("open"); lbClose(); lbIds = [];
+  D_ = Object.assign({}, d, { gradients:g });
+  relations = rels;
   buildIndexes();
   initFontSources(fs);
   document.getElementById("meta").textContent =
@@ -1844,12 +1798,39 @@ Promise.all([
     (Object.keys(g).length ? " · " + Object.keys(g).length + " gradient captures" : "") +
     (Object.keys(fs).length ? " · " + fontSrc.faces + " font sources" : "") +
     (rels.length ? " · " + rels.length + " relations" : "");
-  cols.push({ type:"home", id:"", label:"The dataset" });
+  cols.length = 0;
+  cols.push(column("home", "", "The dataset"));
   renderCols(false);
   openHash(location.hash);
-}).catch(e => {
-  colsEl.innerHTML = '<div class="col"><div class="cbody"><div class="empty">Failed to load data.json — serve this folder over http (python3 -m http.server 8123) and open explorer.html.<br>' + esc(String(e)) + "</div></div></div>";
-});
+}
+async function reload(){
+  if (loadController) loadController.abort();
+  const controller = loadController = new AbortController();
+  document.getElementById("meta").textContent = "loading…";
+  try {
+    const bundle = await dataSource.load({ signal:controller.signal });
+    if (controller !== loadController || controller.signal.aborted) return;
+    installBundle(normalizeBundle(bundle));
+  } catch (error) {
+    if (controller !== loadController || controller.signal.aborted || error.name === "AbortError") return;
+    document.getElementById("meta").textContent = "load failed";
+    colsEl.innerHTML = '<div class="col"><div class="cbody"><div class="empty">Failed to load explorer data.<br>' + esc(String(error)) + "</div></div></div>";
+  }
+}
+window.FudgeExplorer = {
+  reload, sources:dataSources,
+  configure(options = {}){
+    const has = key => Object.prototype.hasOwnProperty.call(options, key);
+    Object.assign(explorerConfig, options);
+    if (options.resources) explorerConfig.resources = Object.assign({}, STATIC_RESOURCES, options.resources);
+    if (has("source")) explorerConfig.endpoint = null;
+    else if (has("endpoint")) explorerConfig.source = null;
+    else if (has("resources")) { explorerConfig.source = null; explorerConfig.endpoint = null; }
+    dataSource = selectDataSource();
+    return reload();
+  }
+};
+reload();
 </script>
 </body>
 </html>
