@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildExplorerBundle, EXPLORER_QUERIES } from "./explorer-bundle.js";
+import {
+  buildExplorerBootstrap,
+  buildExplorerBundle,
+  buildExplorerDetails,
+  EXPLORER_BOOTSTRAP_QUERY_NAMES,
+  EXPLORER_DEFERRED_QUERY_NAMES,
+  EXPLORER_QUERIES,
+} from "./explorer-bundle.js";
 
 test("materializes the live projections into the Explorer bundle contract", async () => {
   const rows = Object.fromEntries(Object.keys(EXPLORER_QUERIES).map((name) => [name, []]));
@@ -103,6 +110,71 @@ test("continues keyset pagination when a page exactly fills the script limit", a
   assert.equal(captureCalls, 2);
   assert.equal(bundle.data.captures.length, 2_000);
 });
+
+test("splits bootstrap and deferred projections without changing the full bundle", async () => {
+  assert.deepEqual(EXPLORER_DEFERRED_QUERY_NAMES, [
+    "backgrounds", "textStyles", "historicalFonts", "legacyColors",
+  ]);
+  assert.deepEqual(
+    ["captures", ...EXPLORER_BOOTSTRAP_QUERY_NAMES, ...EXPLORER_DEFERRED_QUERY_NAMES].sort(),
+    Object.keys(EXPLORER_QUERIES).sort(),
+  );
+  const bootstrapCalls = [];
+  const bootstrap = await buildExplorerBootstrap(async (input) => {
+    const name = input.script.includes("count(capture_id)") ? "captureCount" : queryName(input.script) || "capturesPage";
+    bootstrapCalls.push({ name, expectedGeneration: input.expectedGeneration });
+    if (name === "captureCount") return response(["count(capture_id)"], [[0]]);
+    return response(EXPLORER_QUERIES[name].headers, []);
+  });
+  assert.equal(bootstrapCalls[0].name, "captureCount");
+  assert.deepEqual(bootstrapCalls.slice(1).map((call) => call.name).sort(), [...EXPLORER_BOOTSTRAP_QUERY_NAMES].sort());
+  assert.ok(bootstrapCalls.slice(1).every((call) => call.expectedGeneration === 77));
+  assert.deepEqual(bootstrap.data.text_styles, []);
+  assert.deepEqual(bootstrap.data.backgrounds, []);
+  assert.deepEqual(bootstrap.legacyColors, {});
+
+  const detailCalls = [];
+  const details = await buildExplorerDetails(async (input) => {
+    const name = queryName(input.script);
+    detailCalls.push({ name, expectedGeneration: input.expectedGeneration });
+    const rows = name === "textStyles" ? [[42, "Example Sans", 400, 16_000, 3, 0]] : [];
+    return response(EXPLORER_QUERIES[name].headers, rows);
+  }, 77);
+  assert.deepEqual(detailCalls.map((call) => call.name).sort(), [...EXPLORER_DEFERRED_QUERY_NAMES].sort());
+  assert.ok(detailCalls.every((call) => call.expectedGeneration === 77));
+  assert.equal(details.data.observed_generation, 77);
+  assert.equal(details.data.text_styles.length, 1);
+});
+
+test("loads fenced capture pages concurrently for bootstrap", async () => {
+  const calls = [];
+  const progress = [];
+  const bootstrap = await buildExplorerBootstrap(async (input) => {
+    if (input.script.includes("count(capture_id)")) {
+      calls.push({ name: "count", input });
+      return response(["count(capture_id)"], [[2_001]]);
+    }
+    const name = queryName(input.script);
+    if (name) return response(EXPLORER_QUERIES[name].headers, []);
+    calls.push({ name: "page", input });
+    const offset = input.parameters.offset;
+    const rows = offset === 0
+      ? Array.from({ length: 2_000 }, (_, index) => [index + 1, "https://example.com", "/", "Capture", index + 1])
+      : [[2_001, "https://example.com", "/", "Capture", 2_001]];
+    return response(EXPLORER_QUERIES.captures.headers, rows);
+  }, (event) => progress.push(event));
+  const pageCalls = calls.filter((call) => call.name === "page");
+  assert.deepEqual(pageCalls.map((call) => call.input.parameters.offset), [0, 2_000]);
+  assert.ok(pageCalls.every((call) => call.input.expectedGeneration === 77));
+  assert.equal(bootstrap.data.captures.length, 2_001);
+  assert.equal(progress[0].completed, 1);
+  assert.equal(progress.at(-1).completed, progress.at(-1).total);
+  assert.ok(progress.every((event, index) => index === 0 || event.completed > progress[index - 1].completed));
+});
+
+function queryName(script) {
+  return Object.entries(EXPLORER_QUERIES).find(([, spec]) => spec.script === script)?.[0];
+}
 
 function response(headers, rows) {
   return {

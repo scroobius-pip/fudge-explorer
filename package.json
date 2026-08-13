@@ -7,11 +7,17 @@
   },
   "scripts": {
     "build": "node build-assets.mjs",
-    "test": "node --test worker.test.mjs explorer-bundle.test.mjs explorer-ui.test.mjs",
+    "test": "node --test worker.test.mjs explorer-bundle.test.mjs explorer-ui.test.mjs explorer-smoke.test.mjs",
     "dev": "npm run build && npx wrangler dev",
+    "preview": "npm run build && node scripts/preview.mjs",
     "deploy": "npm run build && npx wrangler deploy"
   },
+  "dependencies": {
+    "lit": "^3.3.0"
+  },
   "devDependencies": {
+    "esbuild": "0.28.1",
+    "happy-dom": "^20.11.2",
     "wrangler": "4.122.0"
   }
 }

@@ -139,6 +139,15 @@ test("serves a materialized Explorer bundle from GET /v1/query", async () => {
     FUDGE_SERVICE: {
       async fetch(request) {
         const body = await request.json();
+        if (body.script.includes("count(capture_id)")) {
+          serviceCalls.push(body);
+          return Response.json({
+            observedGeneration: 77,
+            returnedRows: 1,
+            truncated: false,
+            result: { headers: ["count(capture_id)"], rows: [[0]] },
+          });
+        }
         const spec = Object.values(EXPLORER_QUERIES).find((candidate) => (
           candidate.script === body.script
         ));
@@ -171,6 +180,133 @@ test("serves a materialized Explorer bundle from GET /v1/query", async () => {
   assert.deepEqual(body.relations, []);
 });
 
+test("serves generation-fenced bootstrap and detail phases", async () => {
+  const {
+    EXPLORER_BOOTSTRAP_QUERY_NAMES,
+    EXPLORER_DEFERRED_QUERY_NAMES,
+    EXPLORER_QUERIES,
+  } = await import("./explorer-bundle.js");
+  const calls = [];
+  const env = serviceEnv(async (request) => {
+    const body = await request.json();
+    if (body.script.includes("count(capture_id)")) {
+      calls.push({ name: "captureCount", expectedGeneration: body.expectedGeneration });
+      return queryResponse(["count(capture_id)"], [[0]]);
+    }
+    const name = Object.entries(EXPLORER_QUERIES).find(([, spec]) => spec.script === body.script)?.[0];
+    assert.ok(name);
+    calls.push({ name, expectedGeneration: body.expectedGeneration });
+    return queryResponse(EXPLORER_QUERIES[name].headers, []);
+  });
+
+  const bootstrapResponse = await worker.fetch(new Request(
+    "https://phase-proxy.test/v1/query?phase=bootstrap",
+  ), env);
+  const bootstrap = await bootstrapResponse.json();
+  assert.equal(bootstrapResponse.status, 200);
+  assert.ok(Number(bootstrapResponse.headers.get("x-uncompressed-content-length")) > 0);
+  assert.deepEqual(calls.map((call) => call.name).sort(), ["captureCount", ...EXPLORER_BOOTSTRAP_QUERY_NAMES].sort());
+  assert.equal(calls.find((call) => call.name === "captureCount").expectedGeneration, undefined);
+  assert.deepEqual(bootstrap.data.text_styles, []);
+
+  calls.length = 0;
+  const detailsResponse = await worker.fetch(new Request(
+    "https://phase-proxy.test/v1/query?phase=details&generation=77",
+  ), env);
+  const details = await detailsResponse.json();
+  assert.equal(detailsResponse.status, 200);
+  assert.deepEqual(calls.map((call) => call.name).sort(), [...EXPLORER_DEFERRED_QUERY_NAMES].sort());
+  assert.ok(calls.every((call) => call.expectedGeneration === 77));
+  assert.equal(details.data.observed_generation, 77);
+});
+
+test("streams real bootstrap work before the exact bundle bytes", async () => {
+  const { EXPLORER_QUERIES } = await import("./explorer-bundle.js");
+  const env = serviceEnv(async (request) => {
+    const body = await request.json();
+    if (body.script.includes("count(capture_id)")) {
+      return queryResponse(["count(capture_id)"], [[0]]);
+    }
+    const spec = Object.values(EXPLORER_QUERIES).find((candidate) => candidate.script === body.script);
+    assert.ok(spec);
+    return queryResponse(spec.headers, []);
+  });
+  const response = await worker.fetch(new Request(
+    "https://phase-stream.test/v1/query?phase=bootstrap",
+    { headers: { accept: "application/x-fudge-explorer-stream" } },
+  ), env);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const newline = bytes.indexOf(10);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type"), /application\/x-fudge-explorer-stream/);
+  assert.equal(response.headers.get("cache-control"), "private, no-store, no-transform");
+  assert.ok(newline > 0);
+
+  const decoder = new TextDecoder();
+  let offset = 0;
+  const events = [];
+  let bundleEvent;
+  while (!bundleEvent) {
+    const end = bytes.indexOf(10, offset);
+    assert.ok(end >= 0);
+    const event = JSON.parse(decoder.decode(bytes.slice(offset, end)));
+    events.push(event);
+    offset = end + 1;
+    if (event.type === "bundle") bundleEvent = event;
+  }
+  const payloadBytes = bytes.slice(offset);
+  assert.ok(events.some((event) => event.type === "progress"));
+  assert.equal(events.filter((event) => event.type === "progress").at(-1).completed,
+    events.filter((event) => event.type === "progress").at(-1).total);
+  assert.equal(bundleEvent.bytes, payloadBytes.byteLength);
+  assert.deepEqual(JSON.parse(decoder.decode(payloadBytes)).data.captures, []);
+});
+
+test("invalidates a stale bootstrap after the corpus generation changes", async () => {
+  const { EXPLORER_QUERIES } = await import("./explorer-bundle.js");
+  let calls = 0;
+  const env = serviceEnv(async (request) => {
+    const body = await request.json();
+    calls += 1;
+    if (body.expectedGeneration === 999) {
+      return Response.json({ code: "generation_mismatch" }, { status: 409 });
+    }
+    if (body.script.includes("count(capture_id)")) {
+      return queryResponse(["count(capture_id)"], [[0]]);
+    }
+    const spec = Object.values(EXPLORER_QUERIES).find((candidate) => candidate.script === body.script);
+    return queryResponse(spec.headers, []);
+  });
+  const stale = await worker.fetch(new Request(
+    "https://phase-rotation.test/v1/query?phase=details&generation=999",
+  ), env);
+  assert.equal(stale.status, 409);
+  const callsAfterFailure = calls;
+
+  const refreshed = await worker.fetch(new Request(
+    "https://phase-rotation.test/v1/query?phase=bootstrap",
+  ), env);
+  assert.equal(refreshed.status, 200);
+  assert.ok(calls > callsAfterFailure, "bootstrap was rebuilt after generation mismatch");
+});
+
+test("rejects malformed Explorer phase requests before querying", async () => {
+  let calls = 0;
+  const env = serviceEnv(async () => { calls += 1; });
+  const urls = [
+    "https://phase-invalid.test/v1/query?phase=unknown",
+    "https://phase-invalid.test/v1/query?phase=bootstrap&generation=77",
+    "https://phase-invalid.test/v1/query?phase=details",
+    "https://phase-invalid.test/v1/query?phase=details&generation=0",
+  ];
+  for (const url of urls) {
+    const response = await worker.fetch(new Request(url), env);
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "invalid_explorer_phase" });
+  }
+  assert.equal(calls, 0);
+});
+
 test("serves exact-ID font similarity through a bounded route", async () => {
   let forwarded;
   const env = serviceEnv(async (request) => {
@@ -200,7 +336,7 @@ test("serves exact-ID font similarity through a bounded route", async () => {
   assert.deepEqual(body.target, {
     familyId: 109,
     familyName: "Inter",
-    previewUrl: "https://api.withfudge.com/v1/font-previews/109?sample=Inter+Aa+Bb+Cc+0123456789&width=768",
+    previewUrl: "https://api.withfudge.com/v1/font-previews/109?sample=Hamburgefontsiv+0123456789&width=768",
   });
   assert.deepEqual(body.results[0], {
     rank: 1,
@@ -211,7 +347,7 @@ test("serves exact-ID font similarity through a bounded route", async () => {
       faceIndex: 0,
       variationCoordinates: "",
     },
-    previewUrl: "https://api.withfudge.com/v1/font-previews/1692?contentSha256=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&faceIndex=0&variationCoordinates=&sample=Open+Runde+Aa+Bb+Cc+0123456789&width=768",
+    previewUrl: "https://api.withfudge.com/v1/font-previews/1692?contentSha256=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&faceIndex=0&variationCoordinates=&sample=Hamburgefontsiv+0123456789&width=768",
     visualDistance: 0.003,
     metricDistance: 0.0013,
     commonGlyphs: 88,
@@ -233,6 +369,97 @@ test("fails closed when font similarity omits an exact preview identity", async 
 
   assert.equal(response.status, 502);
   assert.equal((await response.json()).error, "similarity_query_failed");
+});
+
+test("serves Almendra's verified pinned regular face through a bounded route", async () => {
+  let forwarded;
+  const env = serviceEnv(async (request) => {
+    forwarded = await request.json();
+    return queryResponse([
+      "source_adapter_id", "upstream_release_id", "upstream_revision",
+      "authoritative_url", "release_recorded_at", "upstream_path",
+      "content_sha256", "byte_length", "face_index",
+      "variation_coordinates", "weight_class", "width_class", "slant",
+      "trait_observed_at",
+    ], [[
+      "google-fonts-v1", "ofl/almendra",
+      "00e726a90e0b9698971c37b88c35ef958965448b",
+      "https://github.com/google/fonts/tree/00e726a90e0b9698971c37b88c35ef958965448b/ofl/almendra",
+      1_784_774_066, "ofl/almendra/Almendra-Regular.ttf",
+      { $type: "bytes", base64: "sSemEhIJNTtT2pznO/nTUPdBkNg4TCjt4Xnk+5RA+UY=" },
+      68_684, 0, bytes(0), 400, 5, "upright", 1_785_155_155,
+    ]]);
+  });
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/family-font-source?familyId=2780&generation=77",
+  ), env);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(forwarded.parameters.family_id, 2780);
+  assert.deepEqual(forwarded.parameters.default_coordinates, bytes(0));
+  assert.equal(forwarded.expectedGeneration, 77);
+  assert.equal(forwarded.maxRows, 1);
+  assert.match(forwarded.script, /source_adapter_id: 'google-fonts-v1'/);
+  assert.match(forwarded.script, /weight - 400/);
+  assert.deepEqual(body.source, {
+    sourceAdapterId: "google-fonts-v1",
+    upstreamReleaseId: "ofl/almendra",
+    upstreamRevision: "00e726a90e0b9698971c37b88c35ef958965448b",
+    authoritativeUrl: "https://github.com/google/fonts/tree/00e726a90e0b9698971c37b88c35ef958965448b/ofl/almendra",
+    upstreamPath: "ofl/almendra/Almendra-Regular.ttf",
+    contentSha256: "sSemEhIJNTtT2pznO_nTUPdBkNg4TCjt4Xnk-5RA-UY",
+    byteLength: 68_684,
+    faceIndex: 0,
+    variationCoordinates: "",
+    weightClass: 400,
+    widthClass: 5,
+    slant: "upright",
+    fontUrl: "https://raw.githubusercontent.com/google/fonts/00e726a90e0b9698971c37b88c35ef958965448b/ofl/almendra/Almendra-Regular.ttf",
+    format: "truetype",
+  });
+});
+
+test("returns no fallback when a family has no verified Google Fonts release", async () => {
+  const env = serviceEnv(async () => queryResponse([
+    "source_adapter_id", "upstream_release_id", "upstream_revision",
+    "authoritative_url", "release_recorded_at", "upstream_path",
+    "content_sha256", "byte_length", "face_index",
+    "variation_coordinates", "weight_class", "width_class", "slant",
+    "trait_observed_at",
+  ], []));
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/family-font-source?familyId=1&generation=77",
+  ), env);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    observedGeneration: 77,
+    familyId: 1,
+    source: null,
+  });
+});
+
+test("fails closed on malformed family font source provenance", async () => {
+  const env = serviceEnv(async () => queryResponse([
+    "source_adapter_id", "upstream_release_id", "upstream_revision",
+    "authoritative_url", "release_recorded_at", "upstream_path",
+    "content_sha256", "byte_length", "face_index",
+    "variation_coordinates", "weight_class", "width_class", "slant",
+    "trait_observed_at",
+  ], [[
+    "google-fonts-v1", "ofl/almendra",
+    "00e726a90e0b9698971c37b88c35ef958965448b",
+    "https://attacker.example/google/fonts", 1,
+    "ofl/almendra/Almendra-Regular.ttf", bytes(32), 68_684, 0, bytes(0),
+    400, 5, "upright", 2,
+  ]]));
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/family-font-source?familyId=2780&generation=77",
+  ), env);
+
+  assert.equal(response.status, 502);
+  assert.equal((await response.json()).error, "family_font_source_query_failed");
 });
 
 test("serves capture neighbors from the active index with a fenced follow-up", async () => {
@@ -289,6 +516,22 @@ test("rejects malformed similarity requests before querying", async () => {
     const response = await worker.fetch(new Request(url), env);
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), { error: "invalid_similarity_request" });
+  }
+  assert.equal(calls, 0);
+});
+
+test("rejects malformed family font source requests before querying", async () => {
+  let calls = 0;
+  const env = serviceEnv(async () => { calls += 1; });
+  const urls = [
+    "https://proxy.test/v1/family-font-source?familyId=Almendra&generation=77",
+    "https://proxy.test/v1/family-font-source?familyId=2780&generation=0",
+    "https://proxy.test/v1/family-font-source?familyId=2780&generation=77&url=https://attacker.example",
+  ];
+  for (const url of urls) {
+    const response = await worker.fetch(new Request(url), env);
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "invalid_font_source_request" });
   }
   assert.equal(calls, 0);
 });

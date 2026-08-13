@@ -1,5 +1,11 @@
 const PAGE_LIMIT = 2_000;
 const RESPONSE_LIMIT = 2 * 1024 * 1024;
+const CAPTURE_COUNT_QUERY = query(
+  ["count(capture_id)"],
+  "?[count(capture_id)] := *capture{id: capture_id}\n:limit 1",
+  [],
+  1,
+);
 
 export const EXPLORER_QUERIES = {
   captures: query([
@@ -377,15 +383,173 @@ class_unsupported[count(id)] := *capture_classification_state{capture_id: id, st
   ], "::relations", [], 500),
 };
 
+const CAPTURE_PAGE_QUERY = query([
+  "capture_id", "origin", "path", "title", "captured_at", "device_class",
+  "theme", "interaction_state", "capture_scope", "render_context",
+  "viewport_width_px", "viewport_height_px", "device_pixel_ratio",
+  "crop_width_px", "crop_height_px", "screenshot_key",
+  "screenshot_media_type", "screenshot_width_px", "screenshot_height_px",
+  "capture_contract_id", "profile_generation",
+], `?[capture_id, origin, path, title, captured_at, device_class, theme,
+   interaction_state, capture_scope, render_context, viewport_width_px,
+   viewport_height_px, device_pixel_ratio, crop_width_px, crop_height_px,
+   screenshot_key, screenshot_media_type, screenshot_width_px,
+   screenshot_height_px, capture_contract_id, profile_generation] :=
+  *capture{
+    id: capture_id, page_id, title, captured_at, device_class, theme,
+    interaction_state, capture_scope, render_context, viewport_width_px,
+    viewport_height_px, device_pixel_ratio, crop_width_px, crop_height_px,
+    screenshot_key, screenshot_media_type, screenshot_width_px,
+    screenshot_height_px, capture_contract_id, profile_generation
+  },
+  *page{id: page_id, domain_id, path},
+  *domain{id: domain_id, origin}
+:order capture_id
+:limit ${PAGE_LIMIT}
+:offset $offset`);
+
+export const EXPLORER_DEFERRED_QUERY_NAMES = Object.freeze([
+  "backgrounds",
+  "textStyles",
+  "historicalFonts",
+  "legacyColors",
+]);
+
+export const EXPLORER_BOOTSTRAP_QUERY_NAMES = Object.freeze(
+  Object.keys(EXPLORER_QUERIES).filter((name) => (
+    name !== "captures" && !EXPLORER_DEFERRED_QUERY_NAMES.includes(name)
+  )),
+);
+
 export async function buildExplorerBundle(runQuery) {
   const capturesResult = await execute(runQuery, "captures", undefined);
   const generation = capturesResult.observedGeneration;
   const names = Object.keys(EXPLORER_QUERIES).filter((name) => name !== "captures");
+  const results = await executeAll(runQuery, names, generation);
+  return assembleExplorerBundle(capturesResult, results);
+}
+
+export async function buildExplorerBootstrap(runQuery, onProgress = () => {}) {
+  const capturePlan = await planCaptures(runQuery);
+  const capturePages = Math.ceil(capturePlan.total / PAGE_LIMIT);
+  const total = 1 + capturePages + EXPLORER_BOOTSTRAP_QUERY_NAMES.length + 1;
+  let completed = 1;
+  onProgress({ completed, total, label: "Counted captures" });
+  const advance = (label) => {
+    completed += 1;
+    onProgress({ completed, total, label });
+  };
+  const [capturesResult, results] = await Promise.all([
+    executeCapturePages(runQuery, capturePlan, () => advance("Loaded captures")),
+    executeAll(
+      runQuery,
+      EXPLORER_BOOTSTRAP_QUERY_NAMES,
+      capturePlan.generation,
+      (name) => advance(`Loaded ${name}`),
+    ),
+  ]);
+  const bundle = assembleExplorerBundle(capturesResult, results);
+  advance("Built Explorer bundle");
+  return bundle;
+}
+
+export async function buildExplorerDetails(runQuery, generation) {
+  if (!Number.isSafeInteger(generation) || generation < 1) {
+    throw new Error("Explorer detail generation was invalid");
+  }
+  const results = await executeAll(
+    runQuery,
+    EXPLORER_DEFERRED_QUERY_NAMES,
+    generation,
+  );
+  return {
+    data: {
+      observed_generation: generation,
+      backgrounds: resultRows(results, "backgrounds"),
+      text_styles: resultRows(results, "textStyles"),
+      hist_fonts: resultRows(results, "historicalFonts"),
+    },
+    legacyColors: legacyColors(resultRows(results, "legacyColors")),
+  };
+}
+
+async function executeAll(runQuery, names, generation, onComplete = () => {}) {
   const entries = await Promise.all(names.map(async (name) => [
     name,
-    await execute(runQuery, name, generation),
+    await execute(runQuery, name, generation).then((result) => {
+      onComplete(name);
+      return result;
+    }),
   ]));
-  const results = Object.fromEntries(entries);
+  return Object.fromEntries(entries);
+}
+
+async function planCaptures(runQuery) {
+  const countResponse = await checkedQuery(runQuery, "captureCount", CAPTURE_COUNT_QUERY, {}, undefined);
+  const generation = countResponse.observedGeneration;
+  const total = countResponse.result.rows[0]?.[0];
+  if (!Number.isSafeInteger(total) || total < 0) {
+    throw new Error("Explorer projection captureCount was incomplete or invalid");
+  }
+  return { generation, total };
+}
+
+async function executeCapturePages(runQuery, { generation, total }, onPage = () => {}) {
+  if (!total) return { observedGeneration: generation, rows: [] };
+  const pages = await Promise.all(
+    Array.from({ length: Math.ceil(total / PAGE_LIMIT) }, async (_, index) => {
+      const page = await checkedQuery(
+        runQuery,
+        "captures",
+        CAPTURE_PAGE_QUERY,
+        { offset: index * PAGE_LIMIT },
+        generation,
+      );
+      onPage(index);
+      return page;
+    }),
+  );
+  const rows = pages.flatMap((page) => page.result.rows);
+  if (rows.length !== total) {
+    throw new Error("Explorer projection captures was incomplete or invalid");
+  }
+  return { observedGeneration: generation, rows };
+}
+
+async function checkedQuery(runQuery, name, spec, parameters, expectedGeneration) {
+  let response;
+  try {
+    response = await runQuery({
+      script: spec.script,
+      parameters,
+      expectedGeneration,
+      maxRows: spec.maxRows,
+      maxBytes: spec.maxBytes,
+    });
+  } catch (error) {
+    const wrapped = new Error(`Explorer projection ${name} failed: ${
+      error instanceof Error ? error.message : "query failed"
+    }`);
+    wrapped.status = error?.status;
+    throw wrapped;
+  }
+  if (
+    !response
+    || !Number.isSafeInteger(response.observedGeneration)
+    || (expectedGeneration !== undefined && response.observedGeneration !== expectedGeneration)
+    || !Array.isArray(response.result?.headers)
+    || response.result.headers.join("\u0000") !== spec.headers.join("\u0000")
+    || !Array.isArray(response.result.rows)
+    || response.returnedRows !== response.result.rows.length
+    || response.truncated
+  ) {
+    throw new Error(`Explorer projection ${name} was incomplete or invalid`);
+  }
+  return response;
+}
+
+function assembleExplorerBundle(capturesResult, results) {
+  const generation = capturesResult.observedGeneration;
   const captures = capturesResult.rows.map((row) => [
     row[0], row[1], row[2], row[3], row[4],
     `https://pin.fontofweb.com/${row[0]}`,
@@ -396,7 +560,7 @@ export async function buildExplorerBundle(runQuery) {
   for (const capture of captures) {
     domainCounts.set(capture[1], (domainCounts.get(capture[1]) || 0) + 1);
   }
-  const videoObservations = results.videoObservations.rows.map((row) => ({
+  const videoObservations = resultRows(results, "videoObservations").map((row) => ({
     capture_id: row[0], observation_index: row[1], media_kind: row[2],
     x_q: row[3], y_q: row[4], width_q: row[5], height_q: row[6],
     coverage_ppm: row[7], occurrence_count: row[8], evidence_kind: row[9],
@@ -416,22 +580,22 @@ export async function buildExplorerBundle(runQuery) {
       observed_generation: generation,
       domains: [...domainCounts.entries()].sort((a, b) => a[0].localeCompare(b[0])),
       captures,
-      families: results.families.rows,
-      designers: results.designers.rows,
-      vendors: results.vendors.rows,
-      releases: results.releases.rows,
-      terms: Object.fromEntries(results.terms.rows.map((row) => [
+      families: resultRows(results, "families"),
+      designers: resultRows(results, "designers"),
+      vendors: resultRows(results, "vendors"),
+      releases: resultRows(results, "releases"),
+      terms: Object.fromEntries(resultRows(results, "terms").map((row) => [
         row[0], [row[1], row[2], row[3]],
       ])),
-      assignments: results.assignments.rows,
-      color_roles: results.colorRoles.rows,
-      backgrounds: results.backgrounds.rows,
-      font_obs: results.fontObservations.rows,
-      type_roles: results.typeRoles.rows,
-      text_styles: results.textStyles.rows,
-      hist_fonts: results.historicalFonts.rows,
-      structures: results.structures.rows,
-      motion_assets: results.motionAssets.rows.map((row) => [
+      assignments: resultRows(results, "assignments"),
+      color_roles: resultRows(results, "colorRoles"),
+      backgrounds: resultRows(results, "backgrounds"),
+      font_obs: resultRows(results, "fontObservations"),
+      type_roles: resultRows(results, "typeRoles"),
+      text_styles: resultRows(results, "textStyles"),
+      hist_fonts: resultRows(results, "historicalFonts"),
+      structures: resultRows(results, "structures"),
+      motion_assets: resultRows(results, "motionAssets").map((row) => [
         row[0], `https://pin.fontofweb.com/${row[0]}.webm`, ...row.slice(2),
       ]),
       video_observations: videoObservations,
@@ -440,18 +604,26 @@ export async function buildExplorerBundle(runQuery) {
       font_similarity_results: {},
       font_similarity: {},
       catalog_matches: {},
-      embedding_runtime: embeddingRuntime(results.embeddingRuntime.rows[0]),
-      classification_runtime: classificationRuntime(results.classificationRuntime.rows[0]),
-      runtime_counts: runtimeCounts(results.runtimeCounts.rows[0]),
+      embedding_runtime: embeddingRuntime(resultRows(results, "embeddingRuntime")[0]),
+      classification_runtime: classificationRuntime(resultRows(results, "classificationRuntime")[0]),
+      runtime_counts: runtimeCounts(resultRows(results, "runtimeCounts")[0]),
     },
-    gradients: groupGradients(results.gradients.rows),
-    legacyColors: Object.fromEntries(results.legacyColors.rows.map(([captureId, colors]) => [
-      captureId,
-      [...new Set(colors)].sort((a, b) => a - b),
-    ])),
-    fontSources: groupFontSources(results.fontSources.rows),
-    relations: results.relations.rows.map(relationSummary),
+    gradients: groupGradients(resultRows(results, "gradients")),
+    legacyColors: legacyColors(resultRows(results, "legacyColors")),
+    fontSources: groupFontSources(resultRows(results, "fontSources")),
+    relations: resultRows(results, "relations").map(relationSummary),
   };
+}
+
+function resultRows(results, name) {
+  return results[name]?.rows || [];
+}
+
+function legacyColors(rows) {
+  return Object.fromEntries(rows.map(([captureId, colors]) => [
+    captureId,
+    [...new Set(colors)].sort((a, b) => a - b),
+  ]));
 }
 
 function query(headers, script, cursor = [], maxRows = PAGE_LIMIT) {
@@ -478,9 +650,11 @@ async function execute(runQuery, name, expectedGeneration) {
         maxBytes: spec.maxBytes,
       });
     } catch (error) {
-      throw new Error(`Explorer projection ${name} failed: ${
+      const wrapped = new Error(`Explorer projection ${name} failed: ${
         error instanceof Error ? error.message : "query failed"
       }`);
+      wrapped.status = error?.status;
+      throw wrapped;
     }
     if (
       !response
