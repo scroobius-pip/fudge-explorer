@@ -1,0 +1,417 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import worker from "./worker.js";
+
+test("serves non-query routes through the asset binding", async () => {
+  const response = await worker.fetch(new Request("https://proxy.test/"), {
+    ASSETS: { fetch: async () => new Response("explorer", { status: 200 }) },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "explorer");
+});
+
+test("forwards a bounded query through the private Fudge service", async () => {
+  let forwarded;
+  const env = {
+    FUDGE_SERVICE: {
+      async fetch(request) {
+        forwarded = {
+          url: request.url,
+          method: request.method,
+          body: await request.json(),
+        };
+        return Response.json({
+          id: 1,
+          observedGeneration: 77,
+          result: { headers: ["id"], rows: [[42]] },
+          returnedRows: 1,
+          truncated: false,
+          contractVersion: "mnestic-query-v1",
+        });
+      },
+    },
+  };
+  const response = await worker.fetch(queryRequest({
+    contractVersion: "mnestic-query-v1",
+    script: "?[id] := *capture{id}",
+    parameters: { capture_id: 42 },
+    expectedGeneration: 77,
+    limits: { maxRows: 12, maxBytes: 16_384 },
+  }), env);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(forwarded, {
+    url: "https://fudge.internal/v1/internal/corpus/query",
+    method: "POST",
+    body: {
+      script: "?[id] := *capture{id}",
+      parameters: { capture_id: 42 },
+      expectedGeneration: 77,
+      maxRows: 12,
+      maxBytes: 16_384,
+    },
+  });
+  assert.deepEqual(await response.json(), {
+    id: 1,
+    observedGeneration: 77,
+    result: { headers: ["id"], rows: [[42]] },
+    returnedRows: 1,
+    truncated: false,
+    contractVersion: "mnestic-query-v1",
+  });
+});
+
+test("applies safe defaults without changing the script", async () => {
+  let forwardedBody;
+  const env = {
+    FUDGE_SERVICE: {
+      async fetch(request) {
+        forwardedBody = await request.json();
+        return Response.json({ ok: true });
+      },
+    },
+  };
+  const script = "?[origin] := *domain{origin}";
+  const response = await worker.fetch(queryRequest({ script }), env);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(forwardedBody, {
+    script,
+    parameters: {},
+    maxRows: 2_000,
+    maxBytes: 512 * 1024,
+  });
+});
+
+test("rejects malformed and over-bounded requests before the service binding", async () => {
+  let calls = 0;
+  const env = {
+    FUDGE_SERVICE: { fetch: async () => { calls += 1; } },
+  };
+  const cases = [
+    [{}, 400, "invalid_query"],
+    [{ script: "?[id] := *capture{id}", parameters: [] }, 400, "invalid_query"],
+    [{ script: "?[id] := *capture{id}", limits: { maxRows: 2_001 } }, 400, "invalid_limits"],
+    [{ script: "?[id] := *capture{id}", extra: true }, 400, "invalid_query"],
+    [{ contractVersion: "mnestic-query-v2", script: "?[id] := *capture{id}" }, 400, "unsupported_contract"],
+  ];
+
+  for (const [body, status, error] of cases) {
+    const response = await worker.fetch(queryRequest(body), env);
+    assert.equal(response.status, status);
+    assert.deepEqual(await response.json(), { error });
+  }
+  assert.equal(calls, 0);
+});
+
+test("fails closed when the private service binding is absent", async () => {
+  const response = await worker.fetch(queryRequest({
+    script: "?[id] := *capture{id}",
+  }), {});
+
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: "corpus_service_unavailable" });
+});
+
+test("only enables CORS for the configured Explorer origin", async () => {
+  const env = {};
+  const response = await worker.fetch(new Request("https://proxy.test/v1/query", {
+    method: "OPTIONS",
+    headers: { origin: "https://proxy.test" },
+  }), env);
+  const rejected = await worker.fetch(new Request("https://proxy.test/v1/query", {
+    method: "OPTIONS",
+    headers: { origin: "https://attacker.example" },
+  }), env);
+
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("access-control-allow-origin"), "https://proxy.test");
+  assert.equal(rejected.status, 403);
+  assert.equal(rejected.headers.get("access-control-allow-origin"), null);
+});
+
+test("serves a materialized Explorer bundle from GET /v1/query", async () => {
+  const { EXPLORER_QUERIES } = await import("./explorer-bundle.js");
+  const serviceCalls = [];
+  const env = {
+    FUDGE_SERVICE: {
+      async fetch(request) {
+        const body = await request.json();
+        const spec = Object.values(EXPLORER_QUERIES).find((candidate) => (
+          candidate.script === body.script
+        ));
+        assert.ok(spec);
+        serviceCalls.push(body);
+        return Response.json({
+          observedGeneration: 77,
+          returnedRows: 0,
+          truncated: false,
+          result: { headers: spec.headers, rows: [] },
+        });
+      },
+    },
+  };
+  const response = await worker.fetch(new Request("https://proxy.test/v1/query", {
+    method: "GET",
+    headers: {
+      origin: "https://proxy.test",
+    },
+  }), env);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), "https://proxy.test");
+  assert.equal(response.headers.get("x-fudge-corpus-generation"), "77");
+  assert.equal(serviceCalls[0].expectedGeneration, undefined);
+  assert.ok(serviceCalls.slice(1).every((call) => call.expectedGeneration === 77));
+  assert.deepEqual(body.data.captures, []);
+  assert.deepEqual(body.data.terms, {});
+  assert.deepEqual(body.relations, []);
+});
+
+test("serves exact-ID font similarity through a bounded route", async () => {
+  let forwarded;
+  const env = serviceEnv(async (request) => {
+    forwarded = await request.json();
+    return queryResponse([
+      "rank", "target_family_id", "target_family_name", "family_id",
+      "family_name", "content_sha256", "face_index", "variation_coordinates",
+      "visual_distance", "metric_distance", "common_glyphs",
+      "monospace_mismatch", "italic_mismatch",
+    ], [[
+      1, 109, "Inter", 1692, "Open Runde", bytes(32), 0, bytes(0),
+      0.003, 0.0013, 88, false, false,
+    ]]);
+  });
+
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/similar-fonts?familyId=109&generation=77&limit=6",
+  ), env);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.match(forwarded.script, /selected = \$family_id/);
+  assert.equal(forwarded.parameters.family_id, 109);
+  assert.equal(forwarded.parameters.result_limit, 6);
+  assert.equal(forwarded.expectedGeneration, 77);
+  assert.equal(forwarded.maxRows, 6);
+  assert.deepEqual(body.target, {
+    familyId: 109,
+    familyName: "Inter",
+    previewUrl: "https://api.withfudge.com/v1/font-previews/109?sample=Inter+Aa+Bb+Cc+0123456789&width=768",
+  });
+  assert.deepEqual(body.results[0], {
+    rank: 1,
+    familyId: 1692,
+    familyName: "Open Runde",
+    candidateIdentity: {
+      contentSha256: "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      faceIndex: 0,
+      variationCoordinates: "",
+    },
+    previewUrl: "https://api.withfudge.com/v1/font-previews/1692?contentSha256=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&faceIndex=0&variationCoordinates=&sample=Open+Runde+Aa+Bb+Cc+0123456789&width=768",
+    visualDistance: 0.003,
+    metricDistance: 0.0013,
+    commonGlyphs: 88,
+    monospaceMismatch: false,
+    italicMismatch: false,
+  });
+});
+
+test("fails closed when font similarity omits an exact preview identity", async () => {
+  const env = serviceEnv(async () => queryResponse([
+    "rank", "target_family_id", "target_family_name", "family_id",
+    "family_name", "content_sha256", "face_index", "variation_coordinates",
+    "visual_distance", "metric_distance", "common_glyphs",
+    "monospace_mismatch", "italic_mismatch",
+  ], [[1, 109, "Inter", 1692, "Open Runde", bytes(31), 0, bytes(0), 0.003, 0.0013, 88, false, false]]));
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/similar-fonts?familyId=109&generation=77",
+  ), env);
+
+  assert.equal(response.status, 502);
+  assert.equal((await response.json()).error, "similarity_query_failed");
+});
+
+test("serves capture neighbors from the active index with a fenced follow-up", async () => {
+  const requests = [];
+  const query = { $type: "vector", scalarType: "f32", values: [0.25, -0.5] };
+  const env = serviceEnv(async (request) => {
+    const body = await request.json();
+    requests.push(body);
+    if (requests.length === 1) {
+      return queryResponse([
+        "retrieval_generation", "index_name", "model_id", "dimensions",
+        "distance", "normalization", "media_asset_index", "embedding",
+      ], [["capture-v1", "semantic_generation_index", "model", 2, "cosine", "l2", 0, query]]);
+    }
+    return queryResponse([
+      "capture_id", "distance", "title", "origin", "path", "captured_at",
+    ], [[42, 0.125, "Example", "https://example.com", "/", 1_700_000_000_000]]);
+  });
+
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/similar-captures?captureId=9367&generation=77&limit=12",
+  ), env);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].parameters.capture_id, 9367);
+  assert.equal(requests[0].expectedGeneration, 77);
+  assert.match(requests[1].script, /~capture_embedding:semantic_generation_index/);
+  assert.equal(requests[1].expectedGeneration, 77);
+  assert.deepEqual(requests[1].parameters, { capture_id: 9367, query });
+  assert.deepEqual(body.results[0], {
+    rank: 1,
+    captureId: 42,
+    distance: 0.125,
+    title: "Example",
+    origin: "https://example.com",
+    path: "/",
+    capturedAt: 1_700_000_000_000,
+    screenshotUrl: "https://pin.fontofweb.com/42",
+  });
+});
+
+test("rejects malformed similarity requests before querying", async () => {
+  let calls = 0;
+  const env = serviceEnv(async () => { calls += 1; });
+  const requests = [
+    "https://proxy.test/v1/similar-fonts?familyId=Inter&generation=77",
+    "https://proxy.test/v1/similar-captures?captureId=1&generation=0",
+    "https://proxy.test/v1/similar-captures?captureId=1&generation=77&limit=25",
+    "https://proxy.test/v1/similar-fonts?familyId=109&generation=77&extra=true",
+  ];
+  for (const url of requests) {
+    const response = await worker.fetch(new Request(url), env);
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "invalid_similarity_request" });
+  }
+  assert.equal(calls, 0);
+});
+
+test("returns an empty result when a capture has no active embedding", async () => {
+  const env = serviceEnv(async () => queryResponse([
+    "retrieval_generation", "index_name", "model_id", "dimensions",
+    "distance", "normalization", "media_asset_index", "embedding",
+  ], []));
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/similar-captures?captureId=1&generation=77",
+  ), env);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    observedGeneration: 77,
+    target: { captureId: 1, available: false },
+    results: [],
+  });
+});
+
+test("serves bounded capture effects at the bundle generation", async () => {
+  let forwarded;
+  const env = serviceEnv(async (request) => {
+    forwarded = await request.json();
+    return queryResponse(["kind", "identity", "values"], [
+      ["radius", 0, [8_000, 12, "dom_computed_style"]],
+      ["completeness", "radius_observation", ["complete", 1, 1, 0, null]],
+    ]);
+  });
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/capture-evidence?captureId=42&generation=77",
+  ), env);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(forwarded.parameters.capture_id, 42);
+  assert.equal(forwarded.expectedGeneration, 77);
+  assert.equal(body.evidence.radius[0].values[0], 8_000);
+  assert.equal(body.evidence.completeness[0].identity, "radius_observation");
+});
+
+test("serves exact term support values at the bundle generation", async () => {
+  let forwarded;
+  const headers = [
+    "capture_id", "assignment_scope", "confidence", "resolution_kind",
+    "evidence_index", "evidence_kind", "support_kind", "support_index",
+    "values",
+  ];
+  const env = serviceEnv(async (request) => {
+    forwarded = await request.json();
+    return queryResponse(headers, [[42, "capture", 0.9, "automatic", 0, "measured_observation", "text_style", 0, [null, "unknown", 400, null, 16_000, 24_000, null, 17, 17, 17, null, 10]]]);
+  });
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/term-values?termId=typography.role.body&generation=77",
+  ), env);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(forwarded.parameters.term_id, "typography.role.body");
+  assert.equal(forwarded.expectedGeneration, 77);
+  assert.deepEqual(body.rows[0].slice(0, 4), [42, "capture", 0.9, "automatic"]);
+});
+
+test("serves columns only for a validated relation name", async () => {
+  let forwarded;
+  const env = serviceEnv(async (request) => {
+    forwarded = await request.json();
+    return queryResponse([
+      "column", "is_key", "index", "type", "has_default", "default_expr",
+    ], [["id", true, 0, "Int", false, null]]);
+  });
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/relation-columns?relation=capture&generation=77",
+  ), env);
+  const rejected = await worker.fetch(new Request(
+    "https://proxy.test/v1/relation-columns?relation=capture%20%3Alimit%201&generation=77",
+  ), env);
+
+  assert.equal(response.status, 200);
+  assert.equal(forwarded.script, "::columns capture");
+  assert.equal(rejected.status, 400);
+});
+
+test("rejects malformed evidence requests before querying", async () => {
+  let calls = 0;
+  const env = serviceEnv(async () => { calls += 1; });
+  const urls = [
+    "https://proxy.test/v1/capture-evidence?captureId=0&generation=77",
+    "https://proxy.test/v1/term-values?termId=bad%20term&generation=77",
+    "https://proxy.test/v1/relation-columns?relation=capture&generation=77&extra=1",
+  ];
+  for (const url of urls) {
+    const response = await worker.fetch(new Request(url), env);
+    assert.equal(response.status, 400);
+  }
+  assert.equal(calls, 0);
+});
+
+function queryRequest(body) {
+  return new Request("https://proxy.test/v1/query", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function serviceEnv(fetch) {
+  return { FUDGE_SERVICE: { fetch } };
+}
+
+function queryResponse(headers, rows, overrides = {}) {
+  return Response.json({
+    observedGeneration: 77,
+    returnedRows: rows.length,
+    truncated: false,
+    result: { headers, rows },
+    ...overrides,
+  });
+}
+
+function bytes(length) {
+  return { $type: "bytes", base64: Buffer.from(Array.from({ length }, (_, index) => index)).toString("base64") };
+}

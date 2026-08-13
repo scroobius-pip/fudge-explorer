@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#FFFFFF">
+<link rel="icon" href="data:,">
 <title>Fudge — Explorer</title>
 <script src="theme-registry.js"></script>
 <style>
@@ -30,25 +31,26 @@
   :focus-visible { outline:2px solid var(--color-focus-ring, #2454c6); outline-offset:2px; }
   ::selection { background:var(--color-selection, #dce6ff); }
   html, body { margin:0; height:100%; overflow:hidden; }
-  body { background:var(--color-bg); font:14px/1.55 -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
-  header { display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; padding:12px 26px 10px; border-bottom:1px solid var(--line); background:var(--color-surface); }
+  body { display:flex; flex-direction:column; background:var(--color-bg); font:14px/1.55 -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
+  header { flex:0 0 auto; display:grid; grid-template-columns:minmax(240px,1fr) minmax(280px,520px) auto; align-items:center; gap:18px; min-height:60px; padding:10px 22px; border-bottom:1px solid var(--line); background:var(--color-surface); }
+  .brand-block { display:flex; align-items:baseline; gap:14px; min-width:0; }
   .title { font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; }
   .title span { color:var(--mut); font-weight:400; }
-  .meta { font-size:10px; color:var(--mut); font-variant-numeric:tabular-nums; }
-  .theme-control { display:inline-flex; align-items:center; gap:5px; margin-left:auto; }
+  .meta { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10px; color:var(--mut); font-variant-numeric:tabular-nums; }
+  .top-actions { display:flex; align-items:center; justify-content:flex-end; gap:10px; white-space:nowrap; }
+  .theme-control { display:inline-flex; align-items:center; gap:5px; }
   .theme-icon { font-size:12px; color:var(--mut); }
   .theme-select { font:inherit; font-size:10.5px; color:var(--mut); border:1px solid var(--line); border-radius:99px; background:var(--surface, var(--color-surface)); padding:2px 9px; outline:none; cursor:pointer; }
   .theme-select:hover { border-color:var(--line-strong, var(--color-line-strong)); color:var(--ink); }
-  .spec-control { display:inline-flex; align-items:center; gap:5px; color:var(--mut); flex:0 0 auto; }
-  .spec-input { width:120px; min-width:0; font:inherit; font-size:10.5px; color:var(--ink); border:none; border-bottom:1px solid var(--color-input-border); padding:3px 0 2px; outline:none; background:transparent; }
-  .spec-input:focus { border-bottom-color:var(--ink); }
+  .design-cta { display:inline-flex; align-items:center; min-height:30px; padding:4px 11px; border:1px solid var(--ink); border-radius:3px; background:var(--ink); color:var(--color-bg); font-size:10.5px; font-weight:600; text-decoration:none; }
+  .design-cta:hover { opacity:.82; }
   .favicon { position:relative; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:3px; overflow:hidden; background:var(--color-favicon-bg); border:1px solid rgba(0,0,0,.06); flex:0 0 auto; font-size:9px; font-weight:600; color:var(--mut); vertical-align:-3px; }
   .favicon .fl { position:absolute; inset:0; display:grid; place-items:center; }
   .favicon.inline { width:13px; height:13px; font-size:7px; border-radius:2px; vertical-align:-2px; margin-right:3px; align-self:center; }
   .favicon img { width:100%; height:100%; display:block; }
   .motion-badge { color:var(--entity-motion); font-weight:600; }
   .video-badge { color:var(--entity-video); font-weight:600; }
-  .wrap { position:relative; width:340px; max-width:34vw; margin-left:14px; }
+  .wrap { position:relative; width:100%; min-width:0; }
   .search { width:100%; font:inherit; font-size:13px; color:var(--ink); border:none; border-bottom:1px solid var(--color-input-border); padding:5px 0 4px; outline:none; background:transparent; }
   .search:focus { border-bottom-color:var(--ink); }
   .search::placeholder { color:#b9b9b9; }
@@ -59,7 +61,7 @@
   .res:hover, .res.hl { background:var(--soft); }
   .res .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .res .s { font-size:10px; color:var(--mut); flex:0 0 auto; }
-  #cols { display:flex; align-items:stretch; height:calc(100% - 60px); overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; overscroll-behavior-x:contain; }
+  #cols { flex:1 1 auto; min-height:0; display:flex; align-items:stretch; overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; overscroll-behavior-x:contain; }
   .col { flex:0 0 340px; width:340px; max-width:88vw; border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; background:var(--color-surface); }
   .col.enter { animation: slidein .16s ease; }
   @keyframes slidein { from { transform:translateX(14px); opacity:.3; } to { transform:none; opacity:1; } }
@@ -122,6 +124,14 @@
   .term-highlight { color:var(--violet); }
   .font-src { font:8.5px/1.45 ui-monospace,Menlo,monospace; color:var(--mut); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:-2px 0 6px; }
   .font-src b { font-weight:600; color:var(--faint); }
+  .font-src[data-font-load-state="loading"] b { color:var(--entity-family); }
+  .font-src[data-font-load-state="error"] b { color:var(--entity-motion); }
+  .font-preview { position:relative; min-height:54px; margin:1px 0 6px; border:1px solid var(--line); border-radius:3px; background:var(--soft); overflow:hidden; }
+  .font-preview img { display:block; width:100%; height:72px; padding:6px 8px; object-fit:contain; opacity:0; }
+  .font-preview.loaded img { opacity:1; }
+  .font-preview-state { position:absolute; inset:0; display:grid; place-items:center; padding:8px; color:var(--mut); font:9px/1.4 ui-monospace,Menlo,monospace; text-align:center; }
+  .font-preview.loaded .font-preview-state { display:none; }
+  .font-preview.failed { min-height:42px; border-style:dashed; }
   .chip { display:inline-block; font-size:11px; border:1px solid var(--line); border-radius:99px; padding:2px 11px; margin:0 5px 5px 0; cursor:pointer; background:none; color:var(--ink); }
   .chip:hover { border-color:var(--color-line-strong); background:var(--soft); }
   .shot-wrap { position:relative; min-height:80px; margin:0 0 10px; overflow:hidden; border:1px solid var(--line); border-radius:4px; background:var(--soft); background-size:100% 100%; }
@@ -147,6 +157,8 @@
   .action { border:0; background:transparent; color:var(--mut); padding:0; cursor:pointer; font-size:10px; text-decoration:underline; text-underline-offset:2px; }
   .action:hover { color:var(--ink); }
   .empty { font-size:11px; color:#b9b9b9; padding:5px 2px; }
+  .more { width:100%; border:0; background:none; color:var(--mut); padding:8px 2px; text-align:left; font:inherit; font-size:11px; cursor:pointer; }
+  .more:hover { color:var(--ink); background:var(--soft); }
   @media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto!important; animation-duration:.001ms!important; transition-duration:.001ms!important; } }
   a.ext { color:var(--ink); }
   .hsrow { display:flex; align-items:baseline; gap:10px; width:100%; padding:4px 2px; border:none; border-bottom:1px solid var(--line); background:none; text-align:left; font:inherit; font-size:11.5px; cursor:pointer; color:var(--ink); }
@@ -207,25 +219,41 @@
   .schema-column .name { min-width:0; overflow-wrap:anywhere; }
   .schema-column .type { white-space:nowrap; color:var(--mut); }
   .key-badge { margin-left:5px; color:var(--violet); font-size:8px; text-transform:uppercase; font-weight:600; }
+  @media (max-width:760px) {
+    header { grid-template-columns:minmax(0,1fr) auto; gap:8px 12px; padding:9px 14px 10px; }
+    .brand-block { gap:9px; }
+    .meta { font-size:9px; }
+    .wrap { grid-column:1 / -1; grid-row:2; }
+    .top-actions { grid-column:2; grid-row:1; }
+    .theme-icon { display:none; }
+    .design-cta { min-height:27px; padding:3px 8px; }
+  }
+  @media (max-width:480px) {
+    header { grid-template-columns:1fr; }
+    .brand-block { justify-content:space-between; }
+    .top-actions { grid-column:1; grid-row:2; justify-content:space-between; }
+    .wrap { grid-row:3; }
+  }
 </style>
 <style id="font-faces"></style>
 </head>
 <body>
 
 <header>
-  <div class="title">Fudge <span>Explorer</span></div>
-  <div class="meta" id="meta">loading…</div>
-  <label class="theme-control" title="Theme">
-    <span class="theme-icon" aria-hidden="true">◐</span>
-    <select id="theme-picker" class="theme-select" aria-label="Theme"></select>
-  </label>
-  <label class="spec-control" title="Specimen text — applies to all type previews">
-    <span class="theme-icon" aria-hidden="true">Aa</span>
-    <input id="spec" class="spec-input" type="text" placeholder="type to preview…" autocomplete="off" spellcheck="false">
-  </label>
+  <div class="brand-block">
+    <div class="title">Fudge <span>Explorer</span></div>
+    <div class="meta" id="meta">loading…</div>
+  </div>
   <div class="wrap">
     <input class="search" id="q" type="search" placeholder="Search anything…  ↑↓ Enter · Esc closes column" autocomplete="off" spellcheck="false">
     <div id="results"></div>
+  </div>
+  <div class="top-actions">
+    <label class="theme-control" title="Theme">
+      <span class="theme-icon" aria-hidden="true">◐</span>
+      <select id="theme-picker" class="theme-select" aria-label="Theme"></select>
+    </label>
+    <a class="design-cta" href="https://design.withfudge.com">Design with Fudge ↗</a>
   </div>
 </header>
 
@@ -251,12 +279,13 @@ const TYPE = {
   embeddings:{label:"embeddings",color:"var(--entity-color)"}
 };
 const MAXCOLS = 7;
-const NUMERIC_VIEWS = new Set(["capture","family","designer","vendor","motion","rawCapture"]);
+const NUMERIC_VIEWS = new Set(["capture","family","designer","vendor","motion","rawCapture","fontLookup"]);
 
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function escAttr(s){ return esc(s).replace(/"/g,"&quot;"); }
 function escId(s){ return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
-function fmtDate(ms){ return new Date(ms).toISOString().slice(0,10); }
+const dateMs = value => Number(value) < 1e12 ? Number(value) * 1000 : Number(value);
+function fmtDate(ms){ return new Date(dateMs(ms)).toISOString().slice(0,10); }
 const column = (type, id, label) => ({ type, id:NUMERIC_VIEWS.has(type) ? Number(id) : id, label });
 function pushMap(map, key, value){
   if (!map.has(key)) map.set(key, []);
@@ -286,6 +315,7 @@ function capBadges(cid){
 }
 const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g,"");
 const hex = (r,g,b) => "#" + [r,g,b].map(v => Math.max(0,Math.min(255,v)).toString(16).padStart(2,"0")).join("");
+const rgba = (r,g,b,a) => a == null || a >= 1000000 ? hex(r,g,b) : "rgba(" + [r,g,b,Math.max(0,Math.min(1,a/1000000))].join(",") + ")";
 const px = m => m == null ? "" : (m/1000 >= 10 ? Math.round(m/1000) : (m/1000).toFixed(1)) + "px";
 
 function buildIndexes() {
@@ -298,9 +328,9 @@ function buildIndexes() {
     pushMap(idx.cByDevice, c[6], c);
     pushMap(idx.cByState, c[8], c);
   }
-  for (const [cid, tid, conf] of D_.assignments) {
-    pushMap(idx.termsByCap, cid, [tid, conf]);
-    pushMap(idx.capsByTerm, tid, [cid, conf]);
+  for (const [cid, tid, conf, scope, resolution] of D_.assignments) {
+    pushMap(idx.termsByCap, cid, [tid, conf, scope, resolution]);
+    pushMap(idx.capsByTerm, tid, [cid, conf, scope, resolution]);
   }
   for (const f of D_.families) {
     idx.fById.set(f[0], f);
@@ -316,12 +346,12 @@ function buildIndexes() {
     pushMap(idx.relsById, r[0], r);
     idx.relCount.set(r[0], (idx.relCount.get(r[0])||0) + 1);
   }
-  for (const [cid, role, r, g, b, a, occ] of D_.color_roles) {
-    pushMap(idx.colorsByCap, cid, [role, r, g, b, a, occ]);
+  for (const [cid, role, r, g, b, a, occ, rank] of D_.color_roles) {
+    pushMap(idx.colorsByCap, cid, [role, r, g, b, a, occ, rank]);
   }
   for (const [cid, rows] of Object.entries(D_.legacy_colors || {})) idx.legacyColorsByCap.set(Number(cid), rows);
-  for (const [cid, r, g, b, a, occ] of D_.backgrounds) {
-    pushMap(idx.bgByCap, cid, [r, g, b, a, occ]);
+  for (const [cid, r, g, b, a, occ, evidence, oi] of D_.backgrounds) {
+    pushMap(idx.bgByCap, cid, [r, g, b, a, occ, evidence, oi]);
   }
   for (const [cid, rows] of Object.entries(D_.gradients || {})) {
     idx.gradientsByCap.set(Number(cid), rows);
@@ -329,23 +359,23 @@ function buildIndexes() {
   for (const [cid, oi, fam, stack, wmin, wmax, share, occ] of D_.font_obs) {
     pushMap(idx.fontsByCap, cid, [fam, stack, wmin, wmax, share, occ, oi]);
   }
-  for (const [cid, role, fam, w, size, lh, share] of D_.type_roles) {
-    pushMap(idx.typeByCap, cid, [role, fam, w, size, lh, share]);
+  for (const [cid, role, fam, w, size, lh, share, rank, generic, style, tracking, occ, measure, conf, evidence] of D_.type_roles) {
+    pushMap(idx.typeByCap, cid, [role, fam, w, size, lh, share, rank, generic, style, tracking, occ, measure, conf, evidence]);
   }
   for (const row of D_.text_styles || []) {
     /* [cid, declared_family, weight, size_milli_px, occurrence_count] */
-    const [cid, fam, w, size, occ] = row;
-    pushMap(idx.textByCap, cid, [fam, w, size, occ]);
+    const [cid, fam, w, size, occ, oi, generic, style, lh, tracking, alignment, transform, r, g, b, alpha, share, evidence] = row;
+    pushMap(idx.textByCap, cid, [fam, w, size, occ, oi, generic, style, lh, tracking, alignment, transform, r, g, b, alpha, share, evidence]);
   }
   for (const row of D_.hist_fonts || []) {
     /* [cid, family_id, family_name, sub_family_name, legacy_link_count] */
-    const [cid, fid, name, sub, links] = row;
-    pushMap(idx.histByCap, cid, [fid, name, sub, links]);
+    const [cid, fid, name, sub, links, subId] = row;
+    pushMap(idx.histByCap, cid, [fid, name, sub, links, subId]);
   }
   for (const row of D_.structures || []) {
     /* [cid, structure_id, parent_structure_id, term_id, x_q, y_q, width_q, height_q, confidence_ppm] */
-    const [cid, sid, parent, tid, x, y, w, h, conf] = row;
-    pushMap(idx.structuresByCap, cid, [sid, parent, tid, x, y, w, h, conf]);
+    const [cid, sid, parent, tid, x, y, w, h, salience, repeat, columns, rows, gap, conf, evidence] = row;
+    pushMap(idx.structuresByCap, cid, [sid, parent, tid, x, y, w, h, salience, repeat, columns, rows, gap, conf, evidence]);
   }
   for (const [cid, rows] of Object.entries(D_.ann || {})) {
     for (const r of rows) pushMap(idx.annByCap, Number(cid), [r[0], r[1]]);
@@ -466,11 +496,32 @@ function fresh(type, id, label){
   setColumns([homeColumn(), column(type, id, label)], { animate:true });
 }
 
+const moreRows = new Map();
+let moreRowsSeq = 0;
 const rowsHtml = (list, fn, limit) => {
   const cut = limit ? list.slice(0, limit) : list;
-  const more = limit && list.length > limit ? '<div class="empty">+ ' + (list.length - limit) + " more</div>" : "";
+  let more = "";
+  if (limit && list.length > limit) {
+    const id = ++moreRowsSeq;
+    moreRows.set(id, { list, fn, limit, next:limit });
+    more = '<button class="more" data-more-id="' + id + '" onclick="loadMoreRows(this,' + id + ')">+ ' + (list.length - limit) + " more</button>";
+  }
   return cut.map(fn).join("") + more;
 };
+function loadMoreRows(button, id){
+  const state = moreRows.get(id);
+  if (!state) { button.remove(); return; }
+  const start = state.next, end = Math.min(start + state.limit, state.list.length);
+  const html = state.list.slice(start, end).map((value, index) => state.fn(value, start + index)).join("");
+  button.insertAdjacentHTML("beforebegin", html);
+  state.next = end;
+  const remaining = state.list.length - end;
+  if (remaining) button.textContent = "+ " + remaining + " more";
+  else { moreRows.delete(id); button.remove(); }
+}
+function releaseMoreRows(root){
+  root.querySelectorAll("[data-more-id]").forEach(button => moreRows.delete(Number(button.dataset.moreId)));
+}
 function navRow(type, id, label, meta, content, className = "row"){
   const handler = "hop(" + [type, id, String(label || "").slice(0,34)].map(JSON.stringify).join(",") + ")";
   return '<button class="' + escAttr(className) + '" onclick="' + escAttr(handler) + '"><span class="t">' + (content == null ? esc(label) : content) + '</span><span class="s">' + esc(meta || "") + "</span></button>";
@@ -480,7 +531,7 @@ function renderCols(animate){
   let keep = 0;
   while (keep < mounted.length && keep < cols.length && Number(mounted[keep].dataset.generation) === bundleGeneration && mounted[keep].dataset.columnKey === columnKey(cols[keep])) keep++;
   const changed = keep < mounted.length || keep < cols.length;
-  for (let i = mounted.length - 1; i >= keep; i--) mounted[i].remove();
+  for (let i = mounted.length - 1; i >= keep; i--) { releaseMoreRows(mounted[i]); mounted[i].remove(); }
   for (let i = keep; i < cols.length; i++) {
     const c = cols[i];
     const el = document.createElement("div");
@@ -490,6 +541,7 @@ function renderCols(animate){
     colsEl.appendChild(el);
     const mount = html => {
       if (!el.isConnected) return;
+      releaseMoreRows(el);
       el.innerHTML = html;
       if (i > 0) {
         const header = el.querySelector(".chead");
@@ -505,7 +557,7 @@ function renderCols(animate){
     } else mount(output);
   }
   [...colsEl.children].forEach((el, i) => el.classList.toggle("active", i === cols.length - 1));
-  if (changed) colsEl.lastElementChild?.scrollIntoView({ block:"nearest", inline:"end" });
+  if (changed) colsEl.scrollTo({ left:colsEl.scrollWidth, behavior:"smooth" });
 }
 function head(c, n){
   const lead = c.type === "domain" ? favicon(c.id) : '<span class="dot" style="background:' + TYPE[c.type].color + '"></span>';
@@ -537,15 +589,15 @@ const CAPTURE_FILTERS = {
   text: cid => (idx.textByCap.get(cid) || []).length
 };
 function captureFamilies(cid){
-  const names = [...(idx.fontsByCap.get(cid) || []).map(row => row[0]), ...(idx.typeByCap.get(cid) || []).map(row => row[1]), ...(idx.textByCap.get(cid) || []).map(row => row[0])].filter(Boolean);
+  const names = [...(idx.fontsByCap.get(cid) || []).map(row => row[0]), ...(idx.typeByCap.get(cid) || []).map(row => row[1]), ...(idx.textByCap.get(cid) || []).map(row => row[0]), ...(idx.histByCap.get(cid) || []).map(row => row[1])].filter(Boolean);
   return [...new Map(names.map(name => [norm(name), name])).values()];
 }
 function aggregateTextStyles(captureIds){
   const styles = new Map();
-  for (const cid of captureIds) for (const [fam, weight, size, occurrences] of idx.textByCap.get(cid) || []) {
-    const key = [norm(fam), weight || "", size || ""].join("|");
-    if (!styles.has(key)) styles.set(key, { fam, weight, size, occurrences:0, captures:new Set() });
-    const style = styles.get(key); style.occurrences += occurrences || 0; style.captures.add(cid);
+  for (const cid of captureIds) for (const [fam, weight, size, occurrences, observationIndex, generic, style, lineHeight, tracking, alignment, transform, r, g, b, alpha, share, evidence] of idx.textByCap.get(cid) || []) {
+    const key = [norm(fam), weight || "", size || "", lineHeight || "", tracking || "", r ?? "", g ?? "", b ?? "", alpha ?? ""].join("|");
+    if (!styles.has(key)) styles.set(key, { fam, weight, size, generic, style, lineHeight, tracking, alignment, transform, r, g, b, alpha, share, evidence, occurrences:0, captures:new Set() });
+    const aggregate = styles.get(key); aggregate.occurrences += occurrences || 0; aggregate.captures.add(cid);
   }
   return [...styles.values()].sort((a,b) => b.occurrences - a.occurrences);
 }
@@ -601,12 +653,12 @@ function foot(c){
     return n ? [L.filter(route, kind, n.toLocaleString() + " " + suffix)] : [];
   });
   const relCount = relations.length;
-  items.push(L.fs(Object.keys(D0.font_similarity_results || {}).length + " font-sim"));
+  items.push(L.fs("font similarity"));
   items.push(relCount ? L.rel(relCount + " relations") : L.rel("relations"));
   items.push(L.run("runtime"));
   return '<div class="foot">' + items.join(" · ") + "</div>";
 }
-function fmtDateTime(ms){ return new Date(ms).toLocaleString(undefined, { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }); }
+function fmtDateTime(ms){ return new Date(dateMs(ms)).toLocaleString(undefined, { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }); }
 function downloadText(filename, content){
   const url = URL.createObjectURL(new Blob([content], { type:"application/json" }));
   const a = document.createElement("a");
@@ -615,24 +667,45 @@ function downloadText(filename, content){
 }
 const __rawCache = new Map();
 let __rawSeq = 0;
-const fontSrc = { byFam:new Map(), byObservation:new Map(), faces:0 };
-let specimenText = (() => { try { return localStorage.getItem("fudge-specimen-text") || "Aa — Structure, meaning, interface."; } catch (_) { return "Aa — Structure, meaning, interface."; } })();
-const specTxt = () => esc(specimenText);
-function initFontSources(g){
-  const facesEl = document.getElementById("font-faces");
-  if (!facesEl) return;
+const similarityCache = new Map();
+const fontSrc = { byFam:new Map(), byObservation:new Map(), entries:new Map(), faces:0, epoch:0 };
+const specTxt = () => "Hamburgefontsiv 0123456789";
+function normalizeFontSourceUrl(value){
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.hostname === "crawl.fontofweb.com" ? url.href : "https://crawl.fontofweb.com?url=" + encodeURIComponent(url.href);
+  } catch (_) { return null; }
+}
+function disposeFontSources(){
+  fontSrc.epoch++;
+  for (const entry of fontSrc.entries.values()) {
+    entry.disposed = true;
+    if (entry.added && entry.fontFace && document.fonts?.delete) document.fonts.delete(entry.fontFace);
+  }
   fontSrc.byFam.clear();
   fontSrc.byObservation.clear();
+  fontSrc.entries.clear();
   fontSrc.faces = 0;
-  const byFam = new Map(), css = [];
+  const facesEl = document.getElementById("font-faces");
+  if (facesEl) facesEl.textContent = "";
+}
+function initFontSources(g){
+  disposeFontSources();
+  const byFam = new Map();
   const makeFace = (rows, key) => {
     const seen = new Set();
-    const urls = rows.slice().sort((a,b) => (a.source_index||0)-(b.source_index||0) || (a.format||"").localeCompare(b.format||"")).filter(r => !seen.has(r.url) && seen.add(r.url));
+    const urls = rows.slice().sort((a,b) => (a.source_index||0)-(b.source_index||0) || (a.format||"").localeCompare(b.format||""))
+      .map(r => ({ ...r, loadUrl:normalizeFontSourceUrl(r.url) }))
+      .filter(r => r.loadUrl && !seen.has(r.loadUrl) && seen.add(r.loadUrl));
     if (!urls.length) return null;
+    const sourceKey = norm(rows[0].family) + "|" + urls.map(r => r.loadUrl + "|" + (r.format || "")).join(",");
+    if (fontSrc.entries.has(sourceKey)) return fontSrc.entries.get(sourceKey);
     const face = "fudge-src-" + (++fontSrc.faces), first = urls.find(r => r.format === "woff2") || urls[0];
-    const srcs = urls.map(r => "url('" + r.url.replace(/["'\\]/g, "") + "') format('" + (r.format || "woff2") + "')").join(",");
-    css.push("@font-face{font-family:'" + face + "';src:" + srcs + ";font-weight:100 900;font-display:swap}");
-    return { face, url:first.url, format:first.format, count:urls.length, key };
+    const src = urls.map(r => 'url("' + r.loadUrl.replace(/["\\]/g, "") + '") format("' + (r.format || "woff2") + '")').join(",");
+    const entry = { face, url:first.url, format:first.format, count:urls.length, key, src, state:"idle", epoch:fontSrc.epoch, disposed:false, loadPromise:null, fontFace:null, added:false, notes:new Set() };
+    fontSrc.entries.set(sourceKey, entry);
+    return entry;
   };
   for (const [captureId, rows] of Object.entries(g || {})) {
     const byObservation = new Map();
@@ -650,24 +723,84 @@ function initFontSources(g){
   for (const [key, rows] of byFam) {
     const face = makeFace(rows, key); if (face) fontSrc.byFam.set(key, face);
   }
-  facesEl.textContent = css.join("");
 }
 const specimenSrc = (fam, captureId, observationIndex) => captureId != null && observationIndex != null ? fontSrc.byObservation.get(captureId + ":" + observationIndex) || null : fontSrc.byFam.get(norm(fam || "")) || null;
+function updateFontSourceState(entry){
+  for (const el of entry.notes) {
+    if (!el.isConnected) { entry.notes.delete(el); continue; }
+    el.dataset.fontLoadState = entry.state;
+    const label = entry.state === "loading" ? "loading source" : entry.state === "loaded" ? "src loaded" : entry.state === "error" ? "load failed" : "source";
+    const suffix = entry.state === "loaded" ? "" : " · showing fallback";
+    el.innerHTML = "<b>" + label + "</b> " + esc(entry.url.replace(/^https?:\/\//,"").replace(/\/[^/]+\.[a-z0-9]+$/i,"/…")) + " · " + esc(entry.format || "") + suffix;
+  }
+}
+function ensureFontFaceLoaded(entry){
+  if (!entry || entry.loadPromise) return entry?.loadPromise;
+  if (typeof FontFace !== "function" || !document.fonts?.add) {
+    entry.state = "error"; updateFontSourceState(entry); return null;
+  }
+  entry.state = "loading"; updateFontSourceState(entry);
+  const epoch = entry.epoch;
+  try {
+    entry.fontFace = new FontFace(entry.face, entry.src, { weight:"100 900", display:"swap" });
+    entry.loadPromise = entry.fontFace.load().then(loaded => {
+      if (entry.disposed || epoch !== fontSrc.epoch) return null;
+      document.fonts.add(loaded); entry.fontFace = loaded; entry.added = true; entry.state = "loaded"; updateFontSourceState(entry); return loaded;
+    }, () => {
+      if (!entry.disposed && epoch === fontSrc.epoch) { entry.state = "error"; updateFontSourceState(entry); }
+      return null;
+    });
+  } catch (_) { entry.state = "error"; updateFontSourceState(entry); entry.loadPromise = Promise.resolve(null); }
+  return entry.loadPromise;
+}
 function safeFontStack(stack, fam){
   const value = String(stack || fam || "sans-serif").replace(/[<>;{}]/g, "").trim();
   return value || "sans-serif";
 }
 function specimenCss(fam, fallbackStack, captureId, observationIndex){
-  const face = specimenSrc(fam, captureId, observationIndex)?.face;
+  const entry = specimenSrc(fam, captureId, observationIndex);
+  if (entry) ensureFontFaceLoaded(entry);
+  const face = entry?.face;
   return "font-family:" + (face ? "'" + face + "', " : "") + safeFontStack(fallbackStack, fam);
 }
 function srcLine(fam, captureId, observationIndex, representative = false){
   const e = specimenSrc(fam, captureId, observationIndex);
   if (!e) return "";
-  return '<div class="font-src" title="' + escAttr(e.url) + '"><b>' + (representative ? "representative src" : "src") + "</b> " + esc(e.url.replace(/^https?:\/\//,"").replace(/\/[^/]+\.[a-z0-9]+$/i,"/…")) + " · " + esc(e.format || "") + "</div>";
+  ensureFontFaceLoaded(e);
+  const id = "font-src-" + (++__rawSeq);
+  setTimeout(() => { const el = document.getElementById(id); if (el) { e.notes.add(el); updateFontSourceState(e); } }, 0);
+  return '<div id="' + id + '" class="font-src" data-font-load-state="' + e.state + '" title="' + escAttr(e.url) + '"><b>' + (representative ? "representative source" : "source") + "</b> " + esc(e.url.replace(/^https?:\/\//,"").replace(/\/[^/]+\.[a-z0-9]+$/i,"/…")) + " · " + esc(e.format || "") + "</div>";
 }
 function sourceNote(fam, stack, captureId, observationIndex){
   return srcLine(fam, captureId, observationIndex, captureId == null || observationIndex == null) || '<div class="font-src"><b>fallback</b> exact source not retained · ' + esc(safeFontStack(stack, fam)) + "</div>";
+}
+function previewErrorLabel(code){
+  if (!code) return "preview unavailable";
+  if (code.includes("timeout")) return "render timed out";
+  if (code.includes("busy") || code.includes("rate_limited")) return "retry shortly";
+  if (code.includes("invalid")) return "invalid preview";
+  if (code.includes("archive")) return "archive unavailable";
+  if (code.includes("candidate") || code.includes("body")) return "font unavailable";
+  return "preview unavailable";
+}
+async function fontPreviewFailed(img){
+  const box = img.closest(".font-preview");
+  if (!box) return;
+  box.classList.add("failed");
+  const state = box.querySelector(".font-preview-state");
+  state.textContent = "preview unavailable";
+  try {
+    const response = await fetch(img.src, { headers:{ accept:"application/json" } });
+    if (response.ok) return;
+    const body = await response.json();
+    const code = typeof body?.error === "string" ? body.error : typeof body?.code === "string" ? body.code : "";
+    const reason = typeof body?.message === "string" ? body.message : typeof body?.reason === "string" ? body.reason : "";
+    state.textContent = previewErrorLabel(code) + (reason ? " · " + reason.slice(0, 160) : "");
+  } catch (_) {}
+}
+function fontPreview(result){
+  if (!result.previewUrl) return '<div class="font-preview failed"><div class="font-preview-state">preview unavailable · exact specimen identity was not returned</div></div>';
+  return '<div class="font-preview"><div class="font-preview-state">rendering specimen</div><img loading="lazy" decoding="async" src="' + escAttr(result.previewUrl) + '" alt="' + escAttr(result.familyName + " specimen") + '" onload="this.parentElement.classList.add(\'loaded\');this.parentElement.title=\'server specimen\'" onerror="fontPreviewFailed(this)"></div>';
 }
 const SECTION_SOURCE = {
   colors:"color_roles", backgrounds:"backgrounds", fonts:"font_obs", typography:"type_roles",
@@ -695,16 +828,18 @@ function shade(hexStr, f){
 function gradientInner(row, bgHex){
   const kind = row.kind || "linear";
   const ang = row.angle_millidegrees != null ? Math.round(row.angle_millidegrees / 1000) + "°" : null;
-  const from = bgHex || "#9aa1a8", to = shade(bgHex || "#9aa1a8", 0.55);
+  const exactStops = (row.stops || []).filter(stop => stop.r != null && stop.g != null && stop.b != null);
+  const stops = exactStops.length ? exactStops.map(stop => rgba(stop.r, stop.g, stop.b, stop.alpha_ppm) + (stop.position_ppm == null ? "" : " " + Math.round(stop.position_ppm/10000) + "%")) : [bgHex || "#9aa1a8", shade(bgHex || "#9aa1a8", 0.55)];
   const css = kind === "radial"
-    ? "radial-gradient(circle at 50% 35%, " + from + ", " + to + ")"
-    : "linear-gradient(" + (ang || 135) + "deg, " + from + ", " + to + ")";
+    ? "radial-gradient(circle at 50% 35%, " + stops.join(",") + ")"
+    : "linear-gradient(" + (ang || 135) + "deg, " + stops.join(",") + ")";
   const bits = [kind, ang, row.occurrence_count ? row.occurrence_count + "×" : null, String(row.evidence_kind || "").replace(/_/g, " ")].filter(Boolean).join(" · ");
   return '<span class="sw grad-prev" style="background:' + css + '"></span>' +
     '<span class="t">' + esc(kind) + (ang ? " · " + ang : "") + '</span><span class="s">' + esc(bits) + "</span>";
 }
 function gradientRow(row, bgHex){
-  return '<div class="row" style="cursor:default" title="' + esc((row.kind || "linear") + " gradient" + (row.angle_millidegrees != null ? " at " + Math.round(row.angle_millidegrees / 1000) + "°" : "") + " — color stops not captured; preview seeded from dominant background") + '">' + gradientInner(row, bgHex) + "</div>";
+  const exact = (row.stops || []).length;
+  return '<div class="row" style="cursor:default" title="' + esc((row.kind || "linear") + " gradient" + (row.angle_millidegrees != null ? " at " + Math.round(row.angle_millidegrees / 1000) + "°" : "") + (exact ? " · " + exact + " captured stops" : " · stop colors unavailable; fallback preview")) + '">' + gradientInner(row, bgHex) + "</div>";
 }
 const KV = rows => '<div class="kv">' + rows.map(([k, v, mono]) =>
   '<div class="r"><span class="k">' + k + '</span><span class="v' + (mono ? " mono" : "") + '">' + v + "</span></div>").join("") + "</div>";
@@ -730,7 +865,8 @@ function capRow(cp, meta, note){
   const sub = (note ? note + " " : "") + esc(cp[1].replace("https://","")) + (cp[2] && cp[2] !== "/" ? " · " + esc(cp[2]) : "");
   const measuredColors = (idx.colorsByCap.get(id)||[]).length, legacyColors = (idx.legacyColorsByCap.get(id)||[]).length;
   const colorMeta = [measuredColors ? measuredColors + " measured" : "", legacyColors ? legacyColors + " legacy" : ""].filter(Boolean).join("+") || "0";
-  const m = meta || fmtDate(cp[4]) + " · " + colorMeta + " colors · " + captureFamilies(id).length + " families · " + (idx.termsByCap.get(id)||[]).length + " terms";
+  const familyCount = captureFamilies(id).length;
+  const m = meta || fmtDate(cp[4]) + " · " + colorMeta + " colors · " + familyCount + " families · " + (idx.termsByCap.get(id)||[]).length + " terms";
   return '<button class="capture-row" onclick="hop(\'capture\',' + id + ',\'' + esc(cp[3].slice(0,34)) + '\')">' +
     '<span class="capture-thumb" data-capture="' + id + '" style="background-image:' + capFallback(cp) + '" onclick="event.stopPropagation();openLightbox(this,' + id + ')">' +
     '<img loading="lazy" decoding="async" src="' + esc(cp[5]) + '" alt="" onload="this.classList.add(\'loaded\')" onerror="this.classList.add(\'missing\')">' +
@@ -744,19 +880,42 @@ function capRow(cp, meta, note){
 
 function colorRow([role, r, g, b, a, occ]){
   const tid = "color.role." + role;
-  return '<div class="row" style="cursor:default"><span class="sw" style="background:' + hex(r,g,b) + '"></span>' +
-    '<span class="t">' + L.term(tid, role) + '</span><span class="s">' + hex(r,g,b) + (occ ? " · " + occ : "") + "</span></div>";
+  return '<div class="row" style="cursor:default"><span class="sw" style="background:' + rgba(r,g,b,a) + '"></span>' +
+    '<span class="t">' + L.term(tid, role) + '</span><span class="s">' + hex(r,g,b) + (a != null && a < 1000000 ? " · " + Math.round(a/10000) + "% alpha" : "") + (occ ? " · " + occ : "") + "</span></div>";
 }
 function termValueNote(cid, tid){
   const parts = [];
   if (tid.startsWith("color.role.")) {
     const c = (idx.colorsByCap.get(cid)||[]).find(x => x[0] === tid.slice(11));
-    if (c) parts.push('<span class="sw" style="background:' + hex(c[1],c[2],c[3]) + '"></span>' + hex(c[1],c[2],c[3]));
+    if (c) parts.push('<span class="sw" style="background:' + rgba(c[1],c[2],c[3],c[4]) + '"></span>' + hex(c[1],c[2],c[3]));
   } else if (tid.startsWith("typography.role.")) {
     const f = (idx.typeByCap.get(cid)||[]).find(x => x[0] === tid.slice(16));
     if (f) { const m = famResolve(f[1]); parts.push(m ? L.fam(m[0], f[1]) : esc(f[1])); }
   }
   return parts.join(" ");
+}
+function termEvidenceNote(row){
+  const kind = row[6], values = row[8] || [];
+  if (kind === "text_style") {
+    const [fam, generic, weight, style, size, lineHeight, letterSpacing, r, g, b, alpha, occurrences] = values;
+    const family = fam || (generic && generic !== "unknown" ? generic : "");
+    const type = [family, weight, size != null ? px(size) : "", lineHeight != null ? "/ " + px(lineHeight) : "", letterSpacing != null ? "tracking " + px(letterSpacing) : "", style].filter(Boolean).join(" · ").replace(" · / ", " / ");
+    const color = r != null && g != null && b != null ? '<span class="sw" style="background:' + rgba(r,g,b,alpha) + '"></span>' + hex(r,g,b) : "";
+    return [type, color, occurrences ? occurrences + "×" : ""].filter(Boolean).join(" · ");
+  }
+  if (kind === "background_property") {
+    const [r,g,b,a,occ] = values;
+    return r == null ? "background value unavailable" : '<span class="sw" style="background:' + rgba(r,g,b,a) + '"></span>' + hex(r,g,b) + (occ ? " · " + occ + "×" : "");
+  }
+  if (kind === "raster_palette_color") {
+    const [r,g,b,a,coverage,occ] = values;
+    return '<span class="sw" style="background:' + rgba(r,g,b,a) + '"></span>' + hex(r,g,b) + (coverage != null ? " · " + Math.round(coverage/10000) + "% coverage" : "") + (occ ? " · " + occ + "×" : "");
+  }
+  if (kind === "structure_observation") {
+    const [declared,x,y,w,h,coverage,occ] = values;
+    return esc(declared || "structure") + " · " + Math.round(w/100) + "% × " + Math.round(h/100) + "%" + (coverage != null ? " · " + Math.round(coverage/10000) + "% coverage" : "") + (occ ? " · " + occ + "×" : "");
+  }
+  return esc(String(kind || "measured support").replace(/_/g," "));
 }
 function similarCaptures(cid){
   const my = idx.termsByCap.get(cid);
@@ -776,7 +935,7 @@ function vStructure(c){
   const rows = idx.structuresByCap.get(cid) || [];
   const x = rows[i];
   if (!x) return head(c) + '<div class="cbody"><div class="empty">structure not found</div></div>';
-  const [sid, parent, tid, sx, sy, sw, sh, conf] = x;
+  const [sid, parent, tid, sx, sy, sw, sh, salience, repeat, columns, rowsN, gap, conf, evidence] = x;
   const cap = idx.cById.get(cid);
   const children = rows.map((r, j) => [r, j]).filter(([r]) => r[1] === sid);
   const pIdx = parent == null ? -1 : rows.findIndex(r => r[0] === parent);
@@ -786,14 +945,16 @@ function vStructure(c){
     '<p class="prose">' + L.term(tid) + " is a resolved region in " + L.cap(cid, cap ? cap[3] : "capture " + cid) + ".</p>" +
     KV([
       ["structure_id", String(sid), true],
-      ["parent", parent == null ? "—" : (pIdx >= 0 ? '<button class="chip" onclick="hop(\'structure\',\'' + cid + ":" + pIdx + '\',\'' + esc(String(termLabel(rows[pIdx][3])).slice(0,30)) + '\')">' + esc(termLabel(rows[pIdx][3])) + "</button>" : String(parent)), false],
+      ["parent", parent == null ? "—" : (pIdx >= 0 ? '<button class="chip" onclick="hop(\'structure\',\'' + cid + ":" + pIdx + '\',\'' + esc(String(termLabel(rows[pIdx][2])).slice(0,30)) + '\')">' + esc(termLabel(rows[pIdx][2])) + "</button>" : String(parent)), false],
       ["term", L.term(tid), false],
       ["bounds", "x " + sx + " · y " + sy + " · w " + sw + " · h " + sh, true],
-      ["confidence", Math.round(conf/10000) + "%", true]
+      ["layout", [columns ? columns + " columns" : "", rowsN ? rowsN + " rows" : "", gap != null ? px(gap) + " gap" : "", repeat > 1 ? repeat + " repeats" : ""].filter(Boolean).join(" · ") || "—", false],
+      ["confidence", Math.round(conf/10000) + "%", true],
+      ["evidence", esc(evidence || "—"), true]
     ]) +
     (children.length ? '<div class="sec"><h4>children <span class="n">' + children.length + '</span></h4>' + rowsHtml(children, ([r, j]) =>
-      '<button class="row" onclick="hop(\'structure\',\'' + cid + ":" + j + '\',\'' + esc(String(termLabel(r[3])).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(r[3])) + '</span><span class="s">child</span></button>') + "</div>" : "") +
-    '<div class="sec"><h4>raw row</h4><pre class="raw">' + esc(JSON.stringify({ capture_id: cid, structure_id: sid, parent_structure_id: parent, term_id: tid, x_q: sx, y_q: sy, width_q: sw, height_q: sh, confidence_ppm: conf, evidence_kind: "model" }, null, 2)) + "</pre></div>" +
+      '<button class="row" onclick="hop(\'structure\',\'' + cid + ":" + j + '\',\'' + esc(String(termLabel(r[2])).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(r[2])) + '</span><span class="s">child</span></button>') + "</div>" : "") +
+    '<div class="sec"><h4>raw row</h4><pre class="raw">' + esc(JSON.stringify({ capture_id: cid, structure_id: sid, parent_structure_id: parent, term_id: tid, x_q: sx, y_q: sy, width_q: sw, height_q: sh, salience_rank:salience, repeat_count:repeat, column_count:columns, row_count:rowsN, gap_milli_px:gap, confidence_ppm: conf, evidence_kind:evidence }, null, 2)) + "</pre></div>" +
     foot(c) + "</div>";
 }
 
@@ -839,10 +1000,9 @@ function vRuntime(c){
   const meanDur = m.length ? Math.round(m.reduce((s,x)=>s+x[4],0)/m.length)/1000 : 0;
   const meanBytes = m.length ? (m.reduce((s,x)=>s+x[3],0)/m.length/1048576).toFixed(2) : "0";
   const vids = D_.video_observations || [];
-  const annPivots = Object.keys(D_.ann||{}).length;
-  const annEdges = Object.values(D_.ann||{}).reduce((s,a)=>s+a.length,0);
-  const fs = D_.font_similarity || {};
   const er = D_.embedding_runtime || {};
+  const cr = D_.classification_runtime || {};
+  const rc = D_.runtime_counts || {};
   return head(c) + '<div class="cbody">' +
     '<p class="prose">Runtime state of the corpus snapshot — identity, sensors and similarity subsystems.</p>' +
     KV([
@@ -850,7 +1010,9 @@ function vRuntime(c){
       ["domains", D_.domains.length.toLocaleString(), true],
       ["font families", D_.families.length.toLocaleString(), true],
       ["terms", Object.keys(D_.terms).length.toLocaleString(), true],
-      ["term assignments", D_.assignments.length.toLocaleString(), true]
+      ["term assignments", D_.assignments.length.toLocaleString(), true],
+      ["bundle built", fmtDateTime(Date.parse(D_.built)), true],
+      ["corpus generation", String(D_.observed_generation), true]
     ]) +
     '<div class="sec"><h4>motion</h4>' + KV([
       ["recorded WebM", m.length.toLocaleString(), true],
@@ -861,18 +1023,42 @@ function vRuntime(c){
       ["exact observations", vids.length.toLocaleString(), true],
       ["video-bearing captures", (D_.embedded_video_captures ? D_.embedded_video_captures.length : idx.embeddedById.size).toLocaleString(), true]
     ]) + "</div>" +
+    '<div class="sec"><h4>design evidence</h4>' + KV([
+      ["color roles / backgrounds", D_.color_roles.length.toLocaleString() + " / " + D_.backgrounds.length.toLocaleString(), true],
+      ["font observations / type roles", D_.font_obs.length.toLocaleString() + " / " + D_.type_roles.length.toLocaleString(), true],
+      ["text styles / structures", D_.text_styles.length.toLocaleString() + " / " + D_.structures.length.toLocaleString(), true],
+      ["borders", Number(rc.borders || 0).toLocaleString(), true],
+      ["shadows", Number(rc.shadows || 0).toLocaleString(), true],
+      ["radii", Number(rc.radii || 0).toLocaleString(), true],
+      ["spacing", Number(rc.spacing || 0).toLocaleString(), true],
+      ["gradients / stops", Number(rc.gradients || 0).toLocaleString() + " / " + Number(rc.gradient_stops || 0).toLocaleString(), true],
+      ["media observations", Number(rc.media || 0).toLocaleString(), true],
+      ["completeness rows", Number(rc.completeness || 0).toLocaleString(), true]
+    ]) + "</div>" +
+    '<div class="sec"><h4>classification</h4>' + KV([
+      ["current / absent / failed / unsupported", [rc.classification_current, rc.classification_absent, rc.classification_failed, rc.classification_unsupported].map(n => Number(n || 0).toLocaleString()).join(" / "), true],
+      ["contract", esc(cr.contract_id || "—"), true],
+      ["ontology", esc(cr.ontology_id || "—"), true],
+      ["provider / model", esc([cr.provider, cr.model_id].filter(Boolean).join(" · ") || "—"), true],
+      ["activated", cr.activated_at ? fmtDateTime(cr.activated_at) : "—", true],
+      ["validator / resolver", esc([cr.validator_version, cr.resolver_version].filter(Boolean).join(" · ") || "—"), true]
+    ]) + "</div>" +
     '<div class="sec"><h4>similarity</h4>' + KV([
-      ["ANN pivots", String(annPivots), true],
-      ["ANN edges", String(annEdges), true],
       ["embedding generation", er.active_generation_id || "—", true],
       ["index members", er.member_count ? er.member_count.toLocaleString() : "—", true],
-      ["font similarity lookups", Object.keys(D_.font_similarity_results||{}).length.toLocaleString(), true],
-      ["descriptor schema", (fs.contract && fs.contract.descriptor_schema_id) || "—", true],
-      ["gating contract", (fs.contract && fs.contract.gating_contract_id) || "—", true],
-      ["family aggregation", (fs.contract && fs.contract.family_aggregation_id) || "—", true]
+      ["indexed / validated", [er.indexed_member_count, er.validated_at ? fmtDate(er.validated_at) : ""].filter(Boolean).join(" · ") || "—", true],
+      ["provider / model", esc([er.provider_id, er.model_id, er.immutable_model_version].filter(Boolean).join(" · ") || "—"), true],
+      ["vector", [er.dimensions ? er.dimensions + "d" : "", er.scalar_type, er.distance, er.normalization].filter(Boolean).join(" · ") || "—", true],
+      ["HNSW", [er.hnsw_m ? "m " + er.hnsw_m : "", er.hnsw_ef_construction ? "ef " + er.hnsw_ef_construction : ""].filter(Boolean).join(" · ") || "—", true],
+      ["source corpus sequence", String(er.source_corpus_sequence || "—"), true],
+      ["font similarity", "on demand", true],
+      ["retrieval contract", esc(er.contract_id || "—"), true]
     ]) + "</div>" +
     '<div class="sec"><h4>catalogue</h4>' + KV([
-      ["observed→canonical matches", Object.keys(D_.catalog_matches||{}).length.toLocaleString(), true]
+      ["families", D_.families.length.toLocaleString(), true],
+      ["designers", D_.designers.length.toLocaleString(), true],
+      ["vendors", D_.vendors.length.toLocaleString(), true],
+      ["releases", D_.releases.length.toLocaleString(), true]
     ]) + "</div>" +
     foot(c) + "</div>";
 }
@@ -924,7 +1110,8 @@ const SECTION_DESC = {
   typography: "Resolved typography roles — display, heading, body, UI — with family, weight and size.",
   text: "Font family, weight and size measured per text node.",
   structures: "Recognized page regions and interface structures with geometry.",
-  gradients: "Gradient kinds and angles measured from computed styles. Color stops are not captured.",
+  gradients: "Gradient kinds, angles and exact retained color stops measured from computed styles.",
+  effects: "Measured borders, shadows, radii, spacing, media and collection completeness for this capture.",
   terms: "Design terms assigned from the Fudge ontology, with confidence.",
   hist: "Legacy font attributions from earlier corpus versions.",
   ann: "Captures with the nearest screenshot embeddings.",
@@ -933,15 +1120,15 @@ const SECTION_DESC = {
   video: "Video elements detected in the rendered page, with geometry and coverage."
 };
 const ROW_FIELDS = {
-  colors: ["capture_id","role","r","g","b","alpha_ppm","occurrence_count"],
-  backgrounds: ["capture_id","r","g","b","alpha_ppm","occurrence_count"],
+  colors: ["capture_id","role","r","g","b","alpha_ppm","occurrence_count","rank"],
+  backgrounds: ["capture_id","r","g","b","alpha_ppm","occurrence_count","evidence_kind","observation_index"],
   fonts: ["capture_id","observation_index","declared_family","computed_css_stack","weight_min","weight_max","character_share_ppm","occurrence_count"],
-  typography: ["capture_id","role","declared_family","weight","size_milli_px","line_height_milli_px","character_share_ppm"],
-  text: ["capture_id","declared_family","weight","size_milli_px","occurrence_count"],
-  structures: ["capture_id","structure_id","parent_structure_id","term_id","x_q","y_q","width_q","height_q","confidence_ppm"],
-  gradients: ["gradient_id","structure_id","kind","angle_millidegrees","x_q","y_q","width_q","height_q","occurrence_count","evidence_kind"],
-  terms: ["capture_id","term_id","confidence"],
-  hist: ["capture_id","family_id","family_name","sub_family_name","legacy_link_count"],
+  typography: ["capture_id","role","declared_family","weight","size_milli_px","line_height_milli_px","character_share_ppm","rank","generic_family","style","letter_spacing_milli_px","occurrence_count","measure_milli_px","confidence_ppm","evidence_kind"],
+  text: ["capture_id","declared_family","weight","size_milli_px","occurrence_count","observation_index","generic_family","style","line_height_milli_px","letter_spacing_milli_px","alignment","text_transform","r","g","b","alpha_ppm","character_share_ppm","evidence_kind"],
+  structures: ["capture_id","structure_id","parent_structure_id","term_id","x_q","y_q","width_q","height_q","salience_rank","repeat_count","column_count","row_count","gap_milli_px","confidence_ppm","evidence_kind"],
+  gradients: ["gradient_id","structure_id","structure_observation_index","kind","angle_millidegrees","x_q","y_q","width_q","height_q","occurrence_count","evidence_kind"],
+  terms: ["capture_id","term_id","confidence","assignment_scope","resolution_kind"],
+  hist: ["capture_id","family_id","family_name","sub_family_name","legacy_link_count","sub_family_id"],
   ann: ["capture_id","distance"],
   video: ["capture_id","observation_index","media_kind","x_q","y_q","width_q","height_q","coverage_ppm","occurrence_count","evidence_kind"]
 };
@@ -956,7 +1143,7 @@ function rowVal(key, field, v){
   if (field === "capture_id") { const cp = idx.cById.get(Number(v)); return cp ? L.cap(v, cp[3]) : esc("#" + v); }
   if (field === "confidence") return Math.round(Number(v) * 100) + "%";
   if (field === "confidence_ppm" || field === "alpha_ppm" || field === "coverage_ppm" || field === "character_share_ppm") return Math.round(Number(v) / 10000) + "%";
-  if (field === "size_milli_px" || field === "line_height_milli_px") return px(v);
+  if (field === "size_milli_px" || field === "line_height_milli_px" || field === "letter_spacing_milli_px" || field === "measure_milli_px" || field === "gap_milli_px") return px(v);
   if (field === "weight_min" || field === "weight_max" || field === "weight" || field === "structure_id" || field === "family_id") return String(v);
   return esc(String(v));
 }
@@ -971,7 +1158,7 @@ function vRow(c){
   const obj = rowObject(key, row, cid);
   const kv = [];
   if (obj.r != null && obj.g != null && obj.b != null) {
-    kv.push(["color", '<span class="sw" style="background:' + hex(obj.r, obj.g, obj.b) + '"></span> <span class="mono">' + hex(obj.r, obj.g, obj.b) + "</span>", false]);
+    kv.push(["color", '<span class="sw" style="background:' + rgba(obj.r, obj.g, obj.b, obj.alpha_ppm) + '"></span> <span class="mono">' + hex(obj.r, obj.g, obj.b) + "</span>", false]);
   }
   for (const f of ROW_FIELDS[key]) {
     if (f === "r" || f === "g" || f === "b") continue;
@@ -984,7 +1171,7 @@ function vRow(c){
     '<div class="cbody">' +
     '<div class="sec"><div class="associated-capture">' + capRow(cp, "capture #" + cid) + "</div></div>" +
     (hasGeo ? '<div class="sec">' + boundsMap(cp, [obj.x_q, obj.y_q, obj.width_q, obj.height_q], key + " #" + (idxN + 1)) + "</div>" : "") +
-    (obj.r != null ? '<div class="sec"><span class="sw big" style="background:' + hex(obj.r, obj.g, obj.b) + '"></span></div>' : "") +
+    (obj.r != null ? '<div class="sec"><span class="sw big" style="background:' + rgba(obj.r, obj.g, obj.b, obj.alpha_ppm) + '"></span></div>' : "") +
     (obj.declared_family ? '<div class="sec"><div class="type-sample" style="' + escAttr(specimenCss(obj.declared_family, obj.computed_css_stack) + ";font-size:22px") + '">' + specTxt() + '</div>' + sourceNote(obj.declared_family, obj.computed_css_stack, cid, obj.observation_index) + "</div>" : "") +
     '<p class="prose">' + esc(SECTION_DESC[key] || key) + "</p>" +
     KV(kv) +
@@ -1022,6 +1209,7 @@ function vCapture(c){
   const types = idx.typeByCap.get(id) || [];
   const structs = idx.structuresByCap.get(id) || [];
   const ann = idx.annByCap.get(id) || [];
+  const liveAnn = Boolean(D_.embedding_runtime?.active_generation_id);
   const motion = idx.motionByCap.get(id);
   const vids = idx.videoByCap.get(id) || [];
   const grads = idx.gradientsByCap.get(id) || [];
@@ -1052,16 +1240,17 @@ function vCapture(c){
   if (dom && dom.fonts.length) colsRows.push(evRow("Domain fonts", [...new Set(dom.fonts.map(f => f[0]))].slice(0,3).map(esc).join(" · "), dom.fonts.length, "browse", "filter|dom|" + cp[1] + "|families", "Domain fonts"));
   if (types.length) colsRows.push(evRow("Typography", types.slice(0,3).map(t => t[0]).join(" · "), types.length, "section", id + ":typography", "Typography"));
   if (dom && dom.types.length) colsRows.push(evRow("Domain typography", [...new Set(dom.types.map(t => t[0]))].slice(0,3).join(" · "), dom.types.length, "browse", "filter|dom|" + cp[1] + "|typography", "Domain typography"));
-  if (textAgg.length) colsRows.push(evRow("Text styles", famNames(textAgg) || "family not retained · weight & size available", textAgg.length, "section", id + ":text", "Text styles"));
+  if (textAgg.length) colsRows.push(evRow("Text styles", famNames(textAgg) || "weight & size measurements", textAgg.length, "section", id + ":text", "Text styles"));
   if (dom && dom.texts.length) {
     const names = [...new Set(dom.texts.map(t => t[0]).filter(Boolean))].slice(0,3).map(esc).join(" · ");
     const count = aggregateTextStyles((idx.cByDomain.get(cp[1]) || []).map(row => row[0])).length;
-    colsRows.push(evRow("Domain text styles", names || "family not retained · weight & size available", count, "browse", "filter|dom|" + cp[1] + "|text", "Domain text styles"));
+    colsRows.push(evRow("Domain text styles", names || "weight & size measurements", count, "browse", "filter|dom|" + cp[1] + "|text", "Domain text styles"));
   }
   const colsGroup = colsRows.length ? '<div class="sec"><h4>colors & typography</h4>' + colsRows.join("") + "</div>" : "";
   const layoutRows = [];
-  if (structs.length) layoutRows.push(evRow("Structures", [...new Set(structs.map(s => termLabel(s[3])))].slice(0,3).map(esc).join(" · "), structs.length, "section", id + ":structures", "Structures"));
+  if (structs.length) layoutRows.push(evRow("Structures", [...new Set(structs.map(s => termLabel(s[2])))].slice(0,3).map(esc).join(" · "), structs.length, "section", id + ":structures", "Structures"));
   if (grads.length) layoutRows.push(evRow("Gradients", [...new Set(grads.map(g => g.kind))].join(" · "), grads.length, "section", id + ":gradients", "Gradients"));
+  layoutRows.push(evRow("Measured effects", "borders · shadows · radii · spacing · media", "live", "section", id + ":effects", "Measured effects"));
   if (dom && dom.grads.length) layoutRows.push(evRow("Domain gradients", [...new Set(dom.grads.map(g => g.kind))].join(" · "), dom.grads.length, "browse", "filter|dom|" + cp[1] + "|gradients", "Domain gradients"));
   const layoutGroup = layoutRows.length ? '<div class="sec"><h4>layout & effects</h4>' + layoutRows.join("") + "</div>" : "";
   const roleRows = [];
@@ -1073,7 +1262,7 @@ function vCapture(c){
     ? '<div class="system-callout">This capture predates measured design evidence — showing the <b>domain profile</b> from ' + L.cap(dom.cid, "capture #" + dom.cid) + " (" + fmtDate(dom.cp[4]) + ") instead.</div>"
     : "";
   const simRows = [];
-  if (ann.length) simRows.push(evRow("Visual neighbors", ann.length + " nearest captures", ann.length, "section", id + ":ann", "Visual neighbors"));
+  if (ann.length || liveAnn) simRows.push(evRow("Visual neighbors", liveAnn ? "query the active screenshot index" : ann.length + " nearest captures", liveAnn ? "live" : ann.length, "section", id + ":ann", "Visual neighbors"));
   if (sim.length) simRows.push(evRow("Similar by terms", sim.length + " captures sharing terms", sim.length, "section", id + ":sim", "Similar by terms"));
   if (samePath.size) simRows.push(evRow("Same path elsewhere", samePath.size + " other domain" + (samePath.size === 1 ? "" : "s"), samePath.size, "section", id + ":samepath", "Same path elsewhere"));
   const simGroup = simRows.length ? '<div class="sec"><h4>visual similarity</h4>' + simRows.join("") + "</div>" : "";
@@ -1109,16 +1298,19 @@ function vSection(c){
   const label = (SECTION_DESC[key] ? key : "section") + (cp ? " · " + cp[3].slice(0, 26) : "");
   if (!cp || !SECTION_DESC[key]) return head(c) + '<div class="cbody"><div class="empty">section not found</div></div>';
   const id = Number(cid);
+  if (key === "ann" && D_.embedding_runtime?.active_generation_id) return vCaptureNeighbors(c, cp);
+  if (key === "effects") return vCaptureEffects(c, cp);
+  if (key === "gradients") return vCaptureGradients(c, cp);
   const raw = sectionRaw(key, id);
   let body = "";
   if (key === "colors") {
     body = rowsHtml(idx.colorsByCap.get(id) || [], (row, i) =>
-      '<button class="row" onclick="hop(\'row\',\'' + id + '|colors|' + i + '\',\'color row ' + (i + 1) + '\')"><span class="sw" style="background:' + hex(row[1], row[2], row[3]) + '"></span><span class="t">' + esc(row[1]) + '</span><span class="s">' + hex(row[1], row[2], row[3]) + (row[6] ? " · " + row[6] : "") + "</span></button>");
+      '<button class="row" onclick="hop(\'row\',\'' + id + '|colors|' + i + '\',\'color row ' + (i + 1) + '\')"><span class="sw" style="background:' + rgba(row[1], row[2], row[3], row[4]) + '"></span><span class="t">' + esc(row[0]) + '</span><span class="s">' + hex(row[1], row[2], row[3]) + (row[4] != null && row[4] < 1000000 ? " · " + Math.round(row[4]/10000) + "% alpha" : "") + (row[5] ? " · " + row[5] + "×" : "") + "</span></button>");
   } else if (key === "backgrounds") {
     const bg = idx.bgByCap.get(id) || [];
-    body = (bg.length ? '<span class="sw big" style="background:' + hex(bg[0][0], bg[0][1], bg[0][2]) + '"></span>' : "") +
+    body = (bg.length ? '<span class="sw big" style="background:' + rgba(bg[0][0], bg[0][1], bg[0][2], bg[0][3]) + '"></span>' : "") +
       rowsHtml(bg.slice(0, 12), (row, i) =>
-        '<button class="row" onclick="hop(\'row\',\'' + id + '|backgrounds|' + i + '\',\'background row ' + (i + 1) + '\')"><span class="sw" style="background:' + hex(row[0], row[1], row[2]) + '"></span><span class="t">dominant</span><span class="s">' + hex(row[0], row[1], row[2]) + (row[5] ? " · " + row[5] : "") + "</span></button>");
+        '<button class="row" onclick="hop(\'row\',\'' + id + '|backgrounds|' + i + '\',\'background row ' + (i + 1) + '\')"><span class="sw" style="background:' + rgba(row[0], row[1], row[2], row[3]) + '"></span><span class="t">background</span><span class="s">' + hex(row[0], row[1], row[2]) + (row[3] != null && row[3] < 1000000 ? " · " + Math.round(row[3]/10000) + "% alpha" : "") + (row[4] ? " · " + row[4] + "×" : "") + "</span></button>");
   } else if (key === "fonts") {
     body = rowsHtml(idx.fontsByCap.get(id) || [], (row, i) => {
       const fam = row[0], stack = row[1], wmin = row[2], wmax = row[3], share = row[4], occ = row[5], observationIndex = row[6];
@@ -1134,34 +1326,29 @@ function vSection(c){
     });
   } else if (key === "typography") {
     body = rowsHtml(idx.typeByCap.get(id) || [], (row, i) => {
-      const role = row[1], fam = row[2], w = row[3], size = row[4];
+      const role = row[0], fam = row[1], w = row[2], size = row[3], lh = row[4], generic = row[7], style = row[8], tracking = row[9], occ = row[10], conf = row[12];
       const m = famResolve(fam);
       return '<button class="row" onclick="hop(\'row\',\'' + id + '|typography|' + i + '\',\'type row ' + (i + 1) + '\')"><span class="t">' + L.term("typography.role." + role, role) + " · " + (m ? L.fam(m[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + "</span></button>" +
-        '<div class="type-sample" style="' + escAttr(specimenCss(fam) + ";font-weight:" + (w||400) + ";font-size:" + Math.min(24,Math.max(13,(size||14000)/1000)) + "px") + '">' + specTxt() + '</div>' +
+        '<div class="type-sample" style="' + escAttr(specimenCss(fam) + ";font-weight:" + (w||400) + ";font-style:" + (style||"normal") + ";font-size:" + Math.min(24,Math.max(13,(size||14000)/1000)) + "px;line-height:" + (lh ? px(lh) : "1.4") + ";letter-spacing:" + (tracking ? px(tracking) : "0") ) + '">' + specTxt() + '</div><div class="font-src">' + esc([generic && generic !== "unknown" ? generic : "", style, lh ? "line " + px(lh) : "", tracking ? "tracking " + px(tracking) : "", occ ? occ + "×" : "", conf != null ? Math.round(conf/10000) + "% confidence" : ""].filter(Boolean).join(" · ")) + '</div>' +
         sourceNote(fam);
     });
   } else if (key === "text") {
     body = textStyleRows([id]);
   } else if (key === "structures") {
     body = rowsHtml(idx.structuresByCap.get(id) || [], (r, i) =>
-      '<button class="row" onclick="hop(\'structure\',\'' + id + ":" + i + '\',\'' + esc(String(termLabel(r[3])).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(r[3])) + '</span><span class="s">' + Math.round(r[4]/100) + "% × " + Math.round(r[6]/100) + "% · " + Math.round(r[7]/10000) + "%</span></button>");
-  } else if (key === "gradients") {
-    const bg0 = (idx.bgByCap.get(id)||[])[0];
-    const seed = bg0 ? hex(bg0[0], bg0[1], bg0[2]) : null;
-    body = rowsHtml(idx.gradientsByCap.get(id) || [], (row, i) =>
-      '<button class="row" onclick="hop(\'row\',\'' + id + '|gradients|' + i + '\',\'gradient row ' + (i + 1) + '\')">' + gradientInner(row, seed) + "</button>");
+      '<button class="row" onclick="hop(\'structure\',\'' + id + ":" + i + '\',\'' + esc(String(termLabel(r[2])).slice(0,34)) + '\')"><span class="t">' + esc(termLabel(r[2])) + '</span><span class="s">' + Math.round(r[5]/100) + "% × " + Math.round(r[6]/100) + "% · " + Math.round(r[12]/10000) + "px gap · " + Math.round(r[13]/10000) + "%</span></button>");
   } else if (key === "terms") {
     body = rowsHtml(idx.termsByCap.get(id) || [], ([tid, conf]) => {
       const note = termValueNote(id, tid);
       return '<button class="row" onclick="hop(\'term\',\'' + escId(tid) + '\',\'' + esc(String(termLabel(tid)).slice(0,34)) + '\')">' +
       '<span class="main"><span class="primary"><span class="term-highlight">' + esc(termLabel(tid)) + '</span></span>' +
       '<span class="secondary">' + esc(termFacet(tid).replace(/_/g, " ")) + (note ? " · " + note : "") + '</span></span>' +
-      '<span class="s">' + Math.round(conf*100) + '%</span></button>' +
-      '<div class="confbar"><i style="width:' + Math.round(conf*100) + '%"></i></div>';
+      '<span class="s">' + (conf == null ? "—" : Math.round(conf*100) + '%') + '</span></button>' +
+      (conf == null ? "" : '<div class="confbar"><i style="width:' + Math.round(conf*100) + '%"></i></div>');
     });
   } else if (key === "hist") {
     body = rowsHtml(idx.histByCap.get(id) || [], (row, i) => {
-      const fid = row[1], name = row[2], sub = row[3], links = row[4];
+      const fid = row[0], name = row[1], sub = row[2], links = row[3];
       const m = famResolve(name);
       return '<button class="row" onclick="hop(\'row\',\'' + id + '|hist|' + i + '\',\'attribution row ' + (i + 1) + '\')"><span class="t">' + (m ? L.fam(m[0], name) : esc(name)) + (sub && sub !== name ? " · " + esc(sub) : "") + '</span><span class="s">' + links + " links</span></button>";
     });
@@ -1193,12 +1380,74 @@ function vSection(c){
     foot(c) + "</div>";
 }
 
-function vTerm(c){
+async function vCaptureGradients(c, cp){
+  const id = cp[0];
+  const payload = await loadSimilarity("evidence:" + id, "/v1/capture-evidence", { captureId:id });
+  const stops = payload.evidence?.gradient_stop || [];
+  const byGradient = new Map();
+  for (const row of stops) {
+    const [gradientId, stopIndex] = row.identity;
+    const [r,g,b,a,position] = row.values;
+    pushMap(byGradient, gradientId, { stop_index:stopIndex, r, g, b, alpha_ppm:a, position_ppm:position });
+  }
+  const gradients = (idx.gradientsByCap.get(id) || []).map(row => ({ ...row, stops:(byGradient.get(row.gradient_id) || []).sort((a,b) => a.stop_index-b.stop_index) }));
+  const bg0 = (idx.bgByCap.get(id)||[])[0];
+  const seed = bg0 ? hex(bg0[0], bg0[1], bg0[2]) : null;
+  return head({ type:"section", id:c.id, label:"Gradients" }, gradients.length) + '<div class="cbody">' +
+    '<div class="sec"><div class="associated-capture">' + capRow(cp, "capture #" + id) + '</div></div>' +
+    '<p class="prose">' + SECTION_DESC.gradients + '</p><div class="sec"><h4>gradients <span class="n">' + gradients.length + '</span></h4>' +
+    (gradients.length ? rowsHtml(gradients, row => gradientRow(row, seed)) : '<div class="empty">no retained gradients for this capture</div>') + '</div>' + foot(c) + '</div>';
+}
+
+async function vCaptureEffects(c, cp){
+  const id = cp[0];
+  const payload = await loadSimilarity("evidence:" + id, "/v1/capture-evidence", { captureId:id });
+  const evidence = payload.evidence || {};
+  const completeness = new Map((evidence.completeness || []).map(row => [row.identity, row.values]));
+  const status = family => {
+    const row = completeness.get(family);
+    if (!row || row[0] === "complete") return "";
+    return '<div class="hint">coverage ' + esc(row[0].replace(/_/g," ")) + ' · retained ' + row[2] + '/' + row[1] + (row[3] ? " · " + row[3] + " truncated" : "") + (row[4] ? " · " + esc(row[4].replace(/_/g," ")) : "") + '</div>';
+  };
+  const borders = evidence.border || [], shadows = evidence.shadow || [], radii = evidence.radius || [], spacing = evidence.spacing || [], media = evidence.media || [];
+  const borderRows = rowsHtml(borders, row => { const [,,side,width,style,r,g,b,a,occ] = row.values; return '<div class="row" style="cursor:default"><span class="sw" style="background:' + (r == null ? "transparent" : rgba(r,g,b,a)) + '"></span><span class="t">' + esc(side) + ' · ' + px(width) + ' ' + esc(style) + '</span><span class="s">' + (r == null ? "color unavailable" : hex(r,g,b)) + (occ ? " · " + occ + "×" : "") + '</span></div>'; }, 80);
+  const shadowRows = rowsHtml(shadows, row => { const [,,inset,x,y,blur,spread,r,g,b,a,occ] = row.values; return '<div class="row" style="cursor:default"><span class="sw" style="background:' + (r == null ? "transparent" : rgba(r,g,b,a)) + '"></span><span class="t">' + (inset ? "inset · " : "") + px(x) + ' ' + px(y) + ' ' + px(blur) + ' ' + px(spread) + '</span><span class="s">' + (r == null ? "color unavailable" : hex(r,g,b)) + (occ ? " · " + occ + "×" : "") + '</span></div>'; }, 80);
+  const radiusRows = rowsHtml(radii, row => '<div class="row" style="cursor:default"><span class="t">' + px(row.values[0]) + '</span><span class="s">' + row.values[1] + '×</span></div>', 80);
+  const spacingRows = rowsHtml(spacing, row => '<div class="row" style="cursor:default"><span class="t">' + esc(row.values[0].replace(/-/g," ")) + '</span><span class="s">' + px(row.values[1]) + ' · ' + row.values[2] + '×</span></div>', 80);
+  const mediaRows = rowsHtml(media, row => { const [kind,x,y,w,h,coverage,occ] = row.values; return '<div class="row" style="cursor:default"><span class="t">' + esc(kind) + ' · ' + Math.round(w/100) + '% × ' + Math.round(h/100) + '%</span><span class="s">' + Math.round(coverage/10000) + '% · ' + occ + '×</span></div>'; }, 80);
+  const group = (title, rows, body, coverageFamily) => '<div class="sec"><h4>' + title + ' <span class="n">' + rows.length + '</span></h4>' + status(coverageFamily) + (body || '<div class="empty">no retained observations</div>') + '</div>';
+  return head({ type:"section", id:c.id, label:"Measured effects" }, borders.length + shadows.length + radii.length + spacing.length + media.length) + '<div class="cbody">' +
+    '<div class="sec"><div class="associated-capture">' + capRow(cp, "capture #" + id) + '</div></div><p class="prose">' + SECTION_DESC.effects + '</p>' +
+    group("borders", borders, borderRows, "border_observation") + group("shadows", shadows, shadowRows, "shadow_observation") + group("radii", radii, radiusRows, "radius_observation") + group("spacing", spacing, spacingRows, "spacing_observation") + group("media", media, mediaRows, "media_observation") + foot(c) + '</div>';
+}
+
+async function vCaptureNeighbors(c, cp){
+  const id = cp[0];
+  const payload = await loadSimilarity("capture:" + id, "/v1/similar-captures", { captureId:id, limit:12 });
+  const rows = payload.results || [];
+  const runtime = payload.index || {};
+  return head({ type:"section", id:c.id, label:"Visual neighbors" }, rows.length + " results") +
+    '<div class="cbody">' +
+    '<div class="sec"><div class="associated-capture">' + capRow(cp, "capture #" + id) + "</div></div>" +
+    '<p class="prose">Nearest captures in the active screenshot embedding index. Distances are returned by the index; lower is closer.</p>' +
+    '<div class="hint">' + esc(runtime.modelId || "active model") + (runtime.distance ? " · " + esc(runtime.distance) + " distance" : "") + (runtime.dimensions ? " · " + runtime.dimensions + " dimensions" : "") + '</div>' +
+    '<div class="sec"><h4>visual neighbors <span class="n">' + rows.length + '</span></h4>' +
+    (rows.length ? rowsHtml(rows, row => {
+      const candidate = idx.cById.get(Number(row.captureId));
+      return candidate ? capRow(candidate, "distance " + Number(row.distance).toFixed(4)) : "";
+    }) : '<div class="empty">no screenshot embedding neighbors found</div>') + "</div>" +
+    foot(c) + "</div>";
+}
+
+async function vTerm(c){
   const tid = c.id;
   const caps = idx.capsByTerm.get(tid) || [];
+  const payload = await loadSimilarity("term:" + tid, "/v1/term-values", { termId:tid });
+  const valuesByCapture = new Map();
+  for (const row of payload.rows || []) pushMap(valuesByCapture, row[0], row);
   const facetId = termFacet(tid);
   const structUses = [];
-  for (const [cid, rows] of idx.structuresByCap) rows.forEach((r, i) => { if (r[3] === tid) structUses.push([cid, i]); });
+  for (const [cid, rows] of idx.structuresByCap) rows.forEach((r, i) => { if (r[2] === tid) structUses.push([cid, i]); });
   const siblings = Object.keys(D_.terms).filter(t => termFacet(t) === facetId && t !== tid).sort();
   return head(c, caps.length + " captures") +
     '<div class="cbody">' +
@@ -1209,9 +1458,11 @@ function vTerm(c){
       ["captures", caps.length.toLocaleString(), true]
     ]) +
     '<div class="sec"><h4>captures <span class="n">' + caps.length + '</span></h4>' +
-    (caps.length ? rowsHtml(caps, ([cid, conf]) => {
+    (caps.length ? rowsHtml(caps, ([cid, conf, scope, resolution]) => {
       const cp = idx.cById.get(cid);
-      return capRow(cp, Math.round(conf*100) + "%", termValueNote(cid, tid));
+      const measured = (valuesByCapture.get(cid) || []).map(termEvidenceNote).filter(Boolean).join(" · ");
+      const confidence = conf == null ? "confidence unavailable" : Math.round(conf*100) + "%";
+      return capRow(cp, [measured, confidence, scope, resolution].filter(Boolean).join(" · "));
     }, 80) : '<div class="empty">no captures resolved to this term</div>') + "</div>" +
     '<div class="sec"><h4>other terms in ' + esc(facetId.replace(/_/g," ")) + ' <span class="n">' + siblings.length + '</span><button class="section-open" onclick="hop(\'facet\',\'' + escId(facetId) + '\',\'' + esc(facetId) + '\')">open ›</button></h4>' +
       rowsHtml(siblings, ot =>
@@ -1265,7 +1516,7 @@ function vFamily(c){
     '<div class="cbody">' +
     '<p class="prose">' + L.fam(f[0], f[1]) + (dg ? " by " + L.designer(dg[0], dg[1]) : "") + (v ? ", sold by " + L.vendor(v[0], v[1]) : "") + ". " + rels.length + " releases." + "</p>" +
     '<div class="font-specimen" style="' + escAttr(specimenCss(f[1])) + '">' + esc(f[1]) + '</div>' +
-    '<div class="font-meta">Aa Bb Cc · 0123456789' + (srcLine(f[1], null, null, true) ? " · " + srcLine(f[1], null, null, true).replace(/^<div class="font-src"/, '<span class="font-src" style="margin:0;display:inline"').replace(/<\/div>$/, "</span>") : "") + '</div>' +
+    '<div class="font-meta">Hamburgefontsiv 0123456789' + (srcLine(f[1], null, null, true) ? " · " + srcLine(f[1], null, null, true).replace(/^<div class="font-src"/, '<span class="font-src" style="margin:0;display:inline"').replace(/<\/div>$/, "</span>") : "") + '</div>' +
     (dupes.length ? '<div class="sec"><h4>possible duplicates <span class="n">same name · ' + dupes.length + '</span></h4><div class="hint">' + esc(f[1]) + " appears " + (dupes.length + 1) + " times in the catalogue. The corpus alias table (family → canonical) exists but holds no reviewed links yet — these are same-name candidates.</div>" +
       rowsHtml(dupes, x => '<button class="row" onclick="hop(\'family\',' + x[0] + ',\'' + esc(x[1].slice(0,34)) + '\')"><span class="t">' + esc(x[1]) + '</span><span class="s">#' + x[0] + (idx.relCount.get(x[0]) ? " · " + idx.relCount.get(x[0]) + " releases" : "") + "</span></button>", 12) + "</div>" : "") +
     (sameDg.length ? '<div class="sec"><h4>other families by ' + esc(dg[1].slice(0,26)) + '</h4>' + rowsHtml(sameDg, x =>
@@ -1279,21 +1530,11 @@ function vFamily(c){
       return m ? navRow("family", m[0], m[1], n + " shared captures")
         : '<div class="row" style="cursor:default"><span class="t">' + esc(coocNames.get(k) || k) + '</span><span class="s">observed only · ' + n + " shared captures</span></div>";
     }) + "</div>" : "") +
-    (() => {
-      let simRows = null;
-      for (const [key, rows] of idx.simRes) {
-        if (rows.some(r => r.family_id === f[0] || norm(r.family) === norm(f[1]))) { simRows = rows; break; }
-      }
-      if (!simRows) return "";
-      return '<div class="sec"><h4>visually similar <span class="n">descriptor contract</span></h4><div class="hint">swash-coverage-aware glyph HOG rank-blend · catalogue visual candidates</div>' +
-        rowsHtml(simRows.filter(r => r.family_id !== f[0]).slice(0, 6), r => {
-          const m = idx.fById.get(r.family_id);
-          return '<button class="row" onclick="hop(\'family\',' + r.family_id + ',\'' + esc(r.family.slice(0,34)) + '\')"><span class="t">' + esc(r.family) + '</span><span class="s">' + Math.round(r.score*100) + "%</span></button>";
-        }) + "</div>";
-    })() +
+    '<div class="sec"><h4>visual similarity</h4>' +
+    evRow("Visually similar", "compare rendered glyph descriptors", "live", "fontLookup", f[0], "Similar to " + f[1]) + "</div>" +
     '<div class="sec"><h4>releases <span class="n">' + rels.length + '</span></h4>' +
     rowsHtml(rels, r =>
-      '<div class="row" style="cursor:default"><span class="t mono">' + esc(r[1]) + '</span><span class="s">' + (r[3] ? '<a class="ext" href="' + esc(r[3]) + '" target="_blank">source ↗</a>' : esc(r[2].slice(0,8))) + "</span></div>") + "</div>" +
+      '<div class="row" style="cursor:default"><span class="t mono">' + esc(r[1]) + '</span><span class="s">' + (r[4] ? '<a class="ext" href="' + esc(r[4]) + '" target="_blank">source ↗</a>' : esc(r[2].slice(0,8))) + "</span></div>") + "</div>" +
     foot(c) + "</div>";
 }
 
@@ -1318,12 +1559,23 @@ function filteredCaptureRows(caps, test, meta, after){
   return rowsHtml(caps.filter(test), cid => capRow(idx.cById.get(cid), meta(cid)) + (after ? after(cid) : ""), 120);
 }
 function textStyleRows(caps){
-  return rowsHtml(aggregateTextStyles(caps), style => {
+  const attributed = new Map();
+  for (const cid of caps) for (const row of idx.histByCap.get(cid) || []) {
+    const key = norm(row[1]);
+    if (!attributed.has(key)) attributed.set(key, { id:row[0], name:row[1], captures:new Set() });
+    attributed.get(key).captures.add(cid);
+  }
+  const context = attributed.size ? '<div class="hint">Capture-level font attributions: ' + [...attributed.values()].map(item => {
+    const family = idx.fById.get(item.id);
+    return (family ? L.fam(family[0], item.name) : esc(item.name)) + " · " + item.captures.size + " captures";
+  }).join(" · ") + ". These are not linked to individual text styles.</div>" : "";
+  return context + rowsHtml(aggregateTextStyles(caps), style => {
     const family = style.fam ? famResolve(style.fam) : null;
-    const label = style.fam ? (family ? L.fam(family[0], style.fam) : esc(style.fam)) : '<span class="font-highlight">family not retained</span>';
-    const meta = [style.weight, px(style.size), style.captures.size + " captures", style.occurrences + "×"].filter(Boolean).join(" · ");
-    return '<div class="row" style="cursor:default"><span class="t">' + label + '</span><span class="s">' + meta + "</span></div>" +
-      (style.fam ? '<div class="type-sample" style="' + escAttr(specimenCss(style.fam) + ";font-weight:" + (style.weight || 400) + ";font-size:" + Math.min(24,Math.max(13,(style.size||14000)/1000)) + "px") + '">' + specTxt() + "</div>" + sourceNote(style.fam) : "");
+    const label = style.fam ? (family ? L.fam(family[0], style.fam) : esc(style.fam)) : [style.weight, px(style.size)].filter(Boolean).join(" · ") || "text style";
+    const meta = [style.captures.size + " captures", style.occurrences + "×", style.lineHeight ? "line " + px(style.lineHeight) : "", style.tracking ? "tracking " + px(style.tracking) : "", style.alignment, style.transform].filter(Boolean).join(" · ");
+    const color = style.r != null && style.g != null && style.b != null ? '<span class="sw" style="background:' + rgba(style.r,style.g,style.b,style.alpha) + '"></span>' + hex(style.r,style.g,style.b) : "";
+    return '<div class="row" style="cursor:default"><span class="t">' + label + (color ? " · " + color : "") + '</span><span class="s">' + meta + "</span></div>" +
+      (style.fam ? '<div class="type-sample" style="' + escAttr(specimenCss(style.fam) + ";font-weight:" + (style.weight || 400) + ";font-style:" + (style.style || "normal") + ";font-size:" + Math.min(24,Math.max(13,(style.size||14000)/1000)) + "px;line-height:" + (style.lineHeight ? px(style.lineHeight) : "1.4") + ";letter-spacing:" + (style.tracking ? px(style.tracking) : "0") + ";color:" + (style.r != null ? rgba(style.r,style.g,style.b,style.alpha) : "var(--ink)")) + '">' + specTxt() + "</div>" + sourceNote(style.fam) : "");
   }, 120);
 }
 const FILTER_ROWS = {
@@ -1354,8 +1606,8 @@ const FILTER_ROWS = {
   gradients: caps => filteredCaptureRows(caps, cid => (idx.gradientsByCap.get(cid) || []).length, cid => { const n = idx.gradientsByCap.get(cid).length; return n + " gradient" + (n === 1 ? "" : "s"); }),
   typography: caps => {
     const seen = new Map();
-    for (const cid of caps) for (const row of idx.typeByCap.get(cid) || []) if (!seen.has(row[1] + "|" + norm(row[2] || ""))) seen.set(row[1] + "|" + norm(row[2] || ""), row);
-    return rowsHtml([...seen.values()], row => { const role = row[1], fam = row[2], w = row[3], size = row[4], family = famResolve(fam); return '<div class="row" style="cursor:default"><span class="t">' + L.term("typography.role." + role, role) + " · " + (family ? L.fam(family[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + '</span></div><div class="type-sample" style="' + escAttr(specimenCss(fam) + ";font-weight:" + (w||400) + ";font-size:" + Math.min(24,Math.max(13,(size||14000)/1000)) + "px") + '">' + specTxt() + "</div>" + sourceNote(fam); }, 120);
+    for (const cid of caps) for (const row of idx.typeByCap.get(cid) || []) if (!seen.has(row[0] + "|" + norm(row[1] || ""))) seen.set(row[0] + "|" + norm(row[1] || ""), row);
+    return rowsHtml([...seen.values()], row => { const role = row[0], fam = row[1], w = row[2], size = row[3], family = famResolve(fam); return '<div class="row" style="cursor:default"><span class="t">' + L.term("typography.role." + role, role) + " · " + (family ? L.fam(family[0], fam) : esc(fam)) + '</span><span class="s">' + (w||"") + " · " + px(size) + '</span></div><div class="type-sample" style="' + escAttr(specimenCss(fam) + ";font-weight:" + (w||400) + ";font-size:" + Math.min(24,Math.max(13,(size||14000)/1000)) + "px") + '">' + specTxt() + "</div>" + sourceNote(fam); }, 120);
   }
 };
 function vBrowse(c){
@@ -1427,7 +1679,7 @@ function vRawCapture(c){
   const id = Number(c.id);
   const cp = idx.cById.get(id);
   if (!cp) return head(c) + '<div class="cbody"><div class="empty">capture not found</div></div>';
-  const obj = { id: cp[0], origin: cp[1], path: cp[2], title: cp[3], captured_at: cp[4], image_url: cp[5], device_class: cp[6] || null, theme: cp[7] || null, interaction_state: cp[8] || null };
+  const obj = { id: cp[0], origin: cp[1], path: cp[2], title: cp[3], captured_at: cp[4], image_url: cp[5], device_class: cp[6] || null, theme: cp[7] || null, interaction_state: cp[8] || null, capture_scope:cp[9], render_context:cp[10], viewport_width_px:cp[11], viewport_height_px:cp[12], device_pixel_ratio:cp[13], crop_width_px:cp[14], crop_height_px:cp[15], screenshot_key:cp[16], screenshot_media_type:cp[17], screenshot_width_px:cp[18], screenshot_height_px:cp[19], capture_contract_id:cp[20], profile_generation:cp[21] };
   const rowId = ++__rawSeq;
   __rawCache.set(rowId, obj);
   return head(c, "#" + id) +
@@ -1455,56 +1707,58 @@ function vRelations(c){
     '<p class="prose">' + rels.length + " relations in the corpus schema. Open one to inspect its columns." + "</p>" +
     out + foot(c) + "</div>";
 }
-function vRelation(c){
+async function vRelation(c){
   const r = relations.find(x => x.name === c.id);
   if (!r) return head(c) + '<div class="cbody"><div class="empty">relation not found</div></div>';
+  const payload = await loadSimilarity("relation:" + r.name, "/v1/relation-columns", { relation:r.name });
+  const columns = (payload.rows || []).map(row => ({ name:row[0], key:row[1], index:row[2], type:row[3], hasDefault:row[4], defaultExpression:row[5] }));
   return head(c, (r.keys || 0) + "+" + (r.nonkeys || 0)) +
     '<div class="cbody">' +
     '<p class="prose">' + esc(r.description || "") + "</p>" +
     KV([
       ["name", '<span class="mono">' + esc(r.name) + "</span>", true],
-      ["arity", String(r.arity || r.columns.length), true],
+      ["arity", String(r.arity || columns.length), true],
       ["keys / nonkeys", (r.keys || 0) + " / " + (r.nonkeys || 0), true],
       ["access", esc(r.access || ""), true],
       ["group", esc((r.group || "other").replace(/_/g, " ")), false]
     ]) +
-    '<div class="sec"><h4>columns <span class="n">' + (r.columns ? r.columns.length : 0) + '</span></h4>' +
-    (r.columns || []).map(col =>
+    '<div class="sec"><h4>columns <span class="n">' + columns.length + '</span></h4>' +
+    columns.map(col =>
       '<div class="schema-column"><span class="name"><span class="mono">' + esc(col.name) + '</span>' + (col.key ? '<span class="key-badge">key</span>' : "") + '</span><span class="type">' + esc(col.type || "") + "</span></div>").join("") + "</div>" +
-    '<div class="sec"><h4>JSON</h4><pre class="raw">' + esc(JSON.stringify(r, null, 2)) + "</pre></div>" +
+    '<div class="sec"><h4>JSON</h4><pre class="raw">' + esc(JSON.stringify({ ...r, columns, columnsBundled:true }, null, 2)) + "</pre></div>" +
     foot(c) + "</div>";
 }
 function vFontSim(c){
-  const s = D_.font_similarity || {};
-  const contract = s.contract || {};
-  const lookups = Object.keys(D_.font_similarity_results || {});
-  return head(c, lookups.length + " lookups") +
+  return head(c, "on demand") +
     '<div class="cbody">' +
-    '<p class="prose">Font similarity engine: catalogue matches scored from rendered glyph descriptors.</p>' +
+    '<p class="prose">Font similarity compares catalogue families from rendered glyph descriptors. Open a family and choose <b>Visually similar</b> to run a lookup.</p>' +
     KV([
-      ["slot", esc(contract.slot || "—"), true],
-      ["activation sequence", String(contract.activation_sequence || "—"), true],
-      ["descriptor", esc(contract.descriptor_schema_id || "—"), true],
-      ["render", esc(contract.render_contract_id || "—"), true],
-      ["glyph set", esc(contract.glyph_set_id || "—"), true]
+      ["mode", "on demand", true],
+      ["target", "exact catalogue family ID", true],
+      ["rank", "visual descriptor distance", true]
     ]) +
-    '<div class="sec"><h4>lookups <span class="n">' + lookups.length + '</span></h4>' +
-    rowsHtml(lookups, name =>
-      '<button class="row" onclick="hop(\'fontLookup\',\'' + escId(name) + '\',\'' + esc(name.slice(0,34)) + '\')"><span class="t"><span class="font-highlight">' + esc(name) + '</span></span><span class="s">' + (D_.font_similarity_results[name] || []).length + " results</span></button>") + "</div>" +
+    '<div class="sec"><h4>catalogue families <span class="n">' + D_.families.length.toLocaleString() + '</span></h4>' +
+    rowsHtml(D_.families.slice().sort((a,b) => a[1].localeCompare(b[1])), f =>
+      navRow("family", f[0], f[1], "#" + f[0], '<span class="font-highlight">' + esc(f[1]) + "</span>"), 80) + "</div>" +
     foot(c) + "</div>";
 }
-function vFontLookup(c){
-  const rows = (D_.font_similarity_results || {})[c.id] || [];
-  const top = rows[0] && rows[0].score === 1 ? rows[0].score : null;
+async function vFontLookup(c){
+  const target = idx.fById.get(Number(c.id));
+  if (!target) return head(c) + '<div class="cbody"><div class="empty">family not found</div></div>';
+  const payload = await loadSimilarity("font:" + target[0], "/v1/similar-fonts", { familyId:target[0], limit:8 });
+  const rows = payload.results || [];
   return head(c, rows.length + " results") +
     '<div class="cbody">' +
-    '<p class="prose">Closest catalogue families to <span class="font-highlight">' + esc(c.id) + '</span> under the active descriptor contract.</p>' +
-    '<div class="sec"><h4>results</h4>' +
+    '<p class="prose">Catalogue families visually closest to <span class="font-highlight">' + esc(target[1]) + '</span> under the active experimental rendered-glyph descriptor. Lower distance is closer.</p>' +
+    fontPreview(Object.assign({ familyName:target[1] }, payload.target || {})) +
+    '<div class="sec"><h4>visual candidates <span class="n">' + rows.length + '</span></h4>' +
     rowsHtml(rows, r => {
-      const f = idx.fById.get(r.family_id);
-      return '<button class="row" onclick="hop(\'family\',' + r.family_id + ',\'' + esc(r.family.slice(0,34)) + '\')"><span class="t"><span class="font-highlight">' + esc(r.family) + '</span></span><span class="s">' + Math.round(r.score * 100) + '%</span></button>' +
-        '<div class="confbar"><i style="width:' + Math.round(Math.min(1, r.score) * 100) + '%"></i></div>';
-    }) + "</div>" +
+      const family = idx.fById.get(Number(r.familyId));
+      const name = family ? family[1] : r.familyName;
+      const meta = "visual " + Number(r.visualDistance).toFixed(4) + " · metric " + Number(r.metricDistance).toFixed(4) + (r.commonGlyphs ? " · " + r.commonGlyphs + " glyphs" : "");
+      return '<button class="row" onclick="hop(\'family\',' + r.familyId + ',\'' + esc(String(name).slice(0,34)) + '\')"><span class="t"><span class="font-highlight">' + esc(name) + '</span></span><span class="s">#' + r.rank + '</span></button>' +
+        fontPreview(r) + '<div class="font-src">' + esc(meta) + '</div>';
+    }) + (rows.length ? "" : '<div class="empty">no compatible visual descriptor is available for this family</div>') + "</div>" +
     foot(c) + "</div>";
 }
 function vEmbeddings(c){
@@ -1521,6 +1775,7 @@ function vEmbeddings(c){
       ["captures", (rt.member_count || 0).toLocaleString(), true],
       ["generation", esc(rt.active_generation_id || "—"), true]
     ]) +
+    '<div class="system-callout">Open any indexed capture and choose <b>Visual neighbors</b> to query this index.</div>' +
     '<div class="sec"><h4>pivot captures <span class="n">' + pivots.length + '</span></h4>' +
     rowsHtml(pivots, cid => {
       const cp = idx.cById.get(Number(cid));
@@ -1559,9 +1814,11 @@ let hvTimer = 0;
 function hvMarkup(id){
   const x = idx.cById.get(Number(id)); if (!x) return "";
   const colors = idx.colorsByCap.get(Number(id)) || [];
-  const fonts = [...new Set((idx.fontsByCap.get(Number(id))||[]).map(f=>f[0]))].slice(0,3);
+  const legacyColors = idx.legacyColorsByCap.get(Number(id)) || [];
+  const fonts = captureFamilies(Number(id)).slice(0,4);
   const terms = (idx.termsByCap.get(Number(id))||[]).slice(0,4).map(([t])=>termLabel(t));
-  const grad = colors.length ? "linear-gradient(90deg," + colors.slice(0,6).map((c,i)=>hex(c[1],c[2],c[3]) + " " + Math.round(i*100/colors.length) + "% " + Math.round((i+1)*100/colors.length) + "%").join(",") + ")" : "var(--soft)";
+  const palette = colors.length ? colors.slice(0,8).map(c => hex(c[1],c[2],c[3])) : legacyColors.slice(0,8).map(row => intHex(Array.isArray(row) ? row[0] : row));
+  const grad = palette.length ? "linear-gradient(90deg," + palette.map((color,i)=>color + " " + Math.round(i*100/palette.length) + "% " + Math.round((i+1)*100/palette.length) + "%").join(",") + ")" : "var(--soft)";
   const m = idx.motionByCap.get(Number(id));
   const media = m
     ? '<div style="position:relative;width:100%;aspect-ratio:' + m[5] + '/' + m[6] + ';background:#000">' +
@@ -1571,7 +1828,7 @@ function hvMarkup(id){
     : '<img src="' + esc(x[5]) + '" alt="" onerror="this.style.display=\'none\'">';
   return '<div class="imgw" style="position:relative;background:' + grad + '">' + media + "</div>" +
     '<div class="hmeta"><div class="ht">' + esc(x[3]) + '</div><div class="hs">' + esc(x[1].replace("https://","")) + (x[2] ? " · " + esc(x[2]) : "") + " · " + fmtDate(x[4]) + "</div>" +
-    (colors.length ? '<div class="hp">' + colors.slice(0,8).map(c => '<span style="background:' + hex(c[1],c[2],c[3]) + '"></span>').join("") + "</div>" : "") +
+    (palette.length ? '<div class="hp">' + palette.map(color => '<span style="background:' + color + '"></span>').join("") + "</div>" : "") +
     (fonts.length || terms.length ? '<div class="htags">' + fonts.map(esc).join(" · ") + (fonts.length && terms.length ? "  /  " : "") + terms.map(esc).join(" · ") + "</div>" : "") + "</div>";
 }
 colsEl.addEventListener("pointerover", e => {
@@ -1708,15 +1965,6 @@ document.addEventListener("keydown", e => {
 
 const qEl = document.getElementById("q");
 const resultsEl = document.getElementById("results");
-const specEl = document.getElementById("spec");
-if (specEl) {
-  specEl.value = specimenText;
-  specEl.addEventListener("input", () => {
-    specimenText = specEl.value;
-    document.querySelectorAll(".type-sample").forEach(el => { el.textContent = specimenText; });
-    try { localStorage.setItem("fudge-specimen-text", specimenText); } catch (_) {}
-  });
-}
 let hlIdx = 0, hlFns = [];
 function doSearch(){
   const s = qEl.value.trim().toLowerCase();
@@ -1789,16 +2037,34 @@ window.addEventListener("popstate", restoreRoute);
 
 /* ---------- boot ---------- */
 
-const STATIC_RESOURCES = { data:"data.json", gradients:"gradients.json", fontSources:"font_sources.json", relations:"relations.json", legacyColors:"legacy_colors.json" };
 const suppliedConfig = window.FUDGE_EXPLORER_CONFIG || {};
-const explorerConfig = Object.assign({ endpoint:new URLSearchParams(location.search).get("api"), request:{} }, suppliedConfig, {
-  resources:Object.assign({}, STATIC_RESOURCES, suppliedConfig.resources)
-});
+const explorerConfig = Object.assign({ endpoint:"/v1/query", request:{} }, suppliedConfig);
 let loadController;
-async function requestJson(url, signal){
-  const response = await fetch(url, Object.assign({}, explorerConfig.request, { signal }));
+async function requestServiceJson(url, signal){
+  const headers = new Headers(explorerConfig.request.headers);
+  const request = Object.assign({}, explorerConfig.request, { signal, headers });
+  const response = await fetch(url, request);
   if (!response.ok) throw new Error(response.status + " " + response.statusText + " · " + url);
   return response.json();
+}
+function similarityUrl(path, parameters){
+  const url = new URL(explorerConfig.endpoint, location.href);
+  url.pathname = path;
+  url.search = "";
+  for (const [key, value] of Object.entries(parameters)) url.searchParams.set(key, value);
+  url.searchParams.set("generation", D_.observed_generation);
+  return url.href;
+}
+function loadSimilarity(cacheKey, path, parameters){
+  const key = D_.observed_generation + ":" + cacheKey;
+  if (!similarityCache.has(key)) {
+    const load = requestServiceJson(similarityUrl(path, parameters)).catch(error => {
+      similarityCache.delete(key);
+      throw error;
+    });
+    similarityCache.set(key, load);
+  }
+  return similarityCache.get(key);
 }
 function normalizeBundle(payload){
   const data = payload.data || payload.snapshot || payload;
@@ -1810,29 +2076,13 @@ function normalizeBundle(payload){
     legacyColors: payload.legacyColors ?? payload.legacy_colors ?? data.legacy_colors ?? {}
   };
 }
-const dataSources = {
-  static(resources = STATIC_RESOURCES){
-    return { kind:"static", async load({ signal }){
-      const [data, gradients, fontSources, schema, legacyColors] = await Promise.all([
-        requestJson(resources.data, signal), requestJson(resources.gradients, signal),
-        requestJson(resources.fontSources, signal), requestJson(resources.relations, signal),
-        requestJson(resources.legacyColors, signal)
-      ].map((request, i) => i ? request.catch(() => undefined) : request));
-      return { data, gradients, fontSources, relations:schema, legacyColors };
-    }};
-  },
-  service(endpoint){
-    return { kind:"service", async load({ signal }){ return requestJson(endpoint, signal); } };
-  }
+const dataSource = {
+  kind:"service",
+  async load({ signal }){ return requestServiceJson(explorerConfig.endpoint, signal); }
 };
-function selectDataSource(){
-  if (explorerConfig.source && typeof explorerConfig.source.load === "function") return explorerConfig.source;
-  return explorerConfig.endpoint ? dataSources.service(explorerConfig.endpoint) : dataSources.static(explorerConfig.resources);
-}
-let dataSource = selectDataSource();
 function installBundle(bundle){
   const { data:d, gradients:g, fontSources:fs, relations:rels, legacyColors } = bundle;
-  resultsEl.classList.remove("on"); resultsEl.innerHTML = ""; qEl.value = ""; hlFns = [];
+  resultsEl.classList.remove("on"); resultsEl.innerHTML = ""; qEl.value = ""; hlFns = []; moreRows.clear(); similarityCache.clear();
   clearTimeout(hvTimer); hvEl.classList.remove("open"); lbClose(); lbIds = [];
   D_ = Object.assign({}, d, { gradients:g, legacy_colors:legacyColors });
   relations = rels;
@@ -1840,7 +2090,9 @@ function installBundle(bundle){
   buildIndexes();
   initFontSources(fs);
   const legacyColorCount = Object.values(legacyColors).reduce((sum, rows) => sum + rows.length, 0);
-  document.getElementById("meta").textContent =
+  const metaEl = document.getElementById("meta");
+  metaEl.textContent = d.captures.length.toLocaleString() + " captures · " + d.domains.length.toLocaleString() + " domains";
+  metaEl.title =
     d.domains.length.toLocaleString() + " domains · " + d.captures.length.toLocaleString() + " captures · " +
     d.families.length.toLocaleString() + " families · " + Object.keys(d.terms).length + " terms · " +
     d.color_roles.length.toLocaleString() + " measured colors · " + legacyColorCount.toLocaleString() + " legacy palette colors · " + d.font_obs.length.toLocaleString() + " font observations · " + (d.ann?Object.keys(d.ann).length:0) + " ANN pivots · " + (d.motion_assets||[]).length.toLocaleString() + " motion · " + (d.font_similarity_results?Object.keys(d.font_similarity_results).length:0) + " font-sim" +
@@ -1861,20 +2113,15 @@ async function reload(){
     installBundle(normalizeBundle(bundle));
   } catch (error) {
     if (controller !== loadController || controller.signal.aborted || error.name === "AbortError") return;
+    disposeFontSources();
     document.getElementById("meta").textContent = "load failed";
     colsEl.innerHTML = '<div class="col"><div class="cbody"><div class="empty">Failed to load explorer data.<br>' + esc(String(error)) + "</div></div></div>";
   }
 }
 window.FudgeExplorer = {
-  reload, sources:dataSources,
+  reload,
   configure(options = {}){
-    const has = key => Object.prototype.hasOwnProperty.call(options, key);
     Object.assign(explorerConfig, options);
-    if (options.resources) explorerConfig.resources = Object.assign({}, STATIC_RESOURCES, options.resources);
-    if (has("source")) explorerConfig.endpoint = null;
-    else if (has("endpoint")) explorerConfig.source = null;
-    else if (has("resources")) { explorerConfig.source = null; explorerConfig.endpoint = null; }
-    dataSource = selectDataSource();
     return reload();
   }
 };

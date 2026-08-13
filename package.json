@@ -1,0 +1,17 @@
+{
+  "name": "fudge-explorer-query-proxy",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "build": "node build-assets.mjs",
+    "test": "node --test worker.test.mjs explorer-bundle.test.mjs explorer-ui.test.mjs",
+    "dev": "npm run build && npx wrangler dev",
+    "deploy": "npm run build && npx wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.122.0"
+  }
+}

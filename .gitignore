@@ -1,2 +1,8 @@
 # Raw embedding export (343 MB, regenerable from the corpus)
 embed.ndjson
+
+# Worker tooling
+node_modules/
+.wrangler/
+.dev.vars
+public/
