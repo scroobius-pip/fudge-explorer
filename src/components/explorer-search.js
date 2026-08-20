@@ -61,6 +61,7 @@ export class ExplorerSearchElement extends FudgeElement {
     const observedFonts = [...idx.capturedFontsByNorm.entries()]
       .filter(([name]) => name.includes(norm(s)))
       .flatMap(([, rows]) => rows)
+      .sort((left, right) => right[0] - left[0] || left[1] - right[1])
       .slice(0, 8);
     const terms = Object.keys(D.terms).filter((t) => termLabel(D, t).toLowerCase().includes(s) || t.includes(s)).slice(0, 6);
     const facets = [...new Set(Object.values(D.terms).map((t) => t[2]))].filter((f) => f.includes(s) || f.replace(/_/g, " ").includes(s)).slice(0, 6);

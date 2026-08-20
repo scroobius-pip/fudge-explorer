@@ -48,6 +48,7 @@ test("keeps captured font observations separate from catalogue identities", () =
   assert.match(indexesSrc, /capturedFontsByNorm/);
   assert.match(searchSrc, /g: "captured fonts"/);
   assert.match(searchSrc, /store\.fresh\("capturedFont"/);
+  assert.match(searchSrc, /right\[0\] - left\[0\]/);
   assert.match(captureSrc, /data-hop-type="capturedFont"/);
   assert.doesNotMatch(captureSrc, /const resolved = m && norm/);
   assert.match(catalogSrc, /"\/v1\/family-font-usage"/);
