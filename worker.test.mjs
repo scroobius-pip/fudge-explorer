@@ -529,6 +529,24 @@ test("rejects malformed captured font requests before querying", async () => {
   assert.equal(calls, 0);
 });
 
+test("does not require the private observation-locator relation for captured font status", async () => {
+  const env = serviceEnv(async (request) => {
+    const body = await request.json();
+    assert.doesNotMatch(body.script, /primary_pin_font_observation_locator/);
+    assert.match(body.script, /not has_source\[declared_family, computed_css_stack\]/);
+    return queryResponse([
+      "capture_id", "observation_index", "declared_family", "computed_css_stack",
+      "acquisition_index", "state", "failure_code",
+    ], [[11202, 0, "Page Sans", "Page Sans, sans-serif", null, "source_not_acquired", ""]]);
+  });
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/captured-font?captureId=11202&observationIndex=0&generation=77",
+  ), env);
+
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).pipeline.state, "source_not_acquired");
+});
+
 test("serves Almendra's verified pinned regular face through a bounded route", async () => {
   let forwarded;
   const env = serviceEnv(async (request) => {

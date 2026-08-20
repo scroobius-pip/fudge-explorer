@@ -20,7 +20,6 @@ function pipelineLabel(state) {
     searchable: "ready for visual search",
     acquired_without_active_descriptor: "font file retained; visual search pending",
     source_not_acquired: "font file has not been retained",
-    no_source_locator: "original font URL unavailable",
     failed: "font file could not be retained",
   })[state] || String(state || "status unavailable").replace(/_/g, " ");
 }

@@ -15,12 +15,6 @@ observed[declared_family, computed_css_stack] :=
     computed_css_stack
   }
 
-has_locator[observation_index] :=
-  *primary_pin_font_observation_locator{
-    capture_id: $capture_id,
-    observation_index
-  }
-
 source[acquisition_index, outcome] :=
   *primary_pin_font_observation_source{
     capture_id: $capture_id,
@@ -39,6 +33,13 @@ source_failure[acquisition_index, failure_code] :=
     acquisition_index,
     failure_code
   }
+
+has_source[declared_family, computed_css_stack] :=
+  observed[declared_family, computed_css_stack],
+  source[_acquisition_index, _outcome]
+
+has_source_failure[acquisition_index] :=
+  source_failure[acquisition_index, _failure_code]
 
 verified_descriptor[acquisition_index] :=
   source[acquisition_index, 'acquired'],
@@ -62,16 +63,7 @@ verified_descriptor[acquisition_index] :=
 state[declared_family, computed_css_stack, acquisition_index, status,
   failure_code] :=
   observed[declared_family, computed_css_stack],
-  not has_locator[$observation_index],
-  acquisition_index = null,
-  status = 'no_source_locator',
-  failure_code = ''
-
-state[declared_family, computed_css_stack, acquisition_index, status,
-  failure_code] :=
-  observed[declared_family, computed_css_stack],
-  has_locator[$observation_index],
-  not source[_source_index, _outcome],
+  not has_source[declared_family, computed_css_stack],
   acquisition_index = null,
   status = 'source_not_acquired',
   failure_code = ''
@@ -88,7 +80,7 @@ state[declared_family, computed_css_stack, acquisition_index, outcome,
   observed[declared_family, computed_css_stack],
   source[acquisition_index, outcome],
   outcome != 'acquired',
-  not source_failure[acquisition_index, _failure_code],
+  not has_source_failure[acquisition_index],
   failure_code = ''
 
 state[declared_family, computed_css_stack, acquisition_index, status,

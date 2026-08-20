@@ -860,7 +860,6 @@ function compareCapturedFontStatusRows(left, right) {
     acquired_without_active_descriptor: 1,
     acquired: 2,
     source_not_acquired: 3,
-    no_source_locator: 4,
   };
   const stateDifference = (priority[left[5]] ?? 10) - (priority[right[5]] ?? 10);
   if (stateDifference !== 0) return stateDifference;
