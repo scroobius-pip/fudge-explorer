@@ -12,13 +12,15 @@ export const TYPE = {
   row: { label: "row", color: "var(--entity-neutral)" }, rawCapture: { label: "raw capture", color: "var(--entity-neutral)" },
   relations: { label: "schema", color: "var(--entity-neutral)" }, relation: { label: "relation", color: "var(--entity-neutral)" },
   fontSim: { label: "font similarity", color: "var(--entity-family)" }, fontLookup: { label: "similarity lookup", color: "var(--entity-family)" },
+  capturedFont: { label: "captured font", color: "var(--entity-family)" },
+  capturedFontLookup: { label: "captured font similarity", color: "var(--entity-family)" },
   embeddings: { label: "embeddings", color: "var(--entity-color)" },
 };
 
 const INDEX_MAPS = ["cById", "cByDomain", "termsByCap", "capsByTerm", "fById", "dgById", "vById", "fByDesigner",
   "fByVendor", "relsById", "relCount", "colorsByCap", "legacyColorsByCap", "bgByCap", "fontsByCap", "typeByCap",
   "famByNorm", "capsByFam", "famGroups", "textByCap", "histByCap", "structuresByCap", "annByCap", "motionByCap",
-  "videoByCap", "gradientsByCap", "simRes", "catMatch", "cByPath", "cByTheme", "cByDevice", "cByState"];
+  "videoByCap", "gradientsByCap", "simRes", "catMatch", "capturedFontsByNorm", "cByPath", "cByTheme", "cByDevice", "cByState"];
 
 export function createIndexes() {
   return Object.assign(Object.fromEntries(INDEX_MAPS.map((k) => [k, new Map()])), { embeddedById: new Set() });
@@ -100,6 +102,7 @@ export function buildIndexes(data, gradients, legacyColors) {
   }
   for (const [cid, oi, fam, stack, wmin, wmax, share, occ] of data.font_obs) {
     pushMap(idx.fontsByCap, cid, [fam, stack, wmin, wmax, share, occ, oi]);
+    if (fam) pushMap(idx.capturedFontsByNorm, norm(fam), [cid, oi, fam]);
   }
   for (const [cid, role, fam, w, size, lh, share, rank, generic, style, tracking, occ, measure, conf, evidence] of data.type_roles) {
     pushMap(idx.typeByCap, cid, [role, fam, w, size, lh, share, rank, generic, style, tracking, occ, measure, conf, evidence]);
@@ -144,7 +147,7 @@ export const ROUTE_SOURCES = {
   mov: (_D, v, idx) => (idx.motionByCap.has(Number(v)) ? [Number(v)] : []),
   vid: (_D, v, idx) => (idx.videoByCap.has(Number(v)) || idx.embeddedById.has(Number(v)) ? [Number(v)] : []),
   dom: (_D, v, idx) => (idx.cByDomain.get(v) || []).map((cp) => cp[0]),
-  fam: (_D, v, idx) => ((idx.capsByFam.get(norm((idx.fById.get(Number(v)) || [])[1])) || []).map(([cid]) => cid)),
+  fam: () => [],
   ter: (_D, v, idx) => (idx.capsByTerm.get(v) || []).map(([cid]) => cid),
   fac: (D, v, idx) => Object.keys(D.terms).filter((t) => termFacet(D, t) === v).flatMap((t) => (idx.capsByTerm.get(t) || []).map(([cid]) => cid)),
 };
@@ -210,7 +213,7 @@ export const ROUTE_TYPES = { capture: "cap", motion: "mov", video: "vid", domain
 
 export function routeFor(c) {
   if (!c) return "all";
-  if (["capture", "section", "row", "rawCapture"].includes(c.type)) return "cap|" + String(c.id).split(/[:|]/)[0];
+  if (["capture", "section", "row", "rawCapture", "capturedFont", "capturedFontLookup"].includes(c.type)) return "cap|" + String(c.id).split(/[:|]/)[0];
   if (c.type === "browse") return String(c.id).startsWith("filter|") ? c.id : "all";
   const id = c.type === "video" ? String(c.id).split(":")[0] : c.id;
   return ROUTE_TYPES[c.type] ? ROUTE_TYPES[c.type] + "|" + id : "all";

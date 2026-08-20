@@ -6,6 +6,12 @@ import {
 import { CAPTURE_EVIDENCE_QUERY, TERM_VALUES_QUERY } from "./evidence-queries.js";
 import { FAMILY_FONT_SOURCE_QUERY } from "./font-source-query.js";
 import {
+  CAPTURED_FONT_DETAIL_QUERY,
+  CAPTURED_FONT_SIMILARITY_QUERY,
+  CAPTURED_FONT_STATUS_QUERY,
+  CONFIRMED_FAMILY_USAGE_QUERY,
+} from "./captured-font-queries.js";
+import {
   CAPTURE_SIMILARITY_TARGET_QUERY,
   FONT_SIMILARITY_QUERY,
   captureSimilarityQuery,
@@ -19,6 +25,9 @@ const CAPTURE_EVIDENCE_PATH = "/v1/capture-evidence";
 const TERM_VALUES_PATH = "/v1/term-values";
 const RELATION_COLUMNS_PATH = "/v1/relation-columns";
 const FAMILY_FONT_SOURCE_PATH = "/v1/family-font-source";
+const CAPTURED_FONT_PATH = "/v1/captured-font";
+const CAPTURED_FONT_SIMILARITY_PATH = "/v1/similar-captured-fonts";
+const FAMILY_FONT_USAGE_PATH = "/v1/family-font-usage";
 const EXPLORER_STREAM_MEDIA_TYPE = "application/x-fudge-explorer-stream";
 const INTERNAL_QUERY_URL = "https://fudge.internal/v1/internal/corpus/query";
 const MAX_REQUEST_BYTES = 96 * 1024;
@@ -46,7 +55,8 @@ export default {
     const isApi = [
       QUERY_PATH, FONT_SIMILARITY_PATH, CAPTURE_SIMILARITY_PATH,
       CAPTURE_EVIDENCE_PATH, TERM_VALUES_PATH, RELATION_COLUMNS_PATH,
-      FAMILY_FONT_SOURCE_PATH,
+      FAMILY_FONT_SOURCE_PATH, CAPTURED_FONT_PATH,
+      CAPTURED_FONT_SIMILARITY_PATH, FAMILY_FONT_USAGE_PATH,
     ]
       .includes(url.pathname);
 
@@ -84,6 +94,15 @@ export default {
     }
     if (url.pathname === FAMILY_FONT_SOURCE_PATH) {
       return familyFontSource(url, request, env);
+    }
+    if (url.pathname === CAPTURED_FONT_PATH) {
+      return capturedFont(url, request, env);
+    }
+    if (url.pathname === CAPTURED_FONT_SIMILARITY_PATH) {
+      return capturedFontSimilarity(url, request, env);
+    }
+    if (url.pathname === FAMILY_FONT_USAGE_PATH) {
+      return familyFontUsage(url, request, env);
     }
     if (request.method === "GET") {
       const phase = url.searchParams.get("phase");
@@ -319,6 +338,179 @@ async function familyFontSource(url, request, env) {
     }, request, env);
   } catch (error) {
     return fontSourceError(error, request, env);
+  }
+}
+
+async function capturedFont(url, request, env) {
+  if (hasUnknownParameters(url, ["captureId", "observationIndex", "generation"])) {
+    return json({ error: "invalid_captured_font_request" }, 400, {}, request, env);
+  }
+  const captureId = positiveQueryInteger(url.searchParams.get("captureId"));
+  const observationIndex = nonnegativeQueryInteger(url.searchParams.get("observationIndex"));
+  const generation = positiveQueryInteger(url.searchParams.get("generation"));
+  if (!captureId || observationIndex === null || !generation) {
+    return json({ error: "invalid_captured_font_request" }, 400, {}, request, env);
+  }
+
+  try {
+    const statusResponse = await queryCorpus(env, {
+      script: CAPTURED_FONT_STATUS_QUERY,
+      parameters: { capture_id: captureId, observation_index: observationIndex },
+      expectedGeneration: generation,
+      maxRows: 20,
+      maxBytes: 128 * 1024,
+    });
+    const statusHeaders = [
+      "capture_id", "observation_index", "declared_family", "computed_css_stack",
+      "acquisition_index", "state", "failure_code",
+    ];
+    const statusRows = checkedRows(statusResponse, statusHeaders, generation);
+    if (!statusRows.every(validCapturedFontStatusRow)) {
+      throw new Error("Corpus captured font status response was invalid");
+    }
+    if (!statusRows.length) {
+      return json({ error: "captured_font_not_found" }, 404, {}, request, env);
+    }
+    const statusRow = [...statusRows].sort(compareCapturedFontStatusRows)[0];
+    const state = statusRow[5];
+    let faces = [];
+
+    if (state === "searchable" || state === "acquired_without_active_descriptor") {
+      const detailResponse = await queryCorpus(env, {
+        script: CAPTURED_FONT_DETAIL_QUERY,
+        parameters: { capture_id: captureId, observation_index: observationIndex },
+        expectedGeneration: generation,
+        maxRows: 20,
+        maxBytes: 256 * 1024,
+      });
+      const detailHeaders = [
+        "acquisition_index", "content_sha256", "face_index",
+        "variation_coordinates", "descriptor_schema_id", "metadata_family",
+        "metadata_subfamily", "typographic_family", "full_name",
+        "postscript_name", "vendor_name", "version_string", "axis_count",
+        "resolution_state", "logical_face_id", "canonical_family_id",
+        "canonical_family_name",
+      ];
+      const detailRows = checkedRows(detailResponse, detailHeaders, generation);
+      if (!detailRows.every(validCapturedFontDetailRow)) {
+        throw new Error("Corpus captured font detail response was invalid");
+      }
+      faces = detailRows.map(capturedFontFaceResult);
+    }
+
+    return json({
+      observedGeneration: generation,
+      captureId,
+      observationIndex,
+      observation: {
+        declaredFamily: statusRow[2],
+        computedCssStack: statusRow[3],
+      },
+      pipeline: {
+        state,
+        acquisitionIndex: statusRow[4],
+        failureCode: statusRow[6] || null,
+      },
+      previewUrl: statusRow[4] === null
+        ? null
+        : capturedFontPreviewUrl(captureId, observationIndex),
+      faces,
+    }, 200, { "cache-control": "private, max-age=300" }, request, env);
+  } catch (error) {
+    return capturedFontError(error, request, env);
+  }
+}
+
+async function capturedFontSimilarity(url, request, env) {
+  if (hasUnknownParameters(url, ["captureId", "observationIndex", "generation", "limit"])) {
+    return json({ error: "invalid_similarity_request" }, 400, {}, request, env);
+  }
+  const captureId = positiveQueryInteger(url.searchParams.get("captureId"));
+  const observationIndex = nonnegativeQueryInteger(url.searchParams.get("observationIndex"));
+  const generation = positiveQueryInteger(url.searchParams.get("generation"));
+  const limit = boundedQueryInteger(url.searchParams.get("limit"), 8, 1, 20);
+  if (!captureId || observationIndex === null || !generation || !limit) {
+    return json({ error: "invalid_similarity_request" }, 400, {}, request, env);
+  }
+
+  try {
+    const response = await queryCorpus(env, {
+      script: CAPTURED_FONT_SIMILARITY_QUERY,
+      parameters: {
+        capture_id: captureId,
+        observation_index: observationIndex,
+        result_limit: limit,
+        default_coordinates: { $type: "bytes", base64: "" },
+        default_axis_evidence: { $type: "bytes", base64: "" },
+      },
+      expectedGeneration: generation,
+      maxRows: limit,
+      maxBytes: 512 * 1024,
+    });
+    const headers = [
+      "rank", "target_family", "family_id", "family_name", "content_sha256",
+      "face_index", "variation_coordinates", "visual_distance",
+      "metric_distance", "common_glyphs", "monospace_mismatch",
+      "italic_mismatch",
+    ];
+    const rows = checkedRows(response, headers, generation);
+    if (!rows.every(validCapturedFontSimilarityRow)) {
+      throw new Error("Corpus captured font similarity response was invalid");
+    }
+    return json({
+      observedGeneration: response.observedGeneration,
+      target: {
+        captureId,
+        observationIndex,
+        familyName: rows[0]?.[1] ?? null,
+        previewUrl: capturedFontPreviewUrl(captureId, observationIndex),
+      },
+      results: rows.map(capturedFontSimilarityResult),
+    }, 200, { "cache-control": "private, max-age=300" }, request, env);
+  } catch (error) {
+    return similarityError(error, request, env);
+  }
+}
+
+async function familyFontUsage(url, request, env) {
+  if (hasUnknownParameters(url, ["familyId", "generation", "limit"])) {
+    return json({ error: "invalid_family_font_usage_request" }, 400, {}, request, env);
+  }
+  const familyId = positiveQueryInteger(url.searchParams.get("familyId"));
+  const generation = positiveQueryInteger(url.searchParams.get("generation"));
+  const limit = boundedQueryInteger(url.searchParams.get("limit"), 100, 1, 200);
+  if (!familyId || !generation || !limit) {
+    return json({ error: "invalid_family_font_usage_request" }, 400, {}, request, env);
+  }
+
+  try {
+    const response = await queryCorpus(env, {
+      script: CONFIRMED_FAMILY_USAGE_QUERY,
+      parameters: { family_id: familyId, result_limit: limit },
+      expectedGeneration: generation,
+      maxRows: limit,
+      maxBytes: 256 * 1024,
+    });
+    const rows = checkedRows(
+      response,
+      ["capture_id", "observation_index", "declared_family", "usage_evidence"],
+      generation,
+    );
+    if (!rows.every(validFamilyFontUsageRow)) {
+      throw new Error("Corpus confirmed family usage response was invalid");
+    }
+    return json({
+      observedGeneration: response.observedGeneration,
+      familyId,
+      results: rows.map((row) => ({
+        captureId: row[0],
+        observationIndex: row[1],
+        declaredFamily: row[2],
+        usageEvidence: row[3],
+      })),
+    }, 200, { "cache-control": "private, max-age=300" }, request, env);
+  } catch (error) {
+    return familyFontUsageError(error, request, env);
   }
 }
 
@@ -608,6 +800,12 @@ function positiveQueryInteger(value) {
   return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
+function nonnegativeQueryInteger(value) {
+  if (typeof value !== "string" || !/^(?:0|[1-9][0-9]*)$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
 function boundedQueryInteger(value, fallback, minimum, maximum) {
   if (value === null) return fallback;
   const parsed = positiveQueryInteger(value);
@@ -627,7 +825,7 @@ function validFontSimilarityRow(row) {
     && Number.isSafeInteger(row[1])
     && typeof row[2] === "string"
     && Number.isSafeInteger(row[3])
-    && typeof row[4] === "string"
+    && nullableString(row[4])
     && taggedBytes(row[5], 32) !== null
     && Number.isSafeInteger(row[6])
     && row[6] >= 0
@@ -638,6 +836,161 @@ function validFontSimilarityRow(row) {
     && typeof row[11] === "boolean"
     && typeof row[12] === "boolean"
   );
+}
+
+function validCapturedFontStatusRow(row) {
+  return Boolean(
+    Array.isArray(row)
+    && row.length === 7
+    && Number.isSafeInteger(row[0])
+    && row[0] > 0
+    && Number.isSafeInteger(row[1])
+    && row[1] >= 0
+    && typeof row[2] === "string"
+    && typeof row[3] === "string"
+    && (row[4] === null || (Number.isSafeInteger(row[4]) && row[4] >= 0))
+    && typeof row[5] === "string"
+    && typeof row[6] === "string"
+  );
+}
+
+function compareCapturedFontStatusRows(left, right) {
+  const priority = {
+    searchable: 0,
+    acquired_without_active_descriptor: 1,
+    acquired: 2,
+    source_not_acquired: 3,
+    no_source_locator: 4,
+  };
+  const stateDifference = (priority[left[5]] ?? 10) - (priority[right[5]] ?? 10);
+  if (stateDifference !== 0) return stateDifference;
+  return (right[4] ?? -1) - (left[4] ?? -1);
+}
+
+function validCapturedFontDetailRow(row) {
+  return Boolean(
+    Array.isArray(row)
+    && row.length === 17
+    && Number.isSafeInteger(row[0])
+    && row[0] >= 0
+    && taggedBytes(row[1], 32) !== null
+    && Number.isSafeInteger(row[2])
+    && row[2] >= 0
+    && taggedBytes(row[3]) !== null
+    && nullableString(row[4])
+    && row.slice(5, 12).every(nullableString)
+    && Number.isSafeInteger(row[12])
+    && row[12] >= 0
+    && typeof row[13] === "string"
+    && nullableNonnegativeInteger(row[14])
+    && nullablePositiveInteger(row[15])
+    && nullableString(row[16])
+  );
+}
+
+function capturedFontFaceResult(row) {
+  const contentSha256 = taggedBytes(row[1], 32);
+  const variationCoordinates = taggedBytes(row[3]);
+  return {
+    acquisitionIndex: row[0],
+    identity: {
+      contentSha256: base64Url(contentSha256.base64),
+      faceIndex: row[2],
+      variationCoordinates: base64Url(variationCoordinates.base64),
+    },
+    descriptorSchemaId: row[4],
+    metadata: {
+      family: row[5],
+      subfamily: row[6],
+      typographicFamily: row[7],
+      fullName: row[8],
+      postscriptName: row[9],
+      vendorName: row[10],
+      version: row[11],
+      axisCount: row[12],
+    },
+    resolution: {
+      state: row[13],
+      logicalFaceId: row[14],
+      familyId: row[15],
+      familyName: row[16],
+    },
+  };
+}
+
+function validCapturedFontSimilarityRow(row) {
+  return Boolean(
+    Array.isArray(row)
+    && row.length === 12
+    && Number.isSafeInteger(row[0])
+    && row[0] > 0
+    && typeof row[1] === "string"
+    && Number.isSafeInteger(row[2])
+    && row[2] > 0
+    && typeof row[3] === "string"
+    && taggedBytes(row[4], 32) !== null
+    && Number.isSafeInteger(row[5])
+    && row[5] >= 0
+    && taggedBytes(row[6]) !== null
+    && Number.isFinite(row[7])
+    && Number.isFinite(row[8])
+    && Number.isSafeInteger(row[9])
+    && row[9] >= 0
+    && typeof row[10] === "boolean"
+    && typeof row[11] === "boolean"
+  );
+}
+
+function capturedFontSimilarityResult(row) {
+  const contentSha256 = taggedBytes(row[4], 32);
+  const variationCoordinates = taggedBytes(row[6]);
+  const identity = {
+    contentSha256: base64Url(contentSha256.base64),
+    faceIndex: row[5],
+    variationCoordinates: base64Url(variationCoordinates.base64),
+  };
+  const preview = new URL(`https://api.withfudge.com/v1/font-previews/${row[2]}`);
+  preview.searchParams.set("contentSha256", identity.contentSha256);
+  preview.searchParams.set("faceIndex", String(identity.faceIndex));
+  preview.searchParams.set("variationCoordinates", identity.variationCoordinates);
+  preview.searchParams.set("sample", "Hamburgefontsiv 0123456789");
+  preview.searchParams.set("width", "768");
+  return {
+    rank: row[0],
+    familyId: row[2],
+    familyName: row[3],
+    candidateIdentity: identity,
+    previewUrl: preview.href,
+    visualDistance: row[7],
+    metricDistance: row[8],
+    commonGlyphs: row[9],
+    monospaceMismatch: row[10],
+    italicMismatch: row[11],
+  };
+}
+
+function validFamilyFontUsageRow(row) {
+  return Boolean(
+    Array.isArray(row)
+    && row.length === 4
+    && Number.isSafeInteger(row[0])
+    && row[0] > 0
+    && nullableNonnegativeInteger(row[1])
+    && typeof row[2] === "string"
+    && ["confirmed_captured_face", "historical_family_attribution"].includes(row[3])
+  );
+}
+
+function nullableString(value) {
+  return value === null || typeof value === "string";
+}
+
+function nullableNonnegativeInteger(value) {
+  return value === null || (Number.isSafeInteger(value) && value >= 0);
+}
+
+function nullablePositiveInteger(value) {
+  return value === null || (Number.isSafeInteger(value) && value > 0);
 }
 
 function fontSimilarityResult(row) {
@@ -670,6 +1023,15 @@ function fontSimilarityResult(row) {
 
 function representativeFontPreviewUrl(familyId) {
   const preview = new URL(`https://api.withfudge.com/v1/font-previews/${familyId}`);
+  preview.searchParams.set("sample", "Hamburgefontsiv 0123456789");
+  preview.searchParams.set("width", "768");
+  return preview.href;
+}
+
+function capturedFontPreviewUrl(captureId, observationIndex) {
+  const preview = new URL(
+    `https://api.withfudge.com/v1/font-previews/captures/${captureId}/observations/${observationIndex}`,
+  );
   preview.searchParams.set("sample", "Hamburgefontsiv 0123456789");
   preview.searchParams.set("width", "768");
   return preview.href;
@@ -803,6 +1165,22 @@ function fontSourceError(error, request, env) {
   return json({
     error: status === 409 ? "corpus_generation_changed" : "family_font_source_query_failed",
     detail: error instanceof Error ? error.message : "Family font source query failed",
+  }, status, {}, request, env);
+}
+
+function capturedFontError(error, request, env) {
+  const status = error?.status === 409 ? 409 : 502;
+  return json({
+    error: status === 409 ? "corpus_generation_changed" : "captured_font_query_failed",
+    detail: error instanceof Error ? error.message : "Captured font query failed",
+  }, status, {}, request, env);
+}
+
+function familyFontUsageError(error, request, env) {
+  const status = error?.status === 409 ? 409 : 502;
+  return json({
+    error: status === 409 ? "corpus_generation_changed" : "family_font_usage_query_failed",
+    detail: error instanceof Error ? error.message : "Family font usage query failed",
   }, status, {}, request, env);
 }
 

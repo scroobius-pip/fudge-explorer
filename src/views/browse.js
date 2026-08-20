@@ -1,7 +1,7 @@
 import { html, nothing } from "lit";
 import { store } from "../data/store.js";
 import {
-  baseSet, derive, countBy, famResolve, termLabel, termFacet, aggregateTextStyles, captureFamilies,
+  baseSet, derive, countBy, termLabel, termFacet, aggregateTextStyles, captureFamilies,
 } from "../data/indexes.js";
 import { esc, px, specTxt, hex, intHex, norm } from "../data/util.js";
 import { specimenCss } from "../data/fonts.js";
@@ -23,9 +23,7 @@ export const FILTER_ROWS = {
   domains: (ctx, caps) => ctx.rows(countBy(caps, (cid) => [(ctx.idx.cById.get(cid) || [])[1]]), ([origin, n]) =>
     navRow("domain", origin, origin.replace("https://", ""), n + " captures", html`<fudge-favicon .origin=${origin}></fudge-favicon> ${esc(origin.replace("https://", ""))}`), 120),
   families: (ctx, caps) => ctx.rows(countBy(caps, (cid) => [...new Set(captureFamilies(ctx.idx, cid).map(norm))]), ([name, n]) => {
-    const family = famResolve(ctx.idx, name);
-    return family ? navRow("family", family[0], family[1], n + " captures", html`<span class="font-highlight">${esc(family[1])}</span>`)
-      : html`<div class="row" style="cursor:default"><span class="t">${esc(name)}</span><span class="s">${n} captures</span></div>`;
+    return html`<div class="row" style="cursor:default"><span class="t">${esc(name)}</span><span class="s">${n} captures · observed name</span></div>`;
   }, 120),
   text: (ctx, caps) => textStyleRows(ctx, caps),
   terms: (ctx, caps) => ctx.rows(countBy(caps, (cid) => (ctx.idx.termsByCap.get(cid) || []).map(([t]) => t)), ([term, n]) =>
@@ -67,10 +65,9 @@ export const FILTER_ROWS = {
       const fam = row[1];
       const w = row[2];
       const size = row[3];
-      const family = famResolve(ctx.idx, fam);
       return html`
         <div class="row" style="cursor:default">
-          <span class="t">${L.term("typography.role." + role, role)} · ${family ? L.fam(family[0], fam) : esc(fam)}</span>
+          <span class="t">${L.term("typography.role." + role, role)} · ${esc(fam)}</span>
           <span class="s">${w || ""} · ${px(size)}</span>
         </div>
         <div class="type-sample" style=${specimenCss(fam) + ";font-weight:" + (w || 400) + ";font-size:" + Math.min(24, Math.max(13, (size || 14000) / 1000)) + "px"}>${specTxt()}</div>
@@ -105,25 +102,29 @@ export function vBrowse(c, ctx) {
     return { n: title, body };
   }
   if (kind === "fonts") {
-    const names = [...new Set([...idx.capsByFam.keys(), ...D.families.map((f) => norm(f[1]))])].sort();
-    const rows = names.map((k) => {
-      const f = idx.famByNorm.get(k) || (idx.catMatch.get(k) && idx.fById.get(idx.catMatch.get(k)[0]));
-      const uses = idx.capsByFam.get(k) || [];
-      return { k, f, n: uses.length };
-    }).filter((x) => x.n || x.f);
-    const body = ctx.rows(rows.slice(0, 240), ({ k, f, n }) =>
-      (f
-        ? html`
-          <button class="row" data-hop-type="family" data-hop-id=${f[0]} data-hop-label=${f[1].slice(0, 34)}>
-            <span class="t"><span class="font-highlight">${esc(f[1])}</span></span>
-            <span class="s">${n ? n + " captures" : "catalogue"}</span>
-          </button>`
-        : html`<div class="row" style="cursor:default"><span class="t">${esc(k)}</span><span class="s">observed only</span></div>`));
+    const catalogue = D.families.map((family) => ({ kind: "catalogue", name: family[1], family }));
+    const observed = [...idx.capturedFontsByNorm.values()].map((uses) => ({
+      kind: "observed",
+      name: uses[0][2],
+      uses,
+    }));
+    const rows = [...catalogue, ...observed].sort((a, b) => a.name.localeCompare(b.name) || a.kind.localeCompare(b.kind));
+    const body = ctx.rows(rows.slice(0, 240), (row) => row.kind === "catalogue"
+      ? html`
+        <button class="row" data-hop-type="family" data-hop-id=${row.family[0]} data-hop-label=${row.name.slice(0, 34)}>
+          <span class="t"><span class="font-highlight">${esc(row.name)}</span></span>
+          <span class="s">catalogue family #${row.family[0]}</span>
+        </button>`
+      : html`
+        <button class="row" data-hop-type="capturedFont" data-hop-id="${row.uses[0][0]}:${row.uses[0][1]}" data-hop-label=${row.name.slice(0, 34)}>
+          <span class="t"><span class="font-highlight">${esc(row.name)}</span></span>
+          <span class="s">${row.uses.length} captured observation${row.uses.length === 1 ? "" : "s"}</span>
+        </button>`);
     return {
-      n: rows.length + " names",
+      n: rows.length + " entries",
       body: html`
-        <p class="prose">All observed and catalogue font family names, alphabetically.</p>
-        ${section("font names", body, rows.length)}
+        <p class="prose">Captured font observations and catalogue families are listed separately. A shared name is not treated as a confirmed match.</p>
+        ${section("fonts", body, rows.length)}
         ${foot(ctx, c)}`,
     };
   }

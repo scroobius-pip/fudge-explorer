@@ -16,7 +16,7 @@ const bundle = {
       [1, "https://example.com", "/", "Example", 1_750_000_000_000, "https://pin.fontofweb.com/1", "desktop", "light", "unknown", "home", "desktop", 1440, 900, 1, 1440, 900, "key", "image/png", 1440, 900, "contract", 1],
       [2, "https://example.org", "/pricing", "Pricing", 1_751_000_000_000, "https://pin.fontofweb.com/2", "desktop", "dark", "unknown", "home", "desktop", 1440, 900, 1, 1440, 900, "key2", "image/png", 1440, 900, "contract", 1],
     ],
-    families: [],
+    families: [[135, "Geist", null, null]],
     designers: [],
     vendors: [],
     releases: [],
@@ -24,7 +24,7 @@ const bundle = {
     assignments: [],
     color_roles: [],
     backgrounds: [],
-    font_obs: [],
+    font_obs: [[2, 0, "GeistSans", "GeistSans, sans-serif", 400, 600, 1_000_000, 21]],
     type_roles: [],
     text_styles: [],
     hist_fonts: [],
@@ -90,6 +90,30 @@ test.before(() => {
           hist_fonts: [],
         },
         legacyColors: {},
+      });
+    }
+    if (target.includes("/v1/captured-font?")) {
+      return jsonResponse({
+        observedGeneration: 77,
+        captureId: 2,
+        observationIndex: 0,
+        observation: { declaredFamily: "GeistSans", computedCssStack: "GeistSans, sans-serif" },
+        pipeline: { state: "searchable", acquisitionIndex: 0, failureCode: null },
+        previewUrl: "https://api.withfudge.com/v1/font-previews/captures/2/observations/0",
+        faces: [{
+          acquisitionIndex: 0,
+          identity: { contentSha256: "abc", faceIndex: 0, variationCoordinates: "" },
+          descriptorSchemaId: "descriptor-v1",
+          metadata: { family: "Geist", subfamily: "Regular", fullName: "Geist Regular", postscriptName: "Geist-Regular", version: "Version 1.800", axisCount: 1 },
+          resolution: { state: "unresolved", logicalFaceId: null, familyId: null, familyName: null },
+        }],
+      });
+    }
+    if (target.includes("/v1/similar-captured-fonts?")) {
+      return jsonResponse({
+        observedGeneration: 77,
+        target: { captureId: 2, observationIndex: 0, familyName: "GeistSans", previewUrl: "https://api.withfudge.com/v1/font-previews/captures/2/observations/0" },
+        results: [{ rank: 1, familyId: 135, familyName: "Geist", previewUrl: "https://api.withfudge.com/v1/font-previews/135", visualDistance: 0.00039, metricDistance: 0.00011, commonGlyphs: 88 }],
       });
     }
     return new window.Response("not found", { status: 404 });
@@ -218,4 +242,22 @@ test("FudgeExplorer.reload rebuilds the columns from the same bundle", async () 
   await until(() => store.generation === 2);
   assert.equal(document.querySelectorAll("explorer-column").length, 1);
   assert.match(document.querySelector("explorer-column").textContent, /Most used terms/);
+});
+
+test("opens a searchable captured font without inventing a catalogue match", async () => {
+  const { store } = await import("./src/data/store.js");
+  await until(() => store.data != null && !store.loading);
+  store.fresh("capturedFont", "2:0", "GeistSans");
+  await until(() => store.columns.length === 2);
+  await until(() => document.querySelectorAll("explorer-column")[1]?.textContent.includes("ready for visual search"));
+  const column = document.querySelectorAll("explorer-column")[1];
+  assert.match(column.textContent, /GeistSans/);
+  assert.match(column.textContent, /Geist Regular/);
+  assert.match(column.textContent, /No catalogue identity has been confirmed yet/);
+  const similarity = column.querySelector('[data-hop-type="capturedFontLookup"]');
+  assert.ok(similarity);
+  similarity.dispatchEvent(new window.MouseEvent("click", { bubbles: true, composed: true }));
+  await until(() => store.columns.length === 3);
+  await until(() => document.querySelectorAll("explorer-column")[2]?.textContent.includes("Geist"));
+  assert.match(document.querySelectorAll("explorer-column")[2].textContent, /visual 0\.0004/);
 });

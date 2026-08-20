@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { sourceUrlDisplay } from "./src/data/fonts.js";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
-const [storeSrc, mainSrc, htmlSrc, appSrc, fontsSrc, fontPreviewSrc, fontSourceSrc, captureSrc, catalogSrc, termsSrc, metaSrc, sharedSrc, utilSrc, indexesSrc, css] = await Promise.all([
+const [storeSrc, mainSrc, htmlSrc, appSrc, fontsSrc, fontPreviewSrc, fontSourceSrc, captureSrc, catalogSrc, capturedFontSrc, searchSrc, browseSrc, termsSrc, metaSrc, sharedSrc, utilSrc, indexesSrc, css] = await Promise.all([
   read("./src/data/store.js"),
   read("./src/main.js"),
   read("./explorer.html"),
@@ -13,6 +14,9 @@ const [storeSrc, mainSrc, htmlSrc, appSrc, fontsSrc, fontPreviewSrc, fontSourceS
   read("./src/components/font-source.js"),
   read("./src/views/capture.js"),
   read("./src/views/catalog.js"),
+  read("./src/views/captured-font.js"),
+  read("./src/components/explorer-search.js"),
+  read("./src/views/browse.js"),
   read("./src/views/terms.js"),
   read("./src/views/meta.js"),
   read("./src/views/shared.js"),
@@ -34,6 +38,24 @@ test("wires on-demand similarity without adding it to bundle startup", () => {
   assert.match(lookup, /<font-preview releaseFallback \.result=\$\{\{ familyId: target\[0\], familyName: target\[1\]/);
   assert.doesNotMatch(lookup, /specimenCss\(name\)/);
   assert.doesNotMatch(storeSrc, /\/v1\/similar-captures/);
+  assert.match(capturedFontSrc, /"\/v1\/captured-font"/);
+  assert.match(capturedFontSrc, /"\/v1\/similar-captured-fonts"/);
+  assert.match(capturedFontSrc, /No catalogue identity has been confirmed yet/);
+  assert.match(capturedFontSrc, /compare rendered glyph shapes/);
+});
+
+test("keeps captured font observations separate from catalogue identities", () => {
+  assert.match(indexesSrc, /capturedFontsByNorm/);
+  assert.match(searchSrc, /g: "captured fonts"/);
+  assert.match(searchSrc, /store\.fresh\("capturedFont"/);
+  assert.match(captureSrc, /data-hop-type="capturedFont"/);
+  assert.doesNotMatch(captureSrc, /const resolved = m && norm/);
+  assert.match(catalogSrc, /"\/v1\/family-font-usage"/);
+  assert.match(catalogSrc, /linked capture usage/);
+  assert.doesNotMatch(catalogSrc, /idx\.capsByFam\.get\(norm\(f\[1\]\)\)/);
+  assert.match(browseSrc, /A shared name is not treated as a confirmed match/);
+  assert.match(fontSourceSrc, /browser source unavailable/);
+  assert.doesNotMatch(fontSourceSrc, /exact source not retained/);
 });
 
 test("uses imperative live-font loading without changing raster previews", () => {
@@ -45,6 +67,14 @@ test("uses imperative live-font loading without changing raster previews", () =>
   assert.match(fontSourceSrc, /load failed/);
   assert.doesNotMatch(css, /@font-face\{/);
   assert.doesNotMatch(fontsSrc, /@font-face\{/);
+});
+
+test("keeps source credentials out of visible labels and titles", () => {
+  assert.equal(
+    sourceUrlDisplay("https://person:secret@fonts.example.com/private/font.woff2?token=secret#face"),
+    "fonts.example.com/…",
+  );
+  assert.doesNotMatch(fontSourceSrc, /title=\$\{entry\.url\}/);
 });
 
 test("loads effects, term values, and schema columns on demand", () => {

@@ -1,7 +1,7 @@
 import { html, nothing } from "lit";
 import { store } from "../data/store.js";
 import {
-  routeFor, baseSet, derive, aggregateTextStyles, termLabel, famResolve,
+  routeFor, baseSet, derive, aggregateTextStyles, termLabel,
 } from "../data/indexes.js";
 import { esc, rgba, hex, px, intHex, shade, specTxt, norm } from "../data/util.js";
 import { specimenCss } from "../data/fonts.js";
@@ -136,10 +136,7 @@ export function termValueNote(idx, cid, tid) {
     if (c) parts.push(html`<span class="sw" style=${`background:${rgba(c[1], c[2], c[3], c[4])}`}></span>${hex(c[1], c[2], c[3])}`);
   } else if (tid.startsWith("typography.role.")) {
     const f = (idx.typeByCap.get(cid) || []).find((x) => x[0] === tid.slice(16));
-    if (f) {
-      const m = famResolve(idx, f[1]);
-      parts.push(m ? L.fam(m[0], f[1]) : esc(f[1]));
-    }
+    if (f) parts.push(esc(f[1]));
   }
   return parts;
 }
@@ -191,7 +188,7 @@ export function foot(ctx, c) {
   }
   const set = baseSet(store, route);
   const labels = {
-    captures: "captures", domains: "domains", families: "font families", text: "text styles",
+    captures: "captures", domains: "domains", families: "font names", text: "text styles",
     terms: "terms", facets: "facets", colors: "color captures", motion: "motion", video: "video",
   };
   const items = Object.entries(labels).flatMap(([kind, label]) => {
@@ -244,8 +241,7 @@ export function rowObject(key, raw, cid) {
 export function rowVal(idx, key, field, v) {
   if (v == null || v === "") return "—";
   if (field === "declared_family" || field === "family_name") {
-    const m = famResolve(idx, v);
-    return m ? L.fam(m[0], v) : esc(v);
+    return esc(v);
   }
   if (field === "term_id") return L.term(v);
   if (field === "capture_id") {
@@ -275,9 +271,8 @@ export function textStyleRows(ctx, caps) {
     return html`${link} · ${item.captures.size} captures`;
   })}. These are not linked to individual text styles.</div>` : nothing;
   return html`${context}${ctx.rows(aggregateTextStyles(idx, caps), (style) => {
-    const family = style.fam ? famResolve(idx, style.fam) : null;
     const label = style.fam
-      ? (family ? L.fam(family[0], style.fam) : esc(style.fam))
+      ? esc(style.fam)
       : [style.weight, px(style.size)].filter(Boolean).join(" · ") || "text style";
     const meta = [style.captures.size + " captures", style.occurrences + "×", style.lineHeight ? "line " + px(style.lineHeight) : "", style.tracking ? "tracking " + px(style.tracking) : "", style.alignment, style.transform].filter(Boolean).join(" · ");
     const color = style.r != null && style.g != null && style.b != null

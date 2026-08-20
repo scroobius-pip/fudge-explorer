@@ -1,6 +1,5 @@
 import { html, nothing } from "lit";
 import { store } from "../data/store.js";
-import { famResolve } from "../data/indexes.js";
 import { norm } from "../data/util.js";
 import { esc, familyPreviewUrl } from "../data/util.js";
 import {
@@ -10,7 +9,7 @@ import "../components/capture-row.js";
 import "../components/font-preview.js";
 import "../components/font-source.js";
 
-export function vFamily(c, ctx) {
+export async function vFamily(c, ctx) {
   const { idx } = ctx;
   const f = idx.fById.get(c.id);
   if (!f) return { n: null, body: html`<div class="empty">family not found</div>` };
@@ -19,21 +18,22 @@ export function vFamily(c, ctx) {
   const rels = idx.relsById.get(c.id) || [];
   const sameDg = (dg ? idx.fByDesigner.get(dg[0]) || [] : []).filter((x) => x[0] !== f[0]);
   const sameV = (v ? idx.fByVendor.get(v[0]) || [] : []).filter((x) => x[0] !== f[0]);
-  const users = idx.capsByFam.get(norm(f[1])) || [];
-  const dupes = (idx.famGroups.get(norm(f[1])) || []).filter((x) => x[0] !== f[0]);
-  const cooc = new Map();
-  const coocNames = new Map();
-  for (const cid of new Set(users.map(([id]) => id))) {
-    const seen = new Set();
-    for (const [fam2] of idx.fontsByCap.get(cid) || []) {
-      const k = norm(fam2);
-      if (k === norm(f[1]) || seen.has(k)) continue;
-      seen.add(k);
-      cooc.set(k, (cooc.get(k) || 0) + 1);
-      if (!coocNames.has(k)) coocNames.set(k, fam2);
-    }
+  let usagePayload = null;
+  try {
+    usagePayload = await store.loadSimilarity(
+      "family-font-usage:" + f[0],
+      "/v1/family-font-usage",
+      { familyId: f[0], limit: 200 },
+    );
+  } catch (_) {
+    // Keep the catalogue page useful without falling back to name matching.
   }
-  const coocRows = [...cooc.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const usageRows = usagePayload?.results || [];
+  const users = [...new Map(usageRows.map((row) => [row.captureId, {
+    capture: idx.cById.get(row.captureId),
+    usageEvidence: row.usageEvidence,
+  }])).values()].filter((row) => row.capture);
+  const dupes = (idx.famGroups.get(norm(f[1])) || []).filter((x) => x[0] !== f[0]);
   const releaseSource = rels.find((release) => release[4])?.[4] || null;
   const catalogueSource = releaseSource || dg?.[2] || v?.[2] || null;
   const catalogueSourceLabel = releaseSource ? "release source" : dg?.[2] ? "designer source" : v?.[2] ? "vendor source" : "source not retained";
@@ -63,12 +63,9 @@ export function vFamily(c, ctx) {
       <button class="row" data-hop-type="family" data-hop-id=${x[0]} data-hop-label=${x[1].slice(0, 34)}>
         <span class="t">${esc(x[1])}</span><span class="s">#${x[0]}</span>
       </button>`, 8)) : nothing}
-    ${users.length ? section("captures using this family", ctx.rows(users, ([cid]) => capRow(idx.cById.get(cid)), 20), users.length) : nothing}
-    ${coocRows.length ? section("often seen with", ctx.rows(coocRows, ([k, n]) => {
-      const m = famResolve(idx, k);
-      return m ? navRow("family", m[0], m[1], n + " shared captures")
-        : html`<div class="row" style="cursor:default"><span class="t">${esc(coocNames.get(k) || k)}</span><span class="s">observed only · ${n} shared captures</span></div>`;
-    }), "co-occurring") : nothing}
+    ${section("linked capture usage", users.length
+      ? ctx.rows(users, (row) => capRow(row.capture, row.usageEvidence === "confirmed_captured_face" ? "confirmed captured face" : "older family attribution"), 20)
+      : html`<div class="empty">${usagePayload ? "no retained usage is linked to this family" : "linked usage is temporarily unavailable"}</div>`, users.length)}
     ${section("visual similarity", evRow("Visually similar", "compare rendered glyph descriptors", "live", "fontLookup", f[0], "Similar to " + f[1]))}
     ${section("releases", ctx.rows(rels, (r) => html`
       <div class="row" style="cursor:default">

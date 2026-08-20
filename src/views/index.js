@@ -6,6 +6,7 @@ import {
 } from "./capture.js";
 import { vTerm, vFacet } from "./terms.js";
 import { vFamily, vDesigner, vVendor, vFontSim, vFontLookup, vEmbeddings } from "./catalog.js";
+import { vCapturedFont, vCapturedFontLookup } from "./captured-font.js";
 import { vBrowse, vIndex } from "./browse.js";
 
 registerView("home", vHome);
@@ -29,4 +30,6 @@ registerView("relations", vRelations);
 registerView("relation", vRelation);
 registerView("fontSim", vFontSim);
 registerView("fontLookup", vFontLookup);
+registerView("capturedFont", vCapturedFont);
+registerView("capturedFontLookup", vCapturedFontLookup);
 registerView("embeddings", vEmbeddings);

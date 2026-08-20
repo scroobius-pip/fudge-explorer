@@ -1,9 +1,8 @@
 import { html, nothing } from "lit";
 import { store } from "../data/store.js";
 import {
-  aggregateTextStyles, similarCaptures, domainProfile, famResolve, termLabel, termFacet,
+  aggregateTextStyles, similarCaptures, domainProfile, termLabel, termFacet,
 } from "../data/indexes.js";
-import { norm } from "../data/util.js";
 import { esc, rgba, hex, px, fmtDate, fmtDateTime, intHex, specTxt } from "../data/util.js";
 import { specimenCss } from "../data/fonts.js";
 import {
@@ -157,13 +156,11 @@ export function vSection(c, ctx) {
       const occ = row[5];
       const observationIndex = row[6];
       const sharePct = share != null ? (share / 10000).toFixed(share >= 10000 ? 0 : 1) + "%" : "";
-      const m = famResolve(idx, fam);
-      const resolved = m && norm(m[1]) !== norm(fam) ? m[1] : null;
       return html`
-        <button class="row" data-hop-type="row" data-hop-id="${id}|fonts|${i}" data-hop-label="font row ${i + 1}">
+        <button class="row" data-hop-type="capturedFont" data-hop-id="${id}:${observationIndex}" data-hop-label=${String(fam || "captured font").slice(0, 34)}>
           <span class="main">
             <span class="primary"><span class="font-highlight">${esc(fam || "—")}</span></span>
-            ${stack || resolved ? html`<span class="secondary">${stack ? esc(stack) : ""}${stack && resolved ? " · " : ""}${resolved ? html`<b>${esc(resolved)}</b>` : nothing}</span>` : nothing}
+            ${stack ? html`<span class="secondary">${esc(stack)}</span>` : nothing}
           </span>
           <span class="s">${wmin !== wmax ? wmin + "–" + wmax : wmin}${sharePct ? " · " + sharePct : ""}${occ ? " · " + occ + "×" : ""}</span>
         </button>
@@ -182,10 +179,9 @@ export function vSection(c, ctx) {
       const tracking = row[9];
       const occ = row[10];
       const conf = row[12];
-      const m = famResolve(idx, fam);
       return html`
         <button class="row" data-hop-type="row" data-hop-id="${id}|typography|${i}" data-hop-label="type row ${i + 1}">
-          <span class="t">${L.term("typography.role." + role, role)} · ${m ? L.fam(m[0], fam) : esc(fam)}</span>
+          <span class="t">${L.term("typography.role." + role, role)} · ${esc(fam)}</span>
           <span class="s">${w || ""} · ${px(size)}</span>
         </button>
         <div class="type-sample" style=${specimenCss(fam) + ";font-weight:" + (w || 400) + ";font-style:" + (style || "normal") + ";font-size:" + Math.min(24, Math.max(13, (size || 14000) / 1000)) + "px;line-height:" + (lh ? px(lh) : "1.4") + ";letter-spacing:" + (tracking ? px(tracking) : "0")}>${specTxt()}</div>
@@ -219,7 +215,7 @@ export function vSection(c, ctx) {
       const name = row[1];
       const sub = row[2];
       const links = row[3];
-      const m = famResolve(idx, name);
+      const m = idx.fById.get(fid);
       return html`
         <button class="row" data-hop-type="row" data-hop-id="${id}|hist|${i}" data-hop-label="attribution row ${i + 1}">
           <span class="t">${m ? L.fam(m[0], name) : esc(name)}${sub && sub !== name ? " · " + esc(sub) : ""}</span>

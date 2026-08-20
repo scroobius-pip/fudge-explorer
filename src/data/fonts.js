@@ -225,7 +225,12 @@ export function sourceEntry(fam, captureId, observationIndex) {
 }
 
 export function sourceUrlDisplay(url) {
-  return url.replace(/^https?:\/\//, "").replace(/\/[^/]+\.[a-z0-9]+$/i, "/…");
+  try {
+    const parsed = new URL(url);
+    return parsed.host + "/…";
+  } catch (_) {
+    return "source unavailable";
+  }
 }
 
 export function sourceStateLabel(entry) {

@@ -371,6 +371,164 @@ test("fails closed when font similarity omits an exact preview identity", async 
   assert.equal((await response.json()).error, "similarity_query_failed");
 });
 
+test("serves a retained unresolved captured font as a searchable entity", async () => {
+  const requests = [];
+  const env = serviceEnv(async (request) => {
+    const body = await request.json();
+    requests.push(body);
+    if (requests.length === 1) {
+      return queryResponse([
+        "capture_id", "observation_index", "declared_family", "computed_css_stack",
+        "acquisition_index", "state", "failure_code",
+      ], [[11201, 0, "GeistSans", "GeistSans, GeistSans Fallback, Sans-serif", 0, "searchable", ""]]);
+    }
+    return queryResponse([
+      "acquisition_index", "content_sha256", "face_index",
+      "variation_coordinates", "descriptor_schema_id", "metadata_family",
+      "metadata_subfamily", "typographic_family", "full_name",
+      "postscript_name", "vendor_name", "version_string", "axis_count",
+      "resolution_state", "logical_face_id", "canonical_family_id",
+      "canonical_family_name",
+    ], [[
+      0, bytes(32), 0, bytes(0),
+      "swash-coverage-aware-glyph-hog-rank-blend-v2-experimental",
+      "Geist", "Regular", null, "Geist Regular", "Geist-Regular",
+      "Vercel", "Version 1.800", 1, "unresolved", null, null, null,
+    ]]);
+  });
+
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/captured-font?captureId=11201&observationIndex=0&generation=77",
+  ), env);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(requests.length, 2);
+  assert.deepEqual(requests[0].parameters, { capture_id: 11201, observation_index: 0 });
+  assert.equal(requests[0].expectedGeneration, 77);
+  assert.match(requests[1].script, /primary_font_face_metadata_observation/);
+  assert.match(requests[1].script, /acquired_face\[max\(acquisition_index\)/);
+  assert.equal(body.pipeline.state, "searchable");
+  assert.equal(body.observation.declaredFamily, "GeistSans");
+  assert.equal(body.previewUrl, "https://api.withfudge.com/v1/font-previews/captures/11201/observations/0?sample=Hamburgefontsiv+0123456789&width=768");
+  assert.equal(body.faces[0].metadata.family, "Geist");
+  assert.equal(body.faces[0].metadata.version, "Version 1.800");
+  assert.deepEqual(body.faces[0].resolution, {
+    state: "unresolved",
+    logicalFaceId: null,
+    familyId: null,
+    familyName: null,
+  });
+});
+
+test("serves visual candidates for an unresolved captured font", async () => {
+  let forwarded;
+  const env = serviceEnv(async (request) => {
+    forwarded = await request.json();
+    return queryResponse([
+      "rank", "target_family", "family_id", "family_name", "content_sha256",
+      "face_index", "variation_coordinates", "visual_distance",
+      "metric_distance", "common_glyphs", "monospace_mismatch",
+      "italic_mismatch",
+    ], [[1, "GeistSans", 135, "Geist", bytes(32), 0, bytes(0), 0.00039, 0.00011, 88, false, false]]);
+  });
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/similar-captured-fonts?captureId=11201&observationIndex=0&generation=77&limit=8",
+  ), env);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(forwarded.parameters.capture_id, 11201);
+  assert.equal(forwarded.parameters.observation_index, 0);
+  assert.equal(forwarded.parameters.result_limit, 8);
+  assert.equal(forwarded.expectedGeneration, 77);
+  assert.equal(body.target.familyName, "GeistSans");
+  assert.equal(body.results[0].familyId, 135);
+  assert.equal(body.results[0].familyName, "Geist");
+  assert.deepEqual(body.results[0].candidateIdentity, {
+    contentSha256: "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    faceIndex: 0,
+    variationCoordinates: "",
+  });
+});
+
+test("returns retained face metadata before a visual descriptor is ready", async () => {
+  let calls = 0;
+  const env = serviceEnv(async () => {
+    calls += 1;
+    if (calls === 1) {
+      return queryResponse([
+        "capture_id", "observation_index", "declared_family", "computed_css_stack",
+        "acquisition_index", "state", "failure_code",
+      ], [[11187, 1, "Albert Sans Variable", "Albert Sans Variable, sans-serif", 1, "acquired_without_active_descriptor", ""]]);
+    }
+    return queryResponse([
+      "acquisition_index", "content_sha256", "face_index",
+      "variation_coordinates", "descriptor_schema_id", "metadata_family",
+      "metadata_subfamily", "typographic_family", "full_name",
+      "postscript_name", "vendor_name", "version_string", "axis_count",
+      "resolution_state", "logical_face_id", "canonical_family_id",
+      "canonical_family_name",
+    ], [[
+      1, bytes(32), 0, bytes(0), null, "Albert Sans", "Regular", null,
+      "Albert Sans Regular", "AlbertSans-Regular", null, "Version 1", 1,
+      "unresolved", null, null, null,
+    ]]);
+  });
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/captured-font?captureId=11187&observationIndex=1&generation=77",
+  ), env);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(calls, 2);
+  assert.equal(body.pipeline.state, "acquired_without_active_descriptor");
+  assert.equal(body.faces[0].descriptorSchemaId, null);
+  assert.equal(body.faces[0].metadata.family, "Albert Sans");
+  assert.match(body.previewUrl, /\/captures\/11187\/observations\/1/);
+});
+
+test("serves explicit face-linked usage evidence for a catalogue family", async () => {
+  let forwarded;
+  const env = serviceEnv(async (request) => {
+    forwarded = await request.json();
+    return queryResponse(
+      ["capture_id", "observation_index", "declared_family", "usage_evidence"],
+      [[11116, 0, "GeistSans", "confirmed_captured_face"]],
+    );
+  });
+  const response = await worker.fetch(new Request(
+    "https://proxy.test/v1/family-font-usage?familyId=135&generation=77&limit=200",
+  ), env);
+
+  assert.equal(response.status, 200);
+  assert.match(forwarded.script, /state: 'confirmed'/);
+  assert.match(forwarded.script, /primary_font_similarity_attempt/);
+  assert.match(forwarded.script, /capture_historical_font_attribution/);
+  assert.deepEqual((await response.json()).results, [{
+    captureId: 11116,
+    observationIndex: 0,
+    declaredFamily: "GeistSans",
+    usageEvidence: "confirmed_captured_face",
+  }]);
+});
+
+test("rejects malformed captured font requests before querying", async () => {
+  let calls = 0;
+  const env = serviceEnv(async () => { calls += 1; });
+  const urls = [
+    "https://proxy.test/v1/captured-font?captureId=11201&observationIndex=-1&generation=77",
+    "https://proxy.test/v1/captured-font?captureId=0&observationIndex=0&generation=77",
+    "https://proxy.test/v1/similar-captured-fonts?captureId=11201&observationIndex=0&generation=0",
+    "https://proxy.test/v1/family-font-usage?familyId=Geist&generation=77",
+  ];
+  for (const url of urls) {
+    const response = await worker.fetch(new Request(url), env);
+    assert.equal(response.status, 400);
+  }
+  assert.equal(calls, 0);
+});
+
 test("serves Almendra's verified pinned regular face through a bounded route", async () => {
   let forwarded;
   const env = serviceEnv(async (request) => {

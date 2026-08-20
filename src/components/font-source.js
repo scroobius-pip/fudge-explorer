@@ -44,7 +44,7 @@ export class FontSourceElement extends FudgeElement {
   render() {
     const entry = this.__entry;
     if (!entry) {
-      return html`<div class="font-src"><b>fallback</b> exact source not retained · ${esc(safeFontStack(this.stack, this.family))}</div>`;
+      return html`<div class="font-src"><b>browser source unavailable</b> · ${esc(safeFontStack(this.stack, this.family))}</div>`;
     }
     const label = entry.state === "loading" ? "loading source"
       : entry.state === "loaded" ? "src loaded"
@@ -54,9 +54,9 @@ export class FontSourceElement extends FudgeElement {
     const suffix = entry.state === "loaded" ? "" : " · showing fallback";
     const content = html`<b>${label}</b> ${esc(sourceUrlDisplay(entry.url))} · ${esc(entry.format || "")}${suffix}`;
     if (this.inline) {
-      return html`<span class="font-src" data-font-load-state=${entry.state} title=${entry.url} style="margin:0;display:inline">${content}</span>`;
+      return html`<span class="font-src" data-font-load-state=${entry.state} title=${sourceUrlDisplay(entry.url)} style="margin:0;display:inline">${content}</span>`;
     }
-    return html`<div class="font-src" data-font-load-state=${entry.state} title=${entry.url}>${content}</div>`;
+    return html`<div class="font-src" data-font-load-state=${entry.state} title=${sourceUrlDisplay(entry.url)}>${content}</div>`;
   }
 }
 customElements.define("font-source", FontSourceElement);

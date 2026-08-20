@@ -2,7 +2,7 @@ import { html, nothing } from "lit";
 import { FudgeElement } from "./base.js";
 import { store } from "../data/store.js";
 import { termLabel, termFacet } from "../data/indexes.js";
-import { esc, fmtDate } from "../data/util.js";
+import { esc, fmtDate, norm } from "../data/util.js";
 import "./favicon.js";
 
 export class ExplorerSearchElement extends FudgeElement {
@@ -58,12 +58,25 @@ export class ExplorerSearchElement extends FudgeElement {
     const doms = [...idx.cByDomain.keys()].filter((o) => o.includes(s)).slice(0, 6);
     const caps = D.captures.filter((cp) => cp[3].toLowerCase().includes(s) || cp[1].includes(s)).slice(0, 6);
     const fams = D.families.filter((f) => f[1].toLowerCase().includes(s)).slice(0, 6);
+    const observedFonts = [...idx.capturedFontsByNorm.entries()]
+      .filter(([name]) => name.includes(norm(s)))
+      .flatMap(([, rows]) => rows)
+      .slice(0, 8);
     const terms = Object.keys(D.terms).filter((t) => termLabel(D, t).toLowerCase().includes(s) || t.includes(s)).slice(0, 6);
     const facets = [...new Set(Object.values(D.terms).map((t) => t[2]))].filter((f) => f.includes(s) || f.replace(/_/g, " ").includes(s)).slice(0, 6);
     const paths = [...idx.cByPath.keys()].filter((p) => p.includes(s)).slice(0, 4);
     if (doms.length) groups.push({ g: "domains", items: doms.map((o) => ({ origin: o, t: o.replace("https://", ""), s: (idx.cByDomain.get(o) || []).length + " captures", c: "var(--entity-domain)", fn: () => store.fresh("domain", o, o.replace("https://", "")) })) });
     if (caps.length) groups.push({ g: "captures", items: caps.map((cp) => ({ t: cp[3], s: cp[1].replace("https://", "") + " · " + fmtDate(cp[4]), c: "var(--entity-capture)", fn: () => store.fresh("capture", cp[0], cp[3].slice(0, 40)) })) });
     if (fams.length) groups.push({ g: "font families", items: fams.map((f) => ({ t: f[1], s: "#" + f[0], c: "var(--entity-family)", fn: () => store.fresh("family", f[0], f[1].slice(0, 40)) })) });
+    if (observedFonts.length) groups.push({ g: "captured fonts", items: observedFonts.map(([captureId, observationIndex, family]) => {
+      const capture = idx.cById.get(captureId);
+      return {
+        t: family,
+        s: capture ? `${capture[1].replace("https://", "")} · capture #${captureId}` : `capture #${captureId}`,
+        c: "var(--entity-family)",
+        fn: () => store.fresh("capturedFont", `${captureId}:${observationIndex}`, family.slice(0, 40)),
+      };
+    }) });
     if (terms.length) groups.push({ g: "terms", items: terms.map((t) => ({ t: termLabel(D, t), s: termFacet(D, t), c: "var(--entity-term)", fn: () => store.fresh("term", t, String(termLabel(D, t)).slice(0, 40)) })) });
     if (facets.length) groups.push({ g: "facets", items: facets.map((f) => ({ t: f.replace(/_/g, " "), s: "facet", c: "var(--entity-facet)", fn: () => store.fresh("facet", f, f) })) });
     if (paths.length) groups.push({ g: "paths", items: paths.map((p) => ({ t: p || "/", s: (idx.cByPath.get(p) || []).length + " captures", c: "var(--entity-neutral)", fn: () => store.fresh("browse", "path", p) })) });
