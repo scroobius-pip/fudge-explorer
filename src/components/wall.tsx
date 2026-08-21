@@ -293,6 +293,7 @@ function Scene({
             }}
             interactive={activeLayer}
             loadTextures={activeLayer && !traveling}
+            playVideos={activeLayer && !traveling}
           />
         );
       })}
@@ -310,6 +311,7 @@ function LayerFrames({
   onHover,
   interactive,
   loadTextures,
+  playVideos,
 }: {
   snapshot: ViewSnapshot;
   visibleIds: Set<number>;
@@ -320,6 +322,7 @@ function LayerFrames({
   onHover: (id: number | null) => void;
   interactive: boolean;
   loadTextures: boolean;
+  playVideos: boolean;
 }) {
   const byId = useMemo(
     () => new Map(snapshot.captures.map((capture) => [capture.id, capture])),
@@ -332,7 +335,7 @@ function LayerFrames({
         null);
   const renderedIds = new Set(visibleIds);
   if (focusedId != null) renderedIds.add(focusedId);
-  const playVisibleVideos = interactive && visibleIds.size <= 50;
+  const playVisibleVideos = interactive && playVideos && visibleIds.size <= 50;
 
   return snapshot.slots.map((slot, index) => {
     if (!renderedIds.has(slot.id)) return null;
@@ -408,7 +411,8 @@ function focusTarget(
   focusWindow: FocusWindow,
 ) {
   const v = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-  const halfH = distance * v;
+  const frameDistance = Math.max(0.1, distance - 0.28);
+  const halfH = frameDistance * v;
   const halfW = halfH * Math.max(0.5, aspect);
   const ndcX = (focusWindow.x + focusWindow.width / 2) * 2 - 1;
   const ndcY = 1 - (focusWindow.y + focusWindow.height / 2) * 2;
