@@ -19,5 +19,17 @@ binding = "FUDGE_SERVICE"
 service = "fudge-production"
 entrypoint = "FudgeInternal"
 
+[[unsafe.bindings]]
+name = "SEMANTIC_TEXT_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "2001"
+simple = { limit = 20, period = 60 }
+
+[[unsafe.bindings]]
+name = "SEMANTIC_IMAGE_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "2002"
+simple = { limit = 6, period = 60 }
+
 [observability.logs]
 enabled = true

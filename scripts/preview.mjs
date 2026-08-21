@@ -1,7 +1,6 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
-import worker from "../worker.js";
 
 const ROOT = new URL("../public/", import.meta.url);
 const UPSTREAM = "https://explorer.withfudge.com";
@@ -16,14 +15,26 @@ const TYPES = {
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://localhost");
-    if (
-      url.pathname === "/v1/family-font-source"
-      || (url.pathname === "/v1/query" && req.method === "GET")
-    ) {
-      const response = await worker.fetch(new Request(url, { headers: req.headers }), {
-        FUDGE_SERVICE: { fetch: productionQuery },
+    const mediaMatch = url.pathname.match(/^\/v1\/media\/([1-9]\d*)(\.webm)?$/);
+    if (mediaMatch) {
+      const upstream = await fetch(
+        `https://pin.fontofweb.com/${mediaMatch[1]}${mediaMatch[2] || ""}`,
+      );
+      res.writeHead(upstream.status, {
+        "content-type": upstream.headers.get("content-type") || "application/octet-stream",
+        "cache-control": "public, max-age=86400",
       });
-      await sendResponse(res, response);
+      if (!upstream.body) {
+        res.end();
+        return;
+      }
+      const reader = upstream.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(Buffer.from(value));
+      }
+      res.end();
       return;
     }
     if (url.pathname.startsWith("/v1/")) {
@@ -33,13 +44,24 @@ createServer(async (req, res) => {
           accept: req.headers.accept || "*/*",
           "content-type": req.headers["content-type"] || "application/json",
         },
-        body: req.method === "GET" ? undefined : await readBody(req),
+        body: req.method === "GET" || req.method === "HEAD" ? undefined : await readBody(req),
       });
       res.writeHead(upstream.status, {
         "content-type": upstream.headers.get("content-type") || "application/json",
         "cache-control": upstream.headers.get("cache-control") || "no-store",
       });
-      res.end(Buffer.from(await upstream.arrayBuffer()));
+      res.flushHeaders?.();
+      if (!upstream.body) {
+        res.end();
+        return;
+      }
+      const reader = upstream.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(Buffer.from(value));
+      }
+      res.end();
       return;
     }
     let path = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
@@ -58,34 +80,6 @@ createServer(async (req, res) => {
 }).listen(PORT, () => {
   console.log(`Explorer preview: http://localhost:${PORT} (proxying /v1/* to ${UPSTREAM})`);
 });
-
-async function productionQuery(request) {
-  const query = await request.json();
-  const { maxRows, maxBytes, ...body } = query;
-  return fetch(UPSTREAM + "/v1/query", {
-    method: "POST",
-    headers: { accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify({
-      ...body,
-      limits: { maxRows, maxBytes },
-    }),
-  });
-}
-
-async function sendResponse(res, response) {
-  res.writeHead(response.status, Object.fromEntries(response.headers));
-  if (!response.body) {
-    res.end();
-    return;
-  }
-  const reader = response.body.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    res.write(Buffer.from(value));
-  }
-  res.end();
-}
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
