@@ -1,7 +1,7 @@
 import {
   buildExplorerBootstrap,
-  buildExplorerBundle,
   buildExplorerDetails,
+  readExplorerGeneration,
 } from "./explorer-bundle.js";
 import {
   CAPTURE_EVIDENCE_QUERY,
@@ -34,7 +34,6 @@ const FAMILY_FONT_USAGE_PATH = "/v1/family-font-usage";
 const SEMANTIC_TEXT_PATH = "/v1/semantic-search/text";
 const SEMANTIC_IMAGE_PATH = "/v1/semantic-search/image";
 
-const EXPLORER_STREAM_MEDIA_TYPE = "application/x-fudge-explorer-stream";
 const INTERNAL_QUERY_URL = "https://fudge.internal/v1/internal/corpus/query";
 const INTERNAL_SEMANTIC_TEXT_URL =
   "https://fudge.internal/v1/internal/corpus/semantic-search/text";
@@ -46,24 +45,28 @@ const MAX_ROWS = 2_000;
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_SEMANTIC_TEXT_BYTES = 2 * 1024;
 const MAX_SEMANTIC_IMAGE_BYTES = 4 * 1024 * 1024;
-const SEMANTIC_RESULT_LIMIT = 12;
+const SEMANTIC_RESULT_LIMIT = 100;
 const encoder = new TextEncoder();
 const BUNDLE_TTL_MS = 5 * 60 * 1000;
-let bundleCache;
-let bundleExpiresAt = 0;
-let bundleLoad;
+const BOOTSTRAP_CACHE_CONTROL =
+  "public, max-age=300, s-maxage=900, stale-while-revalidate=3600";
+const CORPUS_ARTIFACT_CONTRACT = "fudge-explorer-artifact-v1";
+const CORPUS_ARTIFACT_PREFIX = "explorer/corpus/v1";
+const CORPUS_MANIFEST_KEY = `${CORPUS_ARTIFACT_PREFIX}/current.json`;
+let artifactRefresh;
+let artifactManifest;
+let artifactManifestExpiresAt = 0;
+let artifactManifestBucket;
 let bootstrapCache;
 let bootstrapExpiresAt = 0;
 let bootstrapLoad;
-let bootstrapProgress;
-const bootstrapProgressListeners = new Set();
 let detailsCache;
 let detailsExpiresAt = 0;
 let detailsGeneration;
 let detailsLoad;
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const mediaMatch = url.pathname.match(/^\/v1\/media\/([1-9]\d*)(\.webm)?$/);
     if (mediaMatch) {
@@ -164,7 +167,16 @@ export default {
     }
     if (request.method === "GET") {
       const phase = url.searchParams.get("phase");
-      if (phase !== null && phase !== "bootstrap" && phase !== "details") {
+      if (phase === null) {
+        return json(
+          { error: "explorer_phase_required" },
+          400,
+          {},
+          request,
+          env,
+        );
+      }
+      if (phase !== "bootstrap" && phase !== "details") {
         return json({ error: "invalid_explorer_phase" }, 400, {}, request, env);
       }
       if (phase === "bootstrap" && hasUnknownParameters(url, ["phase"])) {
@@ -183,38 +195,53 @@ export default {
       if (phase === "details" && !generation) {
         return json({ error: "invalid_explorer_phase" }, 400, {}, request, env);
       }
-      if (
-        phase === "bootstrap" &&
-        request.headers.get("accept")?.includes(EXPLORER_STREAM_MEDIA_TYPE)
-      ) {
-        return streamBootstrap(request, env);
+
+      if (env.CORPUS_ARTIFACTS) {
+        try {
+          let artifact = await readCorpusArtifact(
+            env,
+            phase,
+            generation,
+            request,
+          );
+          if (!artifact) {
+            await refreshCorpusArtifacts(env);
+            artifact = await readCorpusArtifact(
+              env,
+              phase,
+              generation,
+              request,
+            );
+          }
+          if (artifact) return artifact;
+        } catch (error) {
+          console.error("Explorer artifact read failed", error);
+        }
       }
+
       try {
         const bundle =
           phase === "bootstrap"
             ? await loadBootstrap(env)
-            : phase === "details"
-              ? await loadDetails(env, generation)
-              : await loadBundle(env);
+            : await loadDetails(env, generation);
         return json(
           bundle,
           200,
           {
-            "cache-control": "private, max-age=300",
+            "cache-control":
+              phase === "bootstrap"
+                ? BOOTSTRAP_CACHE_CONTROL
+                : "private, max-age=300",
             "x-fudge-corpus-generation": String(
               bundle.data.observed_generation,
             ),
+            "x-fudge-corpus-source": "live",
           },
           request,
           env,
         );
       } catch (error) {
         const status = error?.status === 409 ? 409 : 502;
-        if (status === 409 && phase === "details") {
-          bootstrapCache = undefined;
-          bootstrapExpiresAt = 0;
-          bootstrapProgress = undefined;
-        }
         return json(
           {
             error:
@@ -281,6 +308,10 @@ export default {
         env,
       );
     }
+  },
+  async scheduled(_controller, env, ctx) {
+    if (!env.CORPUS_ARTIFACTS || !env.FUDGE_SERVICE) return;
+    ctx.waitUntil(refreshCorpusArtifactsIfNeeded(env));
   },
 };
 
@@ -1158,7 +1189,7 @@ async function captureSimilarity(url, request, env) {
   }
   const captureId = positiveQueryInteger(url.searchParams.get("captureId"));
   const generation = positiveQueryInteger(url.searchParams.get("generation"));
-  const limit = boundedQueryInteger(url.searchParams.get("limit"), 12, 1, 24);
+  const limit = boundedQueryInteger(url.searchParams.get("limit"), 100, 1, 100);
   if (!captureId || !generation || !limit) {
     return json({ error: "invalid_similarity_request" }, 400, {}, request, env);
   }
@@ -1219,8 +1250,8 @@ async function captureSimilarity(url, request, env) {
       const response = await queryCorpus(env, {
         script: captureSimilarityQuery(indexName, limit),
         parameters: { capture_id: captureId, query },
-        maxRows: limit,
-        maxBytes: 256 * 1024,
+        maxRows: limit + 1,
+        maxBytes: 1024 * 1024,
       });
       const rows = checkedRows(
         response,
@@ -1263,37 +1294,172 @@ async function captureSimilarity(url, request, env) {
   }
 }
 
-async function loadBundle(env) {
-  if (bundleCache && Date.now() < bundleExpiresAt) return bundleCache;
-  if (!bundleLoad) {
-    bundleLoad = buildExplorerBundle((query) => queryCorpus(env, query))
-      .then((bundle) => {
-        bundleCache = bundle;
-        bundleExpiresAt = Date.now() + BUNDLE_TTL_MS;
-        return bundle;
-      })
-      .finally(() => {
-        bundleLoad = null;
-      });
+function corpusArtifactKey(generation, phase) {
+  return `${CORPUS_ARTIFACT_PREFIX}/${generation}/${phase}.json.gz`;
+}
+
+function validCorpusManifest(value) {
+  return Boolean(
+    value &&
+    value.contractVersion === CORPUS_ARTIFACT_CONTRACT &&
+    Number.isSafeInteger(value.generation) &&
+    value.generation > 0 &&
+    typeof value.builtAt === "string" &&
+    typeof value.bootstrap?.key === "string" &&
+    typeof value.details?.key === "string",
+  );
+}
+
+async function readCorpusManifest(env, fresh = false) {
+  if (
+    !fresh &&
+    artifactManifestBucket === env.CORPUS_ARTIFACTS &&
+    artifactManifest &&
+    Date.now() < artifactManifestExpiresAt
+  ) {
+    return artifactManifest;
   }
-  return bundleLoad;
+  const object = await env.CORPUS_ARTIFACTS.get(CORPUS_MANIFEST_KEY);
+  if (!object) return null;
+  const value = await object.json().catch(() => null);
+  if (!validCorpusManifest(value)) return null;
+  artifactManifest = value;
+  artifactManifestBucket = env.CORPUS_ARTIFACTS;
+  artifactManifestExpiresAt = Date.now() + 30_000;
+  return value;
+}
+
+async function readCorpusArtifact(env, phase, generation, request) {
+  const manifest = phase === "bootstrap" ? await readCorpusManifest(env) : null;
+  const artifactGeneration =
+    phase === "bootstrap" ? manifest?.generation : generation;
+  if (!artifactGeneration) return null;
+  const key =
+    phase === "bootstrap"
+      ? manifest.bootstrap.key
+      : corpusArtifactKey(artifactGeneration, "details");
+  const object = await env.CORPUS_ARTIFACTS.get(key);
+  if (!object) return null;
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("content-type", "application/gzip");
+  headers.delete("content-encoding");
+  headers.set("content-length", String(object.size));
+  headers.set("x-fudge-artifact-encoding", "gzip");
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("x-fudge-compressed-content-length", String(object.size));
+  headers.set(
+    "cache-control",
+    phase === "bootstrap"
+      ? BOOTSTRAP_CACHE_CONTROL
+      : "public, max-age=31536000, immutable",
+  );
+  headers.set("etag", object.httpEtag);
+  headers.set("x-fudge-corpus-generation", String(artifactGeneration));
+  headers.set("x-fudge-corpus-source", "artifact");
+  const uncompressedBytes = object.customMetadata?.uncompressedBytes;
+  if (uncompressedBytes) {
+    headers.set("x-uncompressed-content-length", uncompressedBytes);
+  }
+  applyCors(headers, request);
+  if (request.headers.get("if-none-match") === object.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(object.body, { status: 200, headers });
+}
+
+async function gzipText(text) {
+  const compressed = new Blob([text])
+    .stream()
+    .pipeThrough(new CompressionStream("gzip"));
+  return new Uint8Array(await new Response(compressed).arrayBuffer());
+}
+
+async function writeCorpusArtifact(env, generation, phase, bundle) {
+  const text = JSON.stringify(bundle);
+  const bytes = await gzipText(text);
+  const key = corpusArtifactKey(generation, phase);
+  await env.CORPUS_ARTIFACTS.put(key, bytes, {
+    httpMetadata: {
+      contentType: "application/json; charset=utf-8",
+      contentEncoding: "gzip",
+      cacheControl: "public, max-age=31536000, immutable",
+    },
+    customMetadata: {
+      contractVersion: CORPUS_ARTIFACT_CONTRACT,
+      generation: String(generation),
+      phase,
+      uncompressedBytes: String(encoder.encode(text).byteLength),
+    },
+  });
+  return {
+    key,
+    compressedBytes: bytes.byteLength,
+    uncompressedBytes: encoder.encode(text).byteLength,
+  };
+}
+
+async function refreshCorpusArtifacts(env) {
+  if (artifactRefresh) return artifactRefresh;
+  artifactRefresh = (async () => {
+    const bootstrap = await buildExplorerBootstrap((query) =>
+      queryCorpus(env, query),
+    );
+    const generation = bootstrap.data.observed_generation;
+    const details = await buildExplorerDetails(
+      (query) => queryCorpus(env, query),
+      generation,
+    );
+    const [bootstrapArtifact, detailsArtifact] = await Promise.all([
+      writeCorpusArtifact(env, generation, "bootstrap", bootstrap),
+      writeCorpusArtifact(env, generation, "details", details),
+    ]);
+    const manifest = {
+      contractVersion: CORPUS_ARTIFACT_CONTRACT,
+      generation,
+      builtAt: new Date().toISOString(),
+      bootstrap: bootstrapArtifact,
+      details: detailsArtifact,
+    };
+    await env.CORPUS_ARTIFACTS.put(
+      CORPUS_MANIFEST_KEY,
+      JSON.stringify(manifest),
+      {
+        httpMetadata: {
+          contentType: "application/json; charset=utf-8",
+          cacheControl: "no-cache",
+        },
+      },
+    );
+    artifactManifest = manifest;
+    artifactManifestBucket = env.CORPUS_ARTIFACTS;
+    artifactManifestExpiresAt = Date.now() + 30_000;
+    bootstrapCache = bootstrap;
+    bootstrapExpiresAt = Date.now() + BUNDLE_TTL_MS;
+    detailsCache = details;
+    detailsGeneration = generation;
+    detailsExpiresAt = Date.now() + BUNDLE_TTL_MS;
+    return manifest;
+  })().finally(() => {
+    artifactRefresh = null;
+  });
+  return artifactRefresh;
+}
+
+async function refreshCorpusArtifactsIfNeeded(env) {
+  const [manifest, generation] = await Promise.all([
+    readCorpusManifest(env, true),
+    readExplorerGeneration((query) => queryCorpus(env, query)),
+  ]);
+  if (manifest?.generation === generation) return manifest;
+  return refreshCorpusArtifacts(env);
 }
 
 async function loadBootstrap(env) {
-  return loadBootstrapWithProgress(env);
-}
-
-async function loadBootstrapWithProgress(env, onProgress) {
-  if (bootstrapCache && Date.now() < bootstrapExpiresAt) {
-    onProgress?.({ completed: 1, total: 1, label: "Loaded Explorer bundle" });
-    return bootstrapCache;
-  }
+  if (bootstrapCache && Date.now() < bootstrapExpiresAt) return bootstrapCache;
   if (!bootstrapLoad) {
-    bootstrapProgress = undefined;
-    bootstrapLoad = buildExplorerBootstrap(
-      (query) => queryCorpus(env, query),
-      reportBootstrapProgress,
-    )
+    bootstrapLoad = buildExplorerBootstrap((query) => queryCorpus(env, query))
       .then((bundle) => {
         bootstrapCache = bundle;
         bootstrapExpiresAt = Date.now() + BUNDLE_TTL_MS;
@@ -1303,79 +1469,7 @@ async function loadBootstrapWithProgress(env, onProgress) {
         bootstrapLoad = null;
       });
   }
-  if (onProgress) {
-    bootstrapProgressListeners.add(onProgress);
-    if (bootstrapProgress) onProgress(bootstrapProgress);
-  }
-  try {
-    return await bootstrapLoad;
-  } finally {
-    if (onProgress) bootstrapProgressListeners.delete(onProgress);
-  }
-}
-
-function reportBootstrapProgress(progress) {
-  bootstrapProgress = progress;
-  for (const listener of bootstrapProgressListeners) listener(progress);
-}
-
-function streamBootstrap(request, env) {
-  const { readable, writable } = new TransformStream();
-  const writer = writable.getWriter();
-  let writes = Promise.resolve();
-  const send = (event) => {
-    writes = writes.then(() =>
-      writer.write(encoder.encode(JSON.stringify(event) + "\n")),
-    );
-  };
-  void (async () => {
-    try {
-      const bundle = await loadBootstrapWithProgress(env, (progress) => {
-        send({ type: "progress", ...progress });
-      });
-      await writes;
-      const text = JSON.stringify(bundle);
-      const bytes = encoder.encode(text);
-      await writer.write(
-        encoder.encode(
-          JSON.stringify({ type: "bundle", bytes: bytes.byteLength }) + "\n",
-        ),
-      );
-      await writer.write(bytes);
-    } catch (error) {
-      const status = error?.status === 409 ? 409 : 502;
-      try {
-        await writes;
-        await writer.write(
-          encoder.encode(
-            JSON.stringify({
-              type: "error",
-              status,
-              error:
-                status === 409
-                  ? "corpus_generation_changed"
-                  : "explorer_bundle_failed",
-              detail:
-                error instanceof Error
-                  ? error.message
-                  : "Bundle construction failed",
-            }) + "\n",
-          ),
-        );
-      } catch (_) {}
-    } finally {
-      try {
-        await writer.close();
-      } catch (_) {}
-    }
-  })();
-  const headers = new Headers({
-    "cache-control": "private, no-store, no-transform",
-    "content-type": EXPLORER_STREAM_MEDIA_TYPE,
-    "x-content-type-options": "nosniff",
-  });
-  applyCors(headers, request);
-  return new Response(readable, { status: 200, headers });
+  return bootstrapLoad;
 }
 
 async function loadDetails(env, generation) {

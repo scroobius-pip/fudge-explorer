@@ -87,6 +87,62 @@ test("forwards a bounded query through the private Fudge service", async () => {
     contractVersion: "mnestic-query-v1",
   });
 });
+test("returns up to one hundred public semantic matches", async () => {
+  let forwarded;
+  const rows = Array.from({ length: 100 }, (_, index) => [
+    index + 1,
+    index / 100,
+    `Capture ${index + 1}`,
+    "https://example.com",
+    `/${index + 1}`,
+    "semantic_text",
+  ]);
+  const env = {
+    SEMANTIC_TEXT_RATE_LIMITER: {
+      limit: async () => ({ success: true }),
+    },
+    FUDGE_SERVICE: {
+      async fetch(request) {
+        forwarded = {
+          url: request.url,
+          body: await request.json(),
+        };
+        return Response.json({
+          observedGeneration: 77,
+          result: {
+            headers: [
+              "capture_id",
+              "distance",
+              "title",
+              "origin",
+              "path",
+              "match_type",
+            ],
+            rows,
+          },
+          truncated: false,
+        });
+      },
+    },
+  };
+  const response = await worker.fetch(
+    new Request("https://proxy.test/v1/semantic-search/text", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query: "editorial pricing" }),
+    }),
+    env,
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(forwarded, {
+    url: "https://fudge.internal/v1/internal/corpus/semantic-search/text",
+    body: { query: "editorial pricing" },
+  });
+  assert.equal(body.results.length, 100);
+  assert.equal(body.results[99].captureId, 100);
+});
 
 test("applies safe defaults without changing the script", async () => {
   let forwardedBody;
@@ -183,7 +239,7 @@ test("only enables CORS for the configured Explorer origin", async () => {
   assert.equal(rejected.headers.get("access-control-allow-origin"), null);
 });
 
-test("serves a materialized Explorer bundle from GET /v1/query", async () => {
+test("requires an explicit Explorer phase for GET /v1/query", async () => {
   const { EXPLORER_QUERIES } = await import("./explorer-bundle.js");
   const serviceCalls = [];
   const env = {
@@ -224,19 +280,9 @@ test("serves a materialized Explorer bundle from GET /v1/query", async () => {
   );
   const body = await response.json();
 
-  assert.equal(response.status, 200);
-  assert.equal(
-    response.headers.get("access-control-allow-origin"),
-    "https://proxy.test",
-  );
-  assert.equal(response.headers.get("x-fudge-corpus-generation"), "77");
-  assert.equal(serviceCalls[0].expectedGeneration, undefined);
-  assert.ok(
-    serviceCalls.every((call) => call.expectedGeneration === undefined),
-  );
-  assert.deepEqual(body.data.captures, []);
-  assert.deepEqual(body.data.terms, {});
-  assert.deepEqual(body.relations, []);
+  assert.equal(response.status, 400);
+  assert.deepEqual(body, { error: "explorer_phase_required" });
+  assert.equal(serviceCalls.length, 0);
 });
 
 test("serves unfenced bootstrap and detail phases", async () => {
@@ -299,58 +345,174 @@ test("serves unfenced bootstrap and detail phases", async () => {
   assert.equal(details.data.observed_generation, 77);
 });
 
-test("streams real bootstrap work before the exact bundle bytes", async () => {
-  const { EXPLORER_QUERIES } = await import("./explorer-bundle.js");
-  const env = serviceEnv(async (request) => {
-    const body = await request.json();
-    if (body.script.includes("count(capture_id)")) {
-      return queryResponse(["count(capture_id)"], [[0]]);
-    }
-    const spec = Object.values(EXPLORER_QUERIES).find(
-      (candidate) => candidate.script === body.script,
+test("serves generation-keyed compressed corpus artifacts without live queries", async () => {
+  const bootstrap = {
+    data: { observed_generation: 77, captures: [] },
+  };
+  const details = {
+    data: {
+      observed_generation: 77,
+      assignments: [],
+      backgrounds: [],
+      text_styles: [],
+      hist_fonts: [],
+    },
+    legacyColors: {},
+  };
+  const compress = async (value) => {
+    const stream = new Blob([JSON.stringify(value)])
+      .stream()
+      .pipeThrough(new CompressionStream("gzip"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  };
+  const bootstrapBytes = await compress(bootstrap);
+  const detailsBytes = await compress(details);
+  const manifest = {
+    contractVersion: "fudge-explorer-artifact-v1",
+    generation: 77,
+    builtAt: new Date().toISOString(),
+    bootstrap: {
+      key: "explorer/corpus/v1/77/bootstrap.json.gz",
+    },
+    details: {
+      key: "explorer/corpus/v1/77/details.json.gz",
+    },
+  };
+  const objects = new Map([
+    ["explorer/corpus/v1/current.json", JSON.stringify(manifest)],
+    [manifest.bootstrap.key, bootstrapBytes],
+    [manifest.details.key, detailsBytes],
+  ]);
+  const bucket = {
+    async get(key) {
+      const value = objects.get(key);
+      if (value == null) return null;
+      if (key.endsWith("current.json")) {
+        return { json: async () => JSON.parse(value) };
+      }
+      const bytes = value;
+      return {
+        body: new Blob([bytes]).stream(),
+        size: bytes.byteLength,
+        httpEtag: `"${key}"`,
+        customMetadata: {
+          uncompressedBytes: String(
+            key.includes("bootstrap")
+              ? JSON.stringify(bootstrap).length
+              : JSON.stringify(details).length,
+          ),
+        },
+        writeHttpMetadata(headers) {
+          headers.set("content-type", "application/json");
+          headers.set("content-encoding", "gzip");
+        },
+      };
+    },
+  };
+  let liveQueries = 0;
+  const env = {
+    CORPUS_ARTIFACTS: bucket,
+    FUDGE_SERVICE: {
+      async fetch() {
+        liveQueries += 1;
+        throw new Error("unexpected live query");
+      },
+    },
+  };
+  const read = async (url) => {
+    const response = await worker.fetch(new Request(url), env);
+    const decompressed = response.body.pipeThrough(
+      new DecompressionStream("gzip"),
     );
-    assert.ok(spec);
-    return queryResponse(spec.headers, []);
-  });
-  const response = await worker.fetch(
-    new Request("https://phase-stream.test/v1/query?phase=bootstrap", {
-      headers: { accept: "application/x-fudge-explorer-stream" },
-    }),
+    return {
+      response,
+      body: JSON.parse(await new Response(decompressed).text()),
+    };
+  };
+
+  const bootstrapResult = await read(
+    "https://artifact.test/v1/query?phase=bootstrap",
+  );
+  const detailsResult = await read(
+    "https://artifact.test/v1/query?phase=details&generation=77",
+  );
+
+  assert.equal(bootstrapResult.response.status, 200);
+  assert.equal(
+    bootstrapResult.response.headers.get("x-fudge-corpus-source"),
+    "artifact",
+  );
+  assert.deepEqual(bootstrapResult.body, bootstrap);
+  assert.deepEqual(detailsResult.body, details);
+  assert.equal(liveQueries, 0);
+});
+
+test("builds and persists missing corpus artifacts before serving them", async () => {
+  const { EXPLORER_QUERIES } = await import("./explorer-bundle.js");
+  const stored = new Map();
+  const bucket = {
+    async get(key) {
+      const entry = stored.get(key);
+      if (!entry) return null;
+      if (key.endsWith("current.json")) {
+        return { json: async () => JSON.parse(entry.value) };
+      }
+      const bytes = entry.value;
+      return {
+        body: new Blob([bytes]).stream(),
+        size: bytes.byteLength,
+        httpEtag: `"${key}"`,
+        customMetadata: entry.options?.customMetadata,
+        writeHttpMetadata(headers) {
+          headers.set("content-type", "application/json");
+          headers.set("content-encoding", "gzip");
+        },
+      };
+    },
+    async put(key, value, options) {
+      stored.set(key, { value, options });
+    },
+  };
+  let liveQueries = 0;
+  const env = {
+    CORPUS_ARTIFACTS: bucket,
+    FUDGE_SERVICE: {
+      async fetch(request) {
+        liveQueries += 1;
+        const body = await request.json();
+        if (body.script.includes("count(capture_id)")) {
+          return queryResponse(["count(capture_id)"], [[0]]);
+        }
+        const spec = Object.values(EXPLORER_QUERIES).find(
+          (candidate) => candidate.script === body.script,
+        );
+        assert.ok(spec);
+        return queryResponse(spec.headers, []);
+      },
+    },
+  };
+
+  const first = await worker.fetch(
+    new Request("https://artifact-build.test/v1/query?phase=bootstrap"),
     env,
   );
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  const newline = bytes.indexOf(10);
-  assert.equal(response.status, 200);
-  assert.match(
-    response.headers.get("content-type"),
-    /application\/x-fudge-explorer-stream/,
-  );
-  assert.equal(
-    response.headers.get("cache-control"),
-    "private, no-store, no-transform",
-  );
-  assert.ok(newline > 0);
+  assert.equal(first.status, 200);
+  assert.equal(first.headers.get("x-fudge-corpus-source"), "artifact");
+  assert.ok(stored.has("explorer/corpus/v1/current.json"));
+  assert.ok(stored.has("explorer/corpus/v1/77/bootstrap.json.gz"));
+  assert.ok(stored.has("explorer/corpus/v1/77/details.json.gz"));
+  assert.ok(liveQueries > 0);
 
-  const decoder = new TextDecoder();
-  let offset = 0;
-  const events = [];
-  let bundleEvent;
-  while (!bundleEvent) {
-    const end = bytes.indexOf(10, offset);
-    assert.ok(end >= 0);
-    const event = JSON.parse(decoder.decode(bytes.slice(offset, end)));
-    events.push(event);
-    offset = end + 1;
-    if (event.type === "bundle") bundleEvent = event;
-  }
-  const payloadBytes = bytes.slice(offset);
-  assert.ok(events.some((event) => event.type === "progress"));
-  assert.equal(
-    events.filter((event) => event.type === "progress").at(-1).completed,
-    events.filter((event) => event.type === "progress").at(-1).total,
+  const queriesAfterBuild = liveQueries;
+  const details = await worker.fetch(
+    new Request(
+      "https://artifact-build.test/v1/query?phase=details&generation=77",
+    ),
+    env,
   );
-  assert.equal(bundleEvent.bytes, payloadBytes.byteLength);
-  assert.deepEqual(JSON.parse(decoder.decode(payloadBytes)).data.captures, []);
+  assert.equal(details.status, 200);
+  assert.equal(details.headers.get("x-fudge-corpus-source"), "artifact");
+  assert.equal(liveQueries, queriesAfterBuild);
 });
 
 test("serves details even when the catalogue generation is stale", async () => {
@@ -1078,7 +1240,7 @@ test("serves capture neighbors from the current active index", async () => {
 
   const response = await worker.fetch(
     new Request(
-      "https://proxy.test/v1/similar-captures?captureId=9367&generation=77&limit=12",
+      "https://proxy.test/v1/similar-captures?captureId=9367&generation=77&limit=100",
     ),
     env,
   );
@@ -1094,6 +1256,8 @@ test("serves capture neighbors from the current active index", async () => {
   );
   assert.equal(requests[1].expectedGeneration, undefined);
   assert.deepEqual(requests[1].parameters, { capture_id: 9367, query });
+  assert.equal(requests[1].maxRows, 101);
+  assert.match(requests[1].script, /:limit 100/);
   assert.deepEqual(body.results[0], {
     rank: 1,
     captureId: 42,
@@ -1114,7 +1278,7 @@ test("rejects malformed similarity requests before querying", async () => {
   const requests = [
     "https://proxy.test/v1/similar-fonts?familyId=Inter&generation=77",
     "https://proxy.test/v1/similar-captures?captureId=1&generation=0",
-    "https://proxy.test/v1/similar-captures?captureId=1&generation=77&limit=25",
+    "https://proxy.test/v1/similar-captures?captureId=1&generation=77&limit=101",
     "https://proxy.test/v1/similar-fonts?familyId=109&generation=77&extra=true",
   ];
   for (const url of requests) {
@@ -1203,6 +1367,9 @@ test("serves bounded capture effects from the current corpus", async () => {
   assert.equal(forwarded.expectedGeneration, undefined);
   assert.equal(body.evidence.radius[0].values[0], 8_000);
   assert.equal(body.evidence.completeness[0].identity, "radius_observation");
+  assert.match(forwarded.script, /capture_text_style/);
+  assert.match(forwarded.script, /capture_historical_font_attribution/);
+  assert.match(forwarded.script, /historical_capture_color_observation/);
 });
 
 test("serves exact term support values from the current corpus", async () => {

@@ -1,4 +1,14 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type UIEvent as ReactUIEvent,
+} from "react";
 import {
   Bookmark,
   BookmarkCheck,
@@ -13,10 +23,12 @@ import {
   browseCatalog,
   formatDate,
   hexSwatch,
+  fontSimilarityReady,
   isKnown,
   mediaUrl,
   paletteOf,
   pxSize,
+  latestFieldFilter,
   searchCatalog,
   viewPalette,
   viewTitle,
@@ -26,16 +38,24 @@ import {
   type Stop as StopData,
   type TypographyInfo,
 } from "@/lib/fudge/move";
-import type { Capture, FieldView, SearchHit } from "@/lib/fudge/types";
+import type {
+  Capture,
+  FieldFilter,
+  FieldView,
+  SearchHit,
+} from "@/lib/fudge/types";
 import { PaletteStop, Stop, Swatches } from "@/components/stop";
 import { FONT_PANGRAM, FontSpecimen } from "@/components/font-specimen";
 import { Favicon } from "@/components/favicon";
+import { FontViewHeader } from "@/components/font-view-header";
+import { CaptureAiHandoff } from "@/components/capture-ai-handoff";
 import { onImpulse } from "@/lib/impulse";
 import { sfx } from "@/lib/sfx";
+import { haptics } from "@/lib/haptics";
 
 export function Chrome({
   view,
-  trail,
+  filters,
   focused,
   saved,
   matchCount,
@@ -48,13 +68,13 @@ export function Chrome({
   onTextSearch,
   onImageSearch,
   onHitStop,
-  onDrop,
+  onRemoveFilter,
   onFocusCapture,
   onToggleSave,
   onClose,
 }: {
   view: FieldView;
-  trail: FieldView[];
+  filters: FieldFilter[];
   focused: Capture | null;
   saved: boolean;
   matchCount: number;
@@ -67,7 +87,7 @@ export function Chrome({
   onTextSearch: (query: string) => void;
   onImageSearch: (file: File) => void;
   onHitStop: (stop: StopData) => void;
-  onDrop: (keep: number) => void;
+  onRemoveFilter: (index: number) => void;
   onFocusCapture: (id: number) => void;
   onToggleSave: () => void;
   onClose: () => void;
@@ -84,22 +104,28 @@ export function Chrome({
   const keyTimerRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const filtersRef = useRef<HTMLDivElement>(null);
   const lexicalGroups = useMemo(
     () => searchCatalog(deferredQuery),
     [deferredQuery],
   );
   const starters = useMemo(() => browseCatalog(), []);
+  const hasFilters = filters.length > 0;
   const normalizedQuery = deferredQuery.trim();
   const groups = useMemo(() => {
     if (normalizedQuery.length < 3) return lexicalGroups;
     const searchAction: SearchHit = {
       kind: "search",
       id: normalizedQuery,
-      title: `Search every capture for “${normalizedQuery}”`,
-      sub: "Open matching captures as a view",
+      title: hasFilters
+        ? `Search selected filters for “${normalizedQuery}”`
+        : `Search every capture for “${normalizedQuery}”`,
+      sub: hasFilters
+        ? "Combine semantic matches with selected filters"
+        : "Open matching captures as a view",
     };
     return [{ label: "All captures", items: [searchAction] }, ...lexicalGroups];
-  }, [lexicalGroups, normalizedQuery]);
+  }, [hasFilters, lexicalGroups, normalizedQuery]);
   const lexicalPending = query !== deferredQuery;
   const searchPending = lexicalPending;
   const showResults = open && (query.trim().length > 0 || uploadError !== null);
@@ -112,7 +138,9 @@ export function Chrome({
   const activeHitKey = activeHit ? searchHitKey(activeHit) : null;
   const colors = focused ? paletteOf(focused.id).map(hexSwatch) : [];
   const plate = focused ?? held;
-  const trailKey = trail.map((item) => viewTitle(item)).join("/");
+  const filterKey = filters.map((item) => viewTitle(item)).join("/");
+  const displayView = latestFieldFilter(view) ?? view;
+  const fontHeader = displayView.kind === "font" && !focused;
 
   const clearUploadError = () => {
     if (uploadInputRef.current) uploadInputRef.current.value = "";
@@ -202,6 +230,12 @@ export function Chrome({
         ?.scrollIntoView({ block: "nearest" });
     });
   }, [activeHitKey, open]);
+  useEffect(() => {
+    const element = filtersRef.current;
+    if (!element) return;
+    element.scrollLeft = element.scrollWidth;
+  }, [filterKey]);
+
   useEffect(
     () => () => {
       window.clearTimeout(keyTimerRef.current);
@@ -222,65 +256,47 @@ export function Chrome({
           aria-busy={searchPending || viewPending}
         >
           <div
-            className={cn("head-layer", !focused && "is-on")}
+            className={cn(
+              "head-layer",
+              !focused && "is-on",
+              hasFilters && "has-filters",
+            )}
             aria-hidden={!!focused}
           >
             <Search className="size-4 shrink-0 text-subtle" strokeWidth={1.6} />
-            <div key={trailKey} className="head-trail">
-              {trail.map((item, index) => {
-                if (item.kind === "all") return null;
-                const current = index === trail.length - 1;
-                const shown = trail
-                  .slice(0, index)
-                  .filter((row) => row.kind !== "all").length;
-                return (
-                  <span
-                    key={`${item.kind}-${index}`}
-                    className="inline-flex items-center gap-1"
-                    style={{ ["--i" as string]: shown }}
-                  >
-                    {shown > 0 && (
-                      <span className="px-0.5 font-mono text-[0.7rem] text-subtle">
-                        /
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      className={cn(
-                        "search-pill",
-                        current && item.kind !== "palette" && "is-now",
-                      )}
-                      tabIndex={focused ? -1 : 0}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDrop(current ? index : index + 1);
-                      }}
-                    >
-                      {item.kind === "domain" && "origin" in item && (
-                        <Favicon origin={item.origin} />
-                      )}
-                      {item.kind === "visual" && (
-                        <img
-                          className="search-pill-thumbnail"
-                          src={mediaUrl(item.id)}
-                          alt=""
-                        />
-                      )}
-                      {item.kind === "palette" ? (
-                        <Swatches
-                          colors={viewPalette(item).map(hexSwatch)}
-                          className="in-search"
-                        />
-                      ) : (
-                        viewTitle(item)
-                      )}
-                      {current && (
-                        <X className="size-3.5 text-subtle" strokeWidth={1.8} />
-                      )}
-                    </button>
-                  </span>
-                );
-              })}
+            <div ref={filtersRef} key={filterKey} className="head-filters">
+              {filters.map((item, index) => (
+                <button
+                  key={`${viewTitle(item)}-${index}`}
+                  type="button"
+                  className="search-pill is-now"
+                  style={{ ["--i" as string]: index }}
+                  tabIndex={focused ? -1 : 0}
+                  aria-label={`Remove ${viewTitle(item)} filter`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onRemoveFilter(index);
+                  }}
+                >
+                  {item.kind === "domain" && <Favicon origin={item.origin} />}
+                  {item.kind === "visual" && (
+                    <img
+                      className="search-pill-thumbnail"
+                      src={mediaUrl(item.id)}
+                      alt=""
+                    />
+                  )}
+                  {item.kind === "palette" ? (
+                    <Swatches
+                      colors={viewPalette(item).map(hexSwatch)}
+                      className="in-search"
+                    />
+                  ) : (
+                    viewTitle(item)
+                  )}
+                  <X className="size-3.5 text-subtle" strokeWidth={1.8} />
+                </button>
+              ))}
             </div>
             <input
               ref={inputRef}
@@ -323,7 +339,9 @@ export function Chrome({
               }}
               onFocus={() => setOpen(true)}
               onBlur={() => window.setTimeout(() => setOpen(false), 140)}
-              placeholder="Search by text"
+              placeholder={
+                hasFilters ? "Add a filter or search" : "Search by text"
+              }
               maxLength={512}
               data-field-search
               role="combobox"
@@ -346,6 +364,7 @@ export function Chrome({
               onPointerDown={(event) => event.preventDefault()}
               onPointerEnter={() => sfx.contact("glass")}
               onClick={() => {
+                haptics.selection();
                 if (uploadError) clearUploadError();
                 else uploadInputRef.current?.click();
               }}
@@ -367,8 +386,9 @@ export function Chrome({
                 if (file) chooseImage(file);
               }}
             />
-            <span className="pl-2 pr-1 font-mono text-[0.6875rem] text-subtle tabular-nums">
-              {`${matchCount}/${CAPTURE_COUNT}`}
+            <span className="search-count">
+              <span>{viewPending ? "…" : matchCount}</span>
+              <span className="search-count-total">/{CAPTURE_COUNT}</span>
             </span>
           </div>
           <div
@@ -428,10 +448,23 @@ export function Chrome({
           </div>
         )}
       </div>
+      {fontHeader && (
+        <FontViewHeader
+          family={displayView.kind === "font" ? displayView.family : ""}
+          similar={arms.x}
+          similarLoading={
+            displayView.kind === "font"
+              ? !fontSimilarityReady(displayView.family)
+              : false
+          }
+          pairings={arms.also}
+          onHit={onHitStop}
+        />
+      )}
 
-      {arms.x.length > 0 && (
+      {!fontHeader && arms.x.length > 0 && (
         <aside
-          key={`x-${focused?.id ?? trailKey}`}
+          key={`x-${focused?.id ?? filterKey}`}
           className="arm arm-x pointer-events-none"
         >
           {arms.x.map((stop, index) => (
@@ -446,9 +479,9 @@ export function Chrome({
         </aside>
       )}
 
-      {(arms.also.length > 0 || colors.length > 0) && (
+      {!fontHeader && (arms.also.length > 0 || colors.length > 0) && (
         <aside
-          key={`also-${focused?.id ?? trailKey}`}
+          key={`also-${focused?.id ?? filterKey}`}
           className="arm arm-also pointer-events-none"
         >
           {colors.length > 0 && (
@@ -484,6 +517,17 @@ export function Chrome({
         </div>
       )}
 
+      {empty && viewPending && (
+        <div
+          className="pointer-events-none absolute inset-0 grid place-items-center"
+          role="status"
+        >
+          <p className="font-display text-3xl tracking-tight">
+            Loading matches
+          </p>
+        </div>
+      )}
+
       {empty && !viewPending && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
           <p className="font-display text-3xl tracking-tight">
@@ -492,31 +536,238 @@ export function Chrome({
         </div>
       )}
 
-      {focused && (
-        <div key={`dock-${focused.id}`} className="dock pointer-events-auto">
-          {arms.voice.map((stop, index) => (
-            <TypographyCard
-              key={`v-${stop.id}`}
-              stop={stop}
-              index={index}
-              onHit={onHitStop}
-              compact
-            />
-          ))}
-          {arms.x.map((stop, index) => (
-            <Stop key={stop.id} stop={stop} index={index} onHit={onHitStop} />
-          ))}
-          {arms.also.map((stop, index) => (
-            <Stop
-              key={`d-${stop.id}`}
-              stop={stop}
-              index={index}
-              onHit={onHitStop}
-            />
-          ))}
-        </div>
+      {(focused ||
+        (!fontHeader &&
+          (arms.voice.length > 0 ||
+            arms.x.length > 0 ||
+            arms.also.length > 0 ||
+            colors.length > 0))) && (
+        <MobileDock
+          focused={focused}
+          voice={arms.voice}
+          related={[...arms.x, ...arms.also]}
+          colors={colors}
+          onHitStop={onHitStop}
+          onPalette={() =>
+            focused && onHitView({ kind: "palette", id: focused.id })
+          }
+          onClose={onClose}
+        />
       )}
     </>
+  );
+}
+function MobileDock({
+  focused,
+  voice,
+  related,
+  colors,
+  onHitStop,
+  onPalette,
+  onClose,
+}: {
+  focused: Capture | null;
+  voice: StopData[];
+  related: StopData[];
+  colors: string[];
+  onHitStop: (stop: StopData) => void;
+  onPalette: () => void;
+  onClose: () => void;
+}) {
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const pointerRef = useRef<number | null>(null);
+  const startYRef = useRef(0);
+  const dragYRef = useRef(0);
+  const suppressClickRef = useRef(false);
+  const scrollTimerRef = useRef(0);
+  const stripPointerRef = useRef<number | null>(null);
+  const stripStartRef = useRef({ x: 0, y: 0 });
+  const stripMovedRef = useRef(false);
+  const suppressStripClickRef = useRef(false);
+  const snapIndexesRef = useRef(new WeakMap<Element, number>());
+  const hasRelated = colors.length > 0 || related.length > 0;
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(scrollTimerRef.current);
+    },
+    [],
+  );
+
+  const resetDrag = () => {
+    pointerRef.current = null;
+    dragYRef.current = 0;
+    setDragY(0);
+    setDragging(false);
+  };
+
+  const onHandleDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    pointerRef.current = event.pointerId;
+    startYRef.current = event.clientY;
+    dragYRef.current = 0;
+    suppressClickRef.current = false;
+    setDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onHandleMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (pointerRef.current !== event.pointerId) return;
+    const next = Math.max(0, event.clientY - startYRef.current);
+    dragYRef.current = next;
+    setDragY(next);
+  };
+
+  const onHandleUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (pointerRef.current !== event.pointerId) return;
+    const dismiss = dragYRef.current >= 56;
+    suppressClickRef.current = dismiss;
+    resetDrag();
+    if (dismiss) onClose();
+  };
+
+  const onHandleClick = () => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    onClose();
+  };
+
+  const onStripScroll = (event: ReactUIEvent<HTMLDivElement>) => {
+    const strip = event.currentTarget;
+    window.clearTimeout(scrollTimerRef.current);
+    scrollTimerRef.current = window.setTimeout(() => {
+      const items = Array.from(strip.children).filter(
+        (child): child is HTMLElement => child instanceof HTMLElement,
+      );
+      if (items.length < 2) return;
+      const center = strip.scrollLeft + strip.clientWidth / 2;
+      let closest = 0;
+      let distance = Number.POSITIVE_INFINITY;
+      items.forEach((item, index) => {
+        const next = Math.abs(item.offsetLeft + item.offsetWidth / 2 - center);
+        if (next < distance) {
+          distance = next;
+          closest = index;
+        }
+      });
+      const previous = snapIndexesRef.current.get(strip) ?? 0;
+      snapIndexesRef.current.set(strip, closest);
+      if (previous !== closest) haptics.selection();
+    }, 80);
+  };
+
+  const onStripPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    stripPointerRef.current = event.pointerId;
+    stripStartRef.current = { x: event.clientX, y: event.clientY };
+    stripMovedRef.current = false;
+    suppressStripClickRef.current = false;
+  };
+
+  const onStripPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (stripPointerRef.current !== event.pointerId) return;
+    const dx = Math.abs(event.clientX - stripStartRef.current.x);
+    const dy = Math.abs(event.clientY - stripStartRef.current.y);
+    if (dx > 8 || dy > 8) stripMovedRef.current = true;
+  };
+
+  const onStripPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (stripPointerRef.current !== event.pointerId) return;
+    stripPointerRef.current = null;
+    if (!stripMovedRef.current) return;
+    suppressStripClickRef.current = true;
+  };
+
+  const onStripClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!suppressStripClickRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressStripClickRef.current = false;
+  };
+
+  return (
+    <aside
+      className={cn(
+        "dock pointer-events-auto",
+        focused ? "is-focus" : "is-context",
+        dragging && "is-dragging",
+      )}
+      style={{ ["--dock-drag" as string]: `${dragY}px` } as CSSProperties}
+      aria-label={focused ? "Capture details" : "Explore this set"}
+    >
+      {focused && (
+        <button
+          type="button"
+          className="dock-handle"
+          aria-label="Close capture"
+          onPointerDown={onHandleDown}
+          onPointerMove={onHandleMove}
+          onPointerUp={onHandleUp}
+          onPointerCancel={resetDrag}
+          onClick={onHandleClick}
+        >
+          <span aria-hidden="true" />
+        </button>
+      )}
+      <div className="dock-content">
+        {voice.length > 0 && (
+          <section className="dock-section" aria-label="Type on this page">
+            <span className="dock-section-label">
+              {focused ? "Type on this page" : "Type in this set"}
+            </span>
+            <div
+              className="dock-strip dock-type-strip"
+              onScroll={onStripScroll}
+              onPointerDown={onStripPointerDown}
+              onPointerMove={onStripPointerMove}
+              onPointerUp={onStripPointerUp}
+              onPointerCancel={onStripPointerUp}
+              onClickCapture={onStripClick}
+            >
+              {voice.map((stop, index) => (
+                <TypographyCard
+                  key={`mobile-type-${stop.id}`}
+                  stop={stop}
+                  index={index}
+                  onHit={onHitStop}
+                  compact
+                />
+              ))}
+            </div>
+          </section>
+        )}
+        {hasRelated && (
+          <section className="dock-section" aria-label="Explore related">
+            <span className="dock-section-label">
+              {focused ? "Explore related" : "Explore this set"}
+            </span>
+            <div
+              className="dock-strip dock-related-strip"
+              onScroll={onStripScroll}
+              onPointerDown={onStripPointerDown}
+              onPointerMove={onStripPointerMove}
+              onPointerUp={onStripPointerUp}
+              onPointerCancel={onStripPointerUp}
+              onClickCapture={onStripClick}
+            >
+              {colors.length > 0 && (
+                <PaletteStop colors={colors} onHit={onPalette} />
+              )}
+              {related.map((stop, index) => (
+                <Stop
+                  key={`mobile-related-${stop.id}-${index}`}
+                  stop={stop}
+                  index={index}
+                  onHit={onHitStop}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </aside>
   );
 }
 
@@ -674,10 +925,12 @@ function PlateInner({
             target="_blank"
             rel="noreferrer"
             aria-label="Open live page"
+            onClick={() => haptics.selection()}
           >
             <ExternalLink className="size-3.5" strokeWidth={1.6} />
           </a>
         )}
+        <CaptureAiHandoff capture={capture} />
         <button
           type="button"
           onClick={onToggleSave}

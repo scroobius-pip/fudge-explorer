@@ -4,6 +4,8 @@ import type {
   ColorRole,
   Facet,
   FontUse,
+  FontCredit,
+  FontMetadata,
   HistoricalFontUse,
   MotionClip,
   PaletteSwatch,
@@ -18,6 +20,8 @@ type ExplorerData = {
   observed_generation: number;
   captures: Row[];
   families: Row[];
+  designers?: Row[];
+  vendors?: Row[];
   terms: Record<string, [string, string, string]>;
   assignments: Row[];
   color_roles: Row[];
@@ -40,15 +44,17 @@ type ExplorerBundle = {
 };
 
 const FIELD_LIMIT = 480;
-const EXPLORER_STREAM_MEDIA_TYPE = "application/x-fudge-explorer-stream";
+let lastProgressValue = -1;
+let lastProgressLabel = "";
 
 function reportProgress(value: number, label: string): void {
+  const nextValue = Math.max(0, Math.min(100, Math.round(value)));
+  if (nextValue === lastProgressValue && label === lastProgressLabel) return;
+  lastProgressValue = nextValue;
+  lastProgressLabel = label;
   window.dispatchEvent(
     new CustomEvent("fudge:load-progress", {
-      detail: {
-        value: Math.max(0, Math.min(100, Math.round(value))),
-        label,
-      },
+      detail: { value: nextValue, label },
     }),
   );
 }
@@ -176,6 +182,45 @@ function validSemanticSearchResult(
     typeof value.path === "string",
   );
 }
+export type SimilarFontResult = {
+  familyId: number;
+  familyName: string;
+  previewUrl: string;
+  visualDistance: number;
+};
+
+export async function loadSimilarFonts(
+  familyId: number,
+  generation: number,
+): Promise<SimilarFontResult[]> {
+  const response = await fetch(
+    `/v1/similar-fonts?familyId=${familyId}&generation=${generation}&limit=8`,
+    { headers: { accept: "application/json" }, credentials: "same-origin" },
+  );
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(`Similar fonts failed (${response.status})`);
+  }
+  if (
+    !isRecord(body) ||
+    !Array.isArray(body.results) ||
+    !body.results.every(
+      (row): row is SimilarFontResult =>
+        isRecord(row) &&
+        typeof row.familyId === "number" &&
+        Number.isSafeInteger(row.familyId) &&
+        row.familyId > 0 &&
+        typeof row.familyName === "string" &&
+        row.familyName.length > 0 &&
+        typeof row.previewUrl === "string" &&
+        typeof row.visualDistance === "number" &&
+        Number.isFinite(row.visualDistance),
+    )
+  ) {
+    throw new Error("Similar fonts returned an invalid response");
+  }
+  return body.results;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -196,6 +241,7 @@ export async function loadCatalogFile(): Promise<CatalogLoad> {
     `/v1/query?phase=details&generation=${generation}`,
     100,
     100,
+    "Downloading search index",
   )
     .then((bundle) => catalogFromBundles(bootstrap, bundle))
     .catch(() => null);
@@ -212,6 +258,8 @@ export function catalogFromBundles(
   const data: ExplorerData = detail
     ? {
         ...base,
+        assignments: detail.assignments,
+        hist_fonts: detail.hist_fonts,
         text_styles: detail.text_styles,
         observed_generation: base.observed_generation,
       }
@@ -245,6 +293,11 @@ export function catalogFromBundles(
     fonts: fontRows(data.font_obs),
     historicalFonts: historicalFontRows(data.hist_fonts ?? []),
     fontCatalogIds: familyCatalogIds(data.families),
+    fontMetadata: fontMetadataRows(
+      data.families,
+      data.designers ?? [],
+      data.vendors ?? [],
+    ),
     typeRoles: typeRoleRows(data.type_roles),
     textStyles: textStyleRows(data.text_styles ?? []),
     motion: motionRows(data.motion_assets),
@@ -255,97 +308,19 @@ export function catalogFromBundles(
 }
 
 async function requestBootstrapBundle(): Promise<ExplorerBundle> {
-  const response = await fetch("/v1/query?phase=bootstrap", {
-    headers: { accept: EXPLORER_STREAM_MEDIA_TYPE },
-    credentials: "same-origin",
-  });
-  await requireSuccessfulResponse(response);
-  if (
-    !response.headers
-      .get("content-type")
-      ?.includes(EXPLORER_STREAM_MEDIA_TYPE) ||
-    !response.body
-  ) {
-    reportProgress(78, "Reading corpus data");
-    return response.json() as Promise<ExplorerBundle>;
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let framing: Uint8Array<ArrayBufferLike> = new Uint8Array();
-  let bundleBytes: number | null = null;
-  let loadedBytes = 0;
-  const chunks: Uint8Array[] = [];
-
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (bundleBytes !== null) {
-      chunks.push(value);
-      loadedBytes += value.byteLength;
-      reportProgress(
-        55 + (loadedBytes / bundleBytes) * 23,
-        "Downloading corpus data",
-      );
-      continue;
-    }
-
-    framing = appendBytes(framing, value);
-    for (;;) {
-      const newline = framing.indexOf(10);
-      if (newline < 0) break;
-      const event = JSON.parse(decoder.decode(framing.slice(0, newline))) as {
-        type?: string;
-        completed?: number;
-        total?: number;
-        label?: string;
-        bytes?: number;
-        detail?: string;
-        error?: string;
-      };
-      framing = framing.slice(newline + 1);
-      if (event.type === "progress") {
-        const completed = event.completed ?? 0;
-        const total = Math.max(1, event.total ?? 1);
-        reportProgress(
-          5 + (completed / total) * 50,
-          event.label || "Reading the live corpus",
-        );
-      } else if (event.type === "bundle") {
-        if (!Number.isSafeInteger(event.bytes) || (event.bytes ?? 0) < 1) {
-          throw new Error("Fudge returned an invalid Explorer stream");
-        }
-        bundleBytes = event.bytes as number;
-        if (framing.byteLength) {
-          chunks.push(framing);
-          loadedBytes += framing.byteLength;
-          framing = new Uint8Array();
-        }
-        break;
-      } else if (event.type === "error") {
-        if (event.error === "corpus_generation_changed") {
-          throw new GenerationChangedError();
-        }
-        throw new Error(
-          event.detail || event.error || "Explorer loading failed",
-        );
-      }
-    }
-  }
-
-  if (bundleBytes === null || loadedBytes !== bundleBytes) {
-    throw new Error("Fudge returned an incomplete Explorer stream");
-  }
-  reportProgress(79, "Parsing corpus data");
-  return JSON.parse(
-    decoder.decode(joinBytes(chunks, bundleBytes)),
-  ) as ExplorerBundle;
+  return requestBundle(
+    "/v1/query?phase=bootstrap",
+    5,
+    79,
+    "Downloading corpus index",
+  );
 }
 
 async function requestBundle(
   path: string,
   progressStart: number,
   progressEnd: number,
+  progressLabel: string,
 ): Promise<ExplorerBundle> {
   const response = await fetch(path, {
     headers: { accept: "application/json" },
@@ -355,7 +330,17 @@ async function requestBundle(
   if (!response.body) return response.json() as Promise<ExplorerBundle>;
 
   const reader = response.body.getReader();
-  const total = Number(response.headers.get("content-length")) || 0;
+  const artifactEncoding = response.headers.get("x-fudge-artifact-encoding");
+  const total =
+    Number(
+      response.headers.get(
+        artifactEncoding
+          ? "x-fudge-compressed-content-length"
+          : "x-uncompressed-content-length",
+      ),
+    ) ||
+    Number(response.headers.get("content-length")) ||
+    0;
   let loaded = 0;
   const chunks: Uint8Array[] = [];
   for (;;) {
@@ -366,12 +351,22 @@ async function requestBundle(
     const ratio = total > 0 ? Math.min(1, loaded / total) : 0.5;
     reportProgress(
       progressStart + (progressEnd - progressStart) * ratio,
-      "Downloading measured details",
+      progressLabel,
     );
   }
-  return JSON.parse(
-    new TextDecoder().decode(joinBytes(chunks, loaded)),
-  ) as ExplorerBundle;
+  let bytes = joinBytes(chunks, loaded);
+  if (artifactEncoding === "gzip" || (bytes[0] === 0x1f && bytes[1] === 0x8b)) {
+    const compressed = new Uint8Array(bytes.byteLength);
+    compressed.set(bytes);
+    const body = new Response(compressed.buffer).body;
+    if (!body) throw new Error("Fudge returned an invalid corpus artifact");
+    bytes = new Uint8Array(
+      await new Response(
+        body.pipeThrough(new DecompressionStream("gzip")),
+      ).arrayBuffer(),
+    );
+  }
+  return JSON.parse(new TextDecoder().decode(bytes)) as ExplorerBundle;
 }
 
 async function requireSuccessfulResponse(response: Response): Promise<void> {
@@ -387,13 +382,6 @@ async function requireSuccessfulResponse(response: Response): Promise<void> {
   throw new Error(
     `Fudge Explorer request failed (${response.status})${detail ? `: ${detail}` : ""}`,
   );
-}
-
-function appendBytes(left: Uint8Array, right: Uint8Array): Uint8Array {
-  const joined = new Uint8Array(left.byteLength + right.byteLength);
-  joined.set(left);
-  joined.set(right, left.byteLength);
-  return joined;
 }
 
 function joinBytes(chunks: Uint8Array[], total: number): Uint8Array {
@@ -727,6 +715,50 @@ function familyCatalogIds(rows: Row[]): Record<string, number[]> {
     (grouped[key] ??= []).push(familyId);
   }
   for (const ids of Object.values(grouped)) ids.sort((a, b) => a - b);
+  return grouped;
+}
+function fontMetadataRows(
+  rows: Row[],
+  designerRows: Row[],
+  foundryRows: Row[],
+): Record<string, FontMetadata> {
+  const credits = (source: Row[]) =>
+    new Map<number, FontCredit>(
+      source.flatMap((row) => {
+        const id = asNumber(row[0]);
+        const name = asString(row[1]).trim();
+        if (!Number.isSafeInteger(id) || id < 1 || !name) return [];
+        return [[id, { id, name, url: asString(row[2]).trim() || null }]];
+      }),
+    );
+  const designers = credits(designerRows);
+  const foundries = credits(foundryRows);
+  const grouped: Record<string, FontMetadata> = {};
+  for (const row of rows) {
+    const familyId = asNumber(row[0]);
+    const name = normalizeObservedFontFamily(asString(row[1]));
+    if (!Number.isSafeInteger(familyId) || familyId < 1 || !name) continue;
+    const key = observedFontFamilyKey(name);
+    const entry = (grouped[key] ??= {
+      familyIds: [],
+      designers: [],
+      foundries: [],
+    });
+    if (!entry.familyIds.includes(familyId)) entry.familyIds.push(familyId);
+    const designer = designers.get(asNumber(row[2]));
+    if (designer && !entry.designers.some((item) => item.id === designer.id)) {
+      entry.designers.push(designer);
+    }
+    const foundry = foundries.get(asNumber(row[3]));
+    if (foundry && !entry.foundries.some((item) => item.id === foundry.id)) {
+      entry.foundries.push(foundry);
+    }
+  }
+  for (const entry of Object.values(grouped)) {
+    entry.familyIds.sort((a, b) => a - b);
+    entry.designers.sort((a, b) => a.name.localeCompare(b.name));
+    entry.foundries.sort((a, b) => a.name.localeCompare(b.name));
+  }
   return grouped;
 }
 

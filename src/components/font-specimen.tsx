@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { CATALOG_GENERATION } from "@/lib/fudge/catalog";
 import { cssFont } from "@/lib/fudge/fonts";
-import { cn } from "@/lib/utils";
 
 export const FONT_PANGRAM = "Hamburgefontsiv 0123456789";
 
@@ -116,11 +115,9 @@ export function FontSpecimen({
   if (imagePreview && !loadedFamily && previewUrl && !previewFailed) {
     return (
       <span
-        className={cn(
-          className,
-          "font-preview-frame",
-          previewLoaded && "is-loaded",
-        )}
+        className={`${className ? `${className} ` : ""}font-preview-frame${
+          previewLoaded ? " is-loaded" : ""
+        }`}
         style={{ fontFamily: cssFont(family), fontWeight: weight }}
       >
         {children}

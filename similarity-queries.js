@@ -149,7 +149,11 @@ export function captureSimilarityQuery(indexName, resultLimit) {
   if (!/^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(indexName)) {
     throw new Error("Invalid capture similarity index");
   }
-  if (!Number.isSafeInteger(resultLimit) || resultLimit < 1 || resultLimit > 24) {
+  if (
+    !Number.isSafeInteger(resultLimit) ||
+    resultLimit < 1 ||
+    resultLimit > 100
+  ) {
     throw new Error("Invalid capture similarity limit");
   }
   const candidateLimit = resultLimit + 1;
@@ -164,7 +168,7 @@ export function captureSimilarityQuery(indexName, resultLimit) {
     capture_id |
     query: $query,
     k: ${candidateLimit},
-    ef: 64,
+    ef: 128,
     bind_distance: distance
   },
   capture_id != $capture_id,

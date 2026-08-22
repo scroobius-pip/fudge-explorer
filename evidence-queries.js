@@ -64,6 +64,32 @@ evidence[kind, identity, values] :=
   identity = [gradient_id, stop_index],
   values = [r, g, b, alpha_ppm, position_ppm]
 
+evidence[kind, identity, values] :=
+  *capture_text_style{
+    capture_id: $capture_id, observation_index: identity, declared_family,
+    weight, size_milli_px, occurrence_count, generic_family, style,
+    line_height_milli_px, letter_spacing_milli_px
+  },
+  kind = 'text_style',
+  values = [declared_family, weight, size_milli_px, occurrence_count,
+    generic_family, style, line_height_milli_px, letter_spacing_milli_px]
+
+evidence[kind, identity, values] :=
+  *capture_historical_font_attribution{
+    capture_id: $capture_id, sub_family_id: identity, family_id, family_name,
+    sub_family_name, legacy_link_count, status: 'eligible'
+  },
+  kind = 'historical_font',
+  values = [family_id, family_name, sub_family_name, legacy_link_count]
+
+evidence[kind, identity, values] :=
+  *historical_capture_color_observation{
+    capture_id: $capture_id, legacy_color_id: identity
+  },
+  *historical_color_value{legacy_color_id: identity, rgb_integer},
+  kind = 'legacy_color',
+  values = [rgb_integer]
+
 ?[kind, identity, values] := evidence[kind, identity, values]
 
 :order kind, identity

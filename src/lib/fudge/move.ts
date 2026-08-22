@@ -15,6 +15,7 @@ import {
   fontCatalogIdsOf,
   mediaUrl,
   motionOf,
+  latestFieldFilter,
   namedFonts,
   paletteOf,
   pageRoleLabel,
@@ -26,6 +27,7 @@ import {
   termById,
   termCaptureCount,
   termConfidence,
+  semanticNeighborsReady,
   typeFaceList,
   typeRolesOf,
   typeSimilar,
@@ -82,6 +84,10 @@ export function sameView(a: FieldView, b: FieldView) {
 }
 
 export function materialOf(view: FieldView): Material {
+  if (view.kind === "filtered") {
+    const latest = latestFieldFilter(view);
+    return latest ? materialOf(latest) : "paper";
+  }
   if (view.kind === "font" || view.kind === "typeSimilar") return "string";
   if (view.kind === "palette" || view.kind === "visual") return "glass";
   if (view.kind === "term" || view.kind === "facet") return "wood";
@@ -161,6 +167,10 @@ export function armsOf(
   voice: Stop[];
 } {
   if (focused) return inspectArms(focused);
+  if (view.kind === "filtered") {
+    const latest = latestFieldFilter(view);
+    return latest ? armsOf(latest, null) : { x: [], also: [], voice: [] };
+  }
 
   if (view.kind === "term") {
     const x: Stop[] = siblingsOf(view.id)
@@ -204,15 +214,20 @@ export function armsOf(
   }
 
   if (view.kind === "font") {
-    const x: Stop[] = similarFonts(view.family).map((row) => ({
-      id: row.name,
-      label: row.name,
-      arm: "x" as const,
-      material: "string" as const,
-      view: { kind: "font" as const, family: row.name },
-      family: row.name,
-      meta: `${Math.round(row.score * 100)}%`,
-    }));
+    const x: Stop[] = similarFonts(view.family).map((row) => {
+      const familyId = fontCatalogIdsOf(row.name)[0];
+      return {
+        id: row.name,
+        label: row.name,
+        arm: "x" as const,
+        material: "string" as const,
+        view: { kind: "font" as const, family: row.name },
+        family: row.name,
+        meta: `${Math.round(row.score * 100)}%`,
+        fontFamilyId: familyId,
+        fontPreviewUrl: familyId ? familyFontPreviewUrl(familyId) : undefined,
+      };
+    });
     const also: Stop[] = coFonts(view.family).map((row) => ({
       id: `co-${row.name}`,
       label: row.name,
@@ -324,7 +339,7 @@ type MutableTypographySummary = {
   uses: number;
 };
 
-function typographySummaries(
+export function typographySummaries(
   styles: TextStyle[],
   roles: Array<{ role: string; family: string; weight: number; size: number }>,
   faces: FontUse[],
@@ -513,15 +528,26 @@ function inspectArms(capture: Capture): {
   const role = pageRoleLabel(capture.id);
   const shared = distinctiveTerm(capture.id);
 
-  also.push({
-    id: "visual",
-    label: "Looks like this",
-    arm: "also",
-    material: "glass",
-    view: { kind: "visual", id: capture.id },
-    count: related.visual || undefined,
-    thumbnail: mediaUrl(capture.id),
-  });
+  if (!semanticNeighborsReady(capture.id)) {
+    also.push({
+      id: "visual-loading",
+      label: "Looks like this",
+      arm: "also",
+      material: "glass",
+      loading: true,
+      thumbnail: mediaUrl(capture.id),
+    });
+  } else if (related.visual > 0) {
+    also.push({
+      id: "visual",
+      label: "Looks like this",
+      arm: "also",
+      material: "glass",
+      view: { kind: "visual", id: capture.id },
+      count: related.visual,
+      thumbnail: mediaUrl(capture.id),
+    });
+  }
   if (related.semantic > 0) {
     also.push({
       id: "semantic",

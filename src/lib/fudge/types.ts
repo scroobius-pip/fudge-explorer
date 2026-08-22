@@ -94,6 +94,18 @@ export type RawCapture = {
   kind: "primary" | "neighbor" | "embedding";
 };
 
+export type FontCredit = {
+  id: number;
+  name: string;
+  url: string | null;
+};
+
+export type FontMetadata = {
+  familyIds: number[];
+  designers: FontCredit[];
+  foundries: FontCredit[];
+};
+
 export type CatalogFile = {
   generation: number;
   ontologyId: string;
@@ -107,6 +119,7 @@ export type CatalogFile = {
   fonts: Record<string, FontUse[]>;
   historicalFonts: Record<string, HistoricalFontUse[]>;
   fontCatalogIds: Record<string, number[]>;
+  fontMetadata: Record<string, FontMetadata>;
   typeRoles: Record<string, TypeRole[]>;
   textStyles?: Record<string, TextStyle[]>;
   motion: Record<string, MotionClip>;
@@ -123,8 +136,7 @@ export type Capture = RawCapture & {
 export type LensId =
   "all" | "purpose" | "structure" | "visual" | "type_media" | "state";
 
-export type FieldView =
-  | { kind: "all" }
+export type FieldFilter =
   | { kind: "saved" }
   | { kind: "term"; id: string }
   | { kind: "facet"; id: string }
@@ -137,6 +149,9 @@ export type FieldView =
   | { kind: "adjacent"; id: number }
   | { kind: "search"; query: string; captureIds: number[] }
   | { kind: "motion" };
+
+export type FieldView =
+  { kind: "all" } | FieldFilter | { kind: "filtered"; filters: FieldFilter[] };
 
 export type SearchHit = {
   kind: "capture" | "term" | "font" | "domain" | "facet" | "search";

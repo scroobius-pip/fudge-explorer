@@ -47,7 +47,9 @@ export function onImpulse(listener: Listener) {
   };
 }
 
-export function strike(partial: Partial<Impulse> & Pick<Impulse, "transmit" | "axis">): Impulse {
+export function strike(
+  partial: Partial<Impulse> & Pick<Impulse, "transmit" | "axis">,
+): Impulse {
   const impulse: Impulse = {
     d: 1,
     v: 1,

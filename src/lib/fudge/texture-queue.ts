@@ -24,7 +24,7 @@ export function releaseSlot() {
   if (next) next();
 }
 
-const DECODE_REV = 5;
+const DECODE_REV = 6;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -61,10 +61,10 @@ async function decode(src: string, maxEdge: number): Promise<THREE.Texture> {
     }
     const tex = new THREE.Texture(source);
     tex.colorSpace = THREE.SRGBColorSpace;
-    tex.minFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
-    tex.generateMipmaps = false;
-    tex.anisotropy = 1;
+    tex.generateMipmaps = true;
+    tex.anisotropy = 8;
     tex.flipY = true;
     tex.userData.rev = DECODE_REV;
     tex.userData.maxEdge = maxEdge;

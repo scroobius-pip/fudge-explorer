@@ -19,6 +19,13 @@ binding = "FUDGE_SERVICE"
 service = "fudge-production"
 entrypoint = "FudgeInternal"
 
+[[r2_buckets]]
+binding = "CORPUS_ARTIFACTS"
+bucket_name = "fudge-artifacts-prod"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
 [[unsafe.bindings]]
 name = "SEMANTIC_TEXT_RATE_LIMITER"
 type = "ratelimit"

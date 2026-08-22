@@ -221,17 +221,17 @@ test("materializes the live projections into the Explorer bundle contract", asyn
 test("accepts projections observed at different corpus generations", async () => {
   let calls = 0;
   const bundle = await buildExplorerBundle(async (input) => {
-      calls += 1;
-      if (calls === 1) return response(EXPLORER_QUERIES.captures.headers, []);
-      return {
-        ...response(
-          Object.values(EXPLORER_QUERIES).find(
-            (spec) => spec.script === input.script,
-          ).headers,
-          [],
-        ),
-        observedGeneration: 78,
-      };
+    calls += 1;
+    if (calls === 1) return response(EXPLORER_QUERIES.captures.headers, []);
+    return {
+      ...response(
+        Object.values(EXPLORER_QUERIES).find(
+          (spec) => spec.script === input.script,
+        ).headers,
+        [],
+      ),
+      observedGeneration: 78,
+    };
   });
   assert.equal(bundle.data.observed_generation, 77);
 });
@@ -272,10 +272,7 @@ test("continues keyset pagination when a page exactly fills the script limit", a
 });
 
 test("splits bootstrap and deferred projections without changing the full bundle", async () => {
-  assert.deepEqual(EXPLORER_DEFERRED_QUERY_NAMES, [
-    "textStyles",
-    "legacyColors",
-  ]);
+  assert.deepEqual(EXPLORER_DEFERRED_QUERY_NAMES, ["assignments"]);
   assert.deepEqual(
     [
       "captures",
@@ -306,6 +303,8 @@ test("splits bootstrap and deferred projections without changing the full bundle
     bootstrapCalls.every((call) => call.expectedGeneration === undefined),
   );
   assert.deepEqual(bootstrap.data.text_styles, []);
+  assert.deepEqual(bootstrap.data.assignments, []);
+  assert.deepEqual(bootstrap.data.hist_fonts, []);
   assert.deepEqual(bootstrap.data.backgrounds, []);
   assert.deepEqual(bootstrap.data.raster_palette, []);
   assert.deepEqual(bootstrap.legacyColors, {});
@@ -314,8 +313,7 @@ test("splits bootstrap and deferred projections without changing the full bundle
   const details = await buildExplorerDetails(async (input) => {
     const name = queryName(input.script);
     detailCalls.push({ name, expectedGeneration: input.expectedGeneration });
-    const rows =
-      name === "textStyles" ? [[42, "Example Sans", 400, 16_000, 3, 0]] : [];
+    const rows = name === "assignments" ? [[42, "page.home", 0.95]] : [];
     return response(EXPLORER_QUERIES[name].headers, rows);
   }, 77);
   assert.deepEqual(
@@ -324,7 +322,9 @@ test("splits bootstrap and deferred projections without changing the full bundle
   );
   assert.ok(detailCalls.every((call) => call.expectedGeneration === undefined));
   assert.equal(details.data.observed_generation, 77);
-  assert.equal(details.data.text_styles.length, 1);
+  assert.equal(details.data.text_styles.length, 0);
+  assert.equal(details.data.assignments.length, 1);
+  assert.equal(details.data.hist_fonts.length, 0);
 });
 
 test("loads unfenced capture pages concurrently for bootstrap", async () => {

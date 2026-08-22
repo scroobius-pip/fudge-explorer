@@ -7,9 +7,15 @@ import type { Slot } from "@/lib/fudge/layout";
 import { loadCaptureTexture, peekTexture } from "@/lib/fudge/texture-queue";
 import { sfx } from "@/lib/sfx";
 import type { Capture } from "@/lib/fudge/types";
+import type { RenderQualityProfile } from "@/lib/render-quality";
 
 const PLANE_GEOMETRY = new THREE.PlaneGeometry(1, 1);
 const PLACEHOLDER_MATERIAL = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+  },
+  transparent: true,
+  depthWrite: false,
   vertexShader: `
     varying vec2 vUv;
     void main() {
@@ -18,19 +24,20 @@ const PLACEHOLDER_MATERIAL = new THREE.ShaderMaterial({
     }
   `,
   fragmentShader: `
+    uniform float uTime;
     varying vec2 vUv;
-    float box(vec2 point, vec2 center, vec2 halfSize) {
-      vec2 edge = abs(point - center) - halfSize;
-      return 1.0 - step(0.0, max(edge.x, edge.y));
+
+    float roundedBox(vec2 point, vec2 halfSize, float radius) {
+      vec2 edge = abs(point) - halfSize + radius;
+      return length(max(edge, 0.0)) + min(max(edge.x, edge.y), 0.0) - radius;
     }
+
     void main() {
-      vec3 base = vec3(0.867, 0.851, 0.816);
-      vec3 mark = vec3(0.941, 0.929, 0.902);
-      float bars = max(
-        box(vUv, vec2(0.34, 0.43), vec2(0.21, 0.026)),
-        box(vUv, vec2(0.25, 0.32), vec2(0.12, 0.020))
-      );
-      gl_FragColor = vec4(mix(base, mark, bars), 1.0);
+      float edge = roundedBox(vUv - 0.5, vec2(0.5), 0.045);
+      float mask = 1.0 - smoothstep(-0.004, 0.004, edge);
+      float blink = 0.08 + 0.72 * (0.5 + 0.5 * sin(uTime * 3.8));
+      if (mask < 0.001) discard;
+      gl_FragColor = vec4(vec3(0.867, 0.851, 0.816), blink * mask);
     }
   `,
 });
@@ -62,6 +69,7 @@ type FrameProps = {
   focusedId: number | null;
   focusPos: [number, number, number] | null;
   reducedMotion: boolean;
+  quality: RenderQualityProfile;
   transition?: FrameTransition;
   interactive?: boolean;
   loadTexture?: boolean;
@@ -106,6 +114,7 @@ export function Frame({
   focusedId,
   focusPos,
   reducedMotion,
+  quality,
   transition,
   interactive = true,
   loadTexture = true,
@@ -119,7 +128,8 @@ export function Frame({
   const imageRef = useRef<THREE.Mesh>(null);
   const videoMeshRef = useRef<THREE.Mesh>(null);
   const videoEl = useRef<HTMLVideoElement | null>(null);
-  const requestedEdge = focusedId === capture.id ? 1600 : 640;
+  const requestedEdge =
+    focusedId === capture.id ? quality.focusedTextureEdge : quality.textureEdge;
   const [texture, setTexture] = useState<THREE.Texture | null>(() =>
     peekTexture(mediaUrl(capture.id)),
   );
@@ -170,6 +180,18 @@ export function Frame({
   }, [loadTexture, requestedEdge, src, transition?.role]);
 
   useEffect(() => {
+    if (!texture) return;
+    const anisotropy = Math.min(
+      quality.anisotropy,
+      gl.capabilities.getMaxAnisotropy(),
+    );
+    if (texture.anisotropy === anisotropy) return;
+    texture.anisotropy = anisotropy;
+    texture.needsUpdate = true;
+    invalidate();
+  }, [gl, invalidate, quality.anisotropy, texture]);
+
+  useEffect(() => {
     if (focusedId === capture.id && texture) {
       gl.domElement.dataset.focusedCaptureId = String(capture.id);
       gl.domElement.dataset.focusedTextureEdge = String(
@@ -202,6 +224,10 @@ export function Frame({
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
     tex.generateMipmaps = false;
+    tex.anisotropy = Math.min(
+      quality.anisotropy,
+      gl.capabilities.getMaxAnisotropy(),
+    );
     videoEl.current = video;
     const arm = () => {
       if (disposed || video.videoWidth < 2) return;
@@ -226,7 +252,16 @@ export function Frame({
         delete gl.domElement.dataset.focusedVideoActive;
       }
     };
-  }, [capture.id, clip, focusedId, gl, interactive, playVideo, reducedMotion]);
+  }, [
+    capture.id,
+    clip,
+    focusedId,
+    gl,
+    interactive,
+    playVideo,
+    quality.anisotropy,
+    reducedMotion,
+  ]);
 
   useEffect(() => {
     const video = videoEl.current;
@@ -242,12 +277,19 @@ export function Frame({
   useEffect(() => {
     animationActive.current = true;
     invalidate();
-  }, [focusedId, invalidate, slot, transition]);
-  useFrame((_, delta) => {
+  }, [focusedId, invalidate, quality.blur, slot, transition]);
+  useFrame((state, delta) => {
     const dt = Math.min(delta, 0.1);
     const group = groupRef.current;
     if (!group) return;
-    if (!animationActive.current && !videoTexture) return;
+    const placeholderVisible = !texture;
+    if (placeholderVisible) {
+      PLACEHOLDER_MATERIAL.uniforms.uTime.value = reducedMotion
+        ? 0
+        : state.clock.elapsedTime;
+    }
+    if (!animationActive.current && !videoTexture && !placeholderVisible)
+      return;
     const isFocused = focusedId === capture.id;
     const dimmed = Boolean(focusedId) && !isFocused;
     const rest = slot.position;
@@ -357,7 +399,7 @@ export function Frame({
     if (mat?.uniforms?.blur) {
       mat.uniforms.blur.value = THREE.MathUtils.damp(
         mat.uniforms.blur.value,
-        dimmed && !reducedMotion ? 1 : 0,
+        quality.blur && dimmed && !reducedMotion ? 1 : 0,
         7,
         dt,
       );
@@ -395,6 +437,7 @@ export function Frame({
       rotationMoving ||
       opacityMoving ||
       videoTexture ||
+      placeholderVisible ||
       transitionWaiting
     ) {
       invalidate();

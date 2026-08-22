@@ -8,7 +8,7 @@
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "node --test worker.test.mjs explorer-bundle.test.mjs",
+    "test": "node --experimental-strip-types --test worker.test.mjs explorer-bundle.test.mjs prompt-access.test.mjs render-quality.test.mjs",
     "dev": "npm run build && npx wrangler dev",
     "preview": "npm run build && node scripts/preview.mjs",
     "deploy": "npm run build && npx wrangler deploy"

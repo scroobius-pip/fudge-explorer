@@ -32,10 +32,7 @@ export function Favicon({
   }, [direct, google]);
 
   return (
-    <span
-      className={cn("favicon", className)}
-      aria-hidden="true"
-    >
+    <span className={cn("favicon", className)} aria-hidden="true">
       <span className="favicon-fallback">{initial}</span>
       {!failed && (
         <img

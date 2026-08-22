@@ -18,6 +18,15 @@ import {
 } from "@/lib/fudge/layout";
 import type { Capture, FieldView } from "@/lib/fudge/types";
 import { sfx } from "@/lib/sfx";
+import {
+  RENDER_QUALITY_PROFILES,
+  RENDER_TARGET_FPS,
+  advanceRenderQualityGovernor,
+  createRenderQualityGovernor,
+  selectInitialRenderQuality,
+  type RenderQualityProfile,
+  type RenderQualityTier,
+} from "@/lib/render-quality";
 
 export type FieldLayer = {
   view: FieldView;
@@ -32,22 +41,45 @@ type WallProps = {
   reducedMotion: boolean;
   onFocus: (id: number | null) => void;
   onTraverse: (index: number) => void;
+  onSwipeFocus: (dx: -1 | 0 | 1, dy: -1 | 0 | 1) => void;
   onTravelState: (pending: boolean) => void;
   onSlots: (slots: Slot[]) => void;
 };
 
+function initialRenderQuality(): RenderQualityTier {
+  if (typeof window === "undefined") return "high";
+  const navigatorWithMemory = window.navigator as Navigator & {
+    deviceMemory?: number;
+    connection?: { saveData?: boolean };
+  };
+  return selectInitialRenderQuality({
+    hardwareConcurrency: navigatorWithMemory.hardwareConcurrency,
+    deviceMemory: navigatorWithMemory.deviceMemory,
+    devicePixelRatio: window.devicePixelRatio,
+    coarsePointer: window.matchMedia("(pointer: coarse)").matches,
+    saveData: navigatorWithMemory.connection?.saveData,
+  });
+}
+
 export function Wall(props: WallProps) {
   const didDragRef = useRef(false);
   const skipMissRef = useRef(false);
+  const [qualityTier, setQualityTier] =
+    useState<RenderQualityTier>(initialRenderQuality);
+  const quality = RENDER_QUALITY_PROFILES[qualityTier];
+  const renderDpr =
+    typeof window === "undefined"
+      ? 1
+      : Math.max(1, Math.min(quality.dpr, window.devicePixelRatio || 1));
 
   return (
     <Canvas
       frameloop="demand"
       className="absolute inset-0 h-full w-full touch-none"
       flat
-      dpr={[1, 1.25]}
+      dpr={renderDpr}
       gl={{
-        antialias: false,
+        antialias: true,
         alpha: false,
         preserveDrawingBuffer: false,
         powerPreference: "high-performance",
@@ -67,8 +99,14 @@ export function Wall(props: WallProps) {
         if (!didDragRef.current) props.onFocus(null);
       }}
     >
+      <AdaptiveQualityGovernor
+        tier={qualityTier}
+        dpr={renderDpr}
+        onTierChange={setQualityTier}
+      />
       <Scene
         {...props}
+        quality={quality}
         didDragRef={didDragRef}
         onFocus={(id) => {
           skipMissRef.current = id !== null;
@@ -98,6 +136,79 @@ function GridReady() {
       window.dispatchEvent(new CustomEvent("fudge:grid-ready"));
     });
   });
+  return null;
+}
+
+function AdaptiveQualityGovernor({
+  tier,
+  dpr,
+  onTierChange,
+}: {
+  tier: RenderQualityTier;
+  dpr: number;
+  onTierChange: (tier: RenderQualityTier) => void;
+}) {
+  const { gl, invalidate } = useThree();
+  const governor = useRef(createRenderQualityGovernor(tier));
+  const requestedTier = useRef(tier);
+  const averageFps = useRef(0);
+  const sampleFrames = useRef(0);
+  const lastFrameAt = useRef(0);
+  const lastReportAt = useRef(0);
+
+  useEffect(() => {
+    if (governor.current.tier !== tier) {
+      governor.current = createRenderQualityGovernor(tier);
+    }
+    requestedTier.current = tier;
+    averageFps.current = 0;
+    sampleFrames.current = 0;
+    gl.domElement.dataset.qualityTier = tier;
+    gl.domElement.dataset.qualityDpr = dpr.toFixed(2);
+    gl.domElement.dataset.qualityTargetFps = String(RENDER_TARGET_FPS);
+    invalidate();
+  }, [dpr, gl, invalidate, tier]);
+
+  useFrame((_, delta) => {
+    const now = performance.now();
+    const gap = lastFrameAt.current ? now - lastFrameAt.current : 0;
+    lastFrameAt.current = now;
+    if (delta <= 0 || delta > 0.2 || gap > 250) {
+      averageFps.current = 0;
+      sampleFrames.current = 0;
+      governor.current = {
+        ...governor.current,
+        belowTargetSeconds: 0,
+        aboveTargetSeconds: 0,
+      };
+      return;
+    }
+
+    const fps = Math.min(240, 1 / delta);
+    const alpha = 1 - Math.exp(-delta * 3);
+    averageFps.current =
+      averageFps.current === 0
+        ? fps
+        : THREE.MathUtils.lerp(averageFps.current, fps, alpha);
+    sampleFrames.current += 1;
+    if (sampleFrames.current < 8) return;
+
+    const next = advanceRenderQualityGovernor(
+      governor.current,
+      averageFps.current,
+      delta,
+    );
+    governor.current = next;
+    if (now - lastReportAt.current >= 500) {
+      lastReportAt.current = now;
+      gl.domElement.dataset.qualityFps = averageFps.current.toFixed(1);
+    }
+    if (next.tier !== requestedTier.current) {
+      requestedTier.current = next.tier;
+      onTierChange(next.tier);
+    }
+  });
+
   return null;
 }
 
@@ -165,10 +276,15 @@ function Scene({
   reducedMotion,
   onFocus,
   onTraverse,
+  onSwipeFocus,
   onTravelState,
   onSlots,
   didDragRef,
-}: WallProps & { didDragRef: MutableRefObject<boolean> }) {
+  quality,
+}: WallProps & {
+  didDragRef: MutableRefObject<boolean>;
+  quality: RenderQualityProfile;
+}) {
   const cacheRef = useRef(
     new Map<
       string,
@@ -270,6 +386,7 @@ function Scene({
         reducedMotion={reducedMotion}
         didDragRef={didDragRef}
         onFocus={onFocus}
+        onSwipeFocus={onSwipeFocus}
         onTraverse={onTraverse}
         onTravelState={updateTravelState}
         onVisibleWindows={onVisibleWindows}
@@ -286,6 +403,7 @@ function Scene({
             visibleIds={visibleIds}
             focusedId={activeLayer ? (focused?.id ?? null) : null}
             reducedMotion={reducedMotion}
+            quality={quality}
             didDragRef={didDragRef}
             onFocus={onFocus}
             onHover={(id) => {
@@ -312,6 +430,7 @@ function LayerFrames({
   interactive,
   loadTextures,
   playVideos,
+  quality,
 }: {
   snapshot: ViewSnapshot;
   visibleIds: Set<number>;
@@ -323,6 +442,7 @@ function LayerFrames({
   interactive: boolean;
   loadTextures: boolean;
   playVideos: boolean;
+  quality: RenderQualityProfile;
 }) {
   const byId = useMemo(
     () => new Map(snapshot.captures.map((capture) => [capture.id, capture])),
@@ -335,7 +455,8 @@ function LayerFrames({
         null);
   const renderedIds = new Set(visibleIds);
   if (focusedId != null) renderedIds.add(focusedId);
-  const playVisibleVideos = interactive && playVideos && visibleIds.size <= 50;
+  const playVisibleVideos =
+    quality.ambientVideo && interactive && playVideos && visibleIds.size <= 50;
 
   return snapshot.slots.map((slot, index) => {
     if (!renderedIds.has(slot.id)) return null;
@@ -351,10 +472,14 @@ function LayerFrames({
         focusedId={focusedId}
         focusPos={focusPos}
         reducedMotion={reducedMotion}
+        quality={quality}
         interactive={interactive}
         loadTexture={loadTextures}
         playVideo={
-          interactive && (focusedId === capture.id || playVisibleVideos)
+          interactive &&
+          playVideos &&
+          ((focusedId === capture.id && quality.focusedVideo) ||
+            playVisibleVideos)
         }
         didDragRef={didDragRef}
         onHover={onHover}
@@ -466,6 +591,7 @@ function CameraRig({
   didDragRef,
   onFocus,
   onTraverse,
+  onSwipeFocus,
   onTravelState,
   onVisibleWindows,
 }: {
@@ -477,6 +603,7 @@ function CameraRig({
   reducedMotion: boolean;
   didDragRef: MutableRefObject<boolean>;
   onFocus: (id: number | null) => void;
+  onSwipeFocus: (dx: -1 | 0 | 1, dy: -1 | 0 | 1) => void;
   onTraverse: (index: number) => void;
   onTravelState: (pending: boolean) => void;
   onVisibleWindows: (windows: Map<string, Set<number>>) => void;
@@ -510,6 +637,7 @@ function CameraRig({
   const focusRef = useRef(focusedSlot);
   const focusCaptureRef = useRef(onFocus);
   const traverseRef = useRef(onTraverse);
+  const swipeFocusRef = useRef(onSwipeFocus);
   const travelStateRef = useRef(onTravelState);
   const visibleRef = useRef(onVisibleWindows);
   const sizeRef = useRef(size);
@@ -527,6 +655,7 @@ function CameraRig({
   focusCaptureRef.current = onFocus;
   traverseRef.current = onTraverse;
   travelStateRef.current = onTravelState;
+  swipeFocusRef.current = onSwipeFocus;
   visibleRef.current = onVisibleWindows;
   sizeRef.current = size;
 
@@ -646,6 +775,10 @@ function CameraRig({
     let lastY = 0;
     let moved = 0;
     let pinch = 0;
+    let gestureX = 0;
+    let gestureY = 0;
+    let gestureAt = 0;
+    let pinched = false;
     let lockedId: number | null = null;
     let lockUntil = 0;
 
@@ -773,6 +906,14 @@ function CameraRig({
       lastY = event.clientY;
       moved = 0;
       didDragRef.current = false;
+      if (pointers.size === 1) {
+        gestureX = event.clientX;
+        gestureY = event.clientY;
+        gestureAt = performance.now();
+        pinched = false;
+      } else {
+        pinched = true;
+      }
       invalidate();
       if (pointers.size === 1) dragging.current = true;
     };
@@ -780,6 +921,7 @@ function CameraRig({
       if (!pointers.has(event.pointerId)) return;
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (pointers.size === 2) {
+        pinched = true;
         const pts = [...pointers.values()];
         const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
         if (pinch > 0) {
@@ -812,6 +954,26 @@ function CameraRig({
       invalidate();
     };
     const onUp = (event: PointerEvent) => {
+      const dx = event.clientX - gestureX;
+      const dy = event.clientY - gestureY;
+      const elapsed = performance.now() - gestureAt;
+      const horizontal =
+        Math.abs(dx) >= 56 && Math.abs(dx) > Math.abs(dy) * 1.25;
+      const vertical = Math.abs(dy) >= 56 && Math.abs(dy) > Math.abs(dx) * 1.25;
+      if (
+        pointers.size === 1 &&
+        !pinched &&
+        event.pointerType !== "mouse" &&
+        focusRef.current &&
+        elapsed <= 650 &&
+        (horizontal || vertical)
+      ) {
+        didDragRef.current = true;
+        swipeFocusRef.current(
+          horizontal ? (dx < 0 ? 1 : -1) : 0,
+          vertical ? (dy > 0 ? 1 : -1) : 0,
+        );
+      }
       pointers.delete(event.pointerId);
       if (pointers.size < 2) pinch = 0;
       if (pointers.size === 0) {

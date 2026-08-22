@@ -131,18 +131,10 @@ active_ontology[ontology_id] :=
   ),
 
   assignments: query(
-    [
-      "capture_id",
-      "term_id",
-      "confidence",
-      "assignment_scope",
-      "resolution_kind",
-    ],
+    ["capture_id", "term_id", "confidence"],
     `
-?[capture_id, term_id, confidence, assignment_scope, resolution_kind] :=
-  *resolved_capture_term{
-    capture_id, term_id, confidence, assignment_scope, resolution_kind
-  },
+?[capture_id, term_id, confidence] :=
+  *resolved_capture_term{capture_id, term_id, confidence},
   [capture_id, term_id] > [$after_capture_id, $after_term_id]
 :order capture_id, term_id
 :limit ${PAGE_LIMIT}`,
@@ -721,14 +713,9 @@ const CAPTURE_PAGE_QUERY = query(
 :offset $offset`,
 );
 
-export const EXPLORER_DEFERRED_QUERY_NAMES = Object.freeze([
-  "textStyles",
-  "legacyColors",
-]);
+export const EXPLORER_DEFERRED_QUERY_NAMES = Object.freeze(["assignments"]);
 
 export const EXPLORER_PHASE_OMITTED_QUERY_NAMES = Object.freeze([
-  "designers",
-  "vendors",
   "releases",
   "backgrounds",
   "structures",
@@ -737,6 +724,9 @@ export const EXPLORER_PHASE_OMITTED_QUERY_NAMES = Object.freeze([
   "embeddingRuntime",
   "runtimeCounts",
   "relations",
+  "historicalFonts",
+  "textStyles",
+  "legacyColors",
 ]);
 
 export const EXPLORER_BOOTSTRAP_QUERY_NAMES = Object.freeze(
@@ -792,6 +782,7 @@ export async function buildExplorerDetails(runQuery, generation) {
   return {
     data: {
       observed_generation: observedGeneration,
+      assignments: resultRows(results, "assignments"),
       backgrounds: resultRows(results, "backgrounds"),
       text_styles: resultRows(results, "textStyles"),
       hist_fonts: resultRows(results, "historicalFonts"),
@@ -828,6 +819,9 @@ async function planCaptures(runQuery) {
     );
   }
   return { generation, total };
+}
+export async function readExplorerGeneration(runQuery) {
+  return (await planCaptures(runQuery)).generation;
 }
 
 async function executeCapturePages(

@@ -1,4 +1,4 @@
-import { loadCatalogFile } from "./api";
+import { loadCatalogFile, loadSimilarFonts } from "./api";
 import { normalizeObservedFontFamily, observedFontFamilyKey } from "./fonts";
 import type {
   Capture,
@@ -7,6 +7,7 @@ import type {
   FacetTerm,
   FontUse,
   HistoricalFontUse,
+  FieldFilter,
   FieldView,
   LensId,
   MotionClip,
@@ -20,6 +21,13 @@ import type {
 
 const catalogLoad = await loadCatalogFile();
 const data = catalogLoad.initial;
+
+export type CatalogDetailsStatus = "loading" | "ready" | "failed";
+let catalogDetailsStatus: CatalogDetailsStatus = "loading";
+
+export function readCatalogDetailsStatus(): CatalogDetailsStatus {
+  return catalogDetailsStatus;
+}
 
 const VIEW_LIMIT = 480;
 export const LENS_GROUPS: { id: LensId; label: string; facets: string[] }[] = [
@@ -164,6 +172,7 @@ export const CATALOG_GENERATION = data.generation;
 const embeddings = data.embeddingNeighbors ?? {};
 const pageVideo = data.pageVideo ?? {};
 const fontSimilarity = data.fontSimilarity ?? {};
+const fontMetadata = data.fontMetadata ?? {};
 
 const termCaptureIds = new Map<string, number[]>();
 const domainCaptureIds = new Map<string, number[]>();
@@ -200,38 +209,48 @@ for (const capture of captures) {
   const originList = domainCaptureIds.get(capture.origin) ?? [];
   originList.push(capture.id);
   domainCaptureIds.set(capture.origin, originList);
-  for (const row of assignments[String(capture.id)] ?? []) {
-    const list = termCaptureIds.get(row.term) ?? [];
-    list.push(capture.id);
-    termCaptureIds.set(row.term, list);
+}
+
+function rebuildTermEvidence(): void {
+  termCaptureIds.clear();
+  for (const capture of captures) {
+    for (const row of assignments[String(capture.id)] ?? []) {
+      const list = termCaptureIds.get(row.term) ?? [];
+      list.push(capture.id);
+      termCaptureIds.set(row.term, list);
+    }
   }
 }
 
+rebuildTermEvidence();
+
 const searchTextByCapture = new Map<number, string>();
+
+function indexCaptureFonts(capture: Capture): void {
+  for (const family of evidencedFontFamilies(capture.id)) {
+    addFontCapture(capture.id, family);
+  }
+  searchTextByCapture.set(
+    capture.id,
+    [
+      capture.title,
+      capture.host,
+      capture.origin,
+      capture.path,
+      ...assignmentsOf(capture.id).map(
+        (row) => termById.get(row.term)?.label ?? row.term,
+      ),
+      ...evidencedFontFamilies(capture.id),
+    ]
+      .join(" ")
+      .toLowerCase(),
+  );
+}
 
 function rebuildFontEvidence(): void {
   fontCaptureIds.clear();
   searchTextByCapture.clear();
-  for (const capture of captures) {
-    for (const family of evidencedFontFamilies(capture.id)) {
-      addFontCapture(capture.id, family);
-    }
-    searchTextByCapture.set(
-      capture.id,
-      [
-        capture.title,
-        capture.host,
-        capture.origin,
-        capture.path,
-        ...assignmentsOf(capture.id).map(
-          (row) => termById.get(row.term)?.label ?? row.term,
-        ),
-        ...evidencedFontFamilies(capture.id),
-      ]
-        .join(" ")
-        .toLowerCase(),
-    );
-  }
+  for (const capture of captures) indexCaptureFonts(capture);
 }
 
 rebuildFontEvidence();
@@ -260,11 +279,15 @@ function replaceRecord<T>(
 }
 
 void catalogLoad.details.then((details) => {
-  if (!details) return;
-  replaceRecord(palettes, details.palettes);
-  replaceRecord(historicalFonts, details.historicalFonts);
-  replaceRecord(textStyles, details.textStyles ?? {});
+  if (!details) {
+    catalogDetailsStatus = "failed";
+    for (const listener of catalogListeners) listener();
+    return;
+  }
+  replaceRecord(assignments, details.assignments);
+  rebuildTermEvidence();
   rebuildFontEvidence();
+  catalogDetailsStatus = "ready";
   for (const listener of catalogListeners) listener();
 });
 
@@ -301,6 +324,9 @@ export function fontsOf(id: number): FontUse[] {
 
 export function fontCatalogIdsOf(family: string): number[] {
   return data.fontCatalogIds[observedFontFamilyKey(family)] ?? [];
+}
+export function fontMetadataOf(family: string) {
+  return fontMetadata[observedFontFamilyKey(family)] ?? null;
 }
 
 export function familyFontPreviewUrl(
@@ -446,6 +472,10 @@ export function neighborsOf(
   );
 }
 
+export function semanticNeighborsReady(id: number): boolean {
+  return Object.hasOwn(embeddings, String(id));
+}
+
 const semanticRequests = new Map<number, Promise<void>>();
 
 export function ensureSemanticNeighbors(id: number): Promise<void> {
@@ -454,7 +484,7 @@ export function ensureSemanticNeighbors(id: number): Promise<void> {
   const pending = semanticRequests.get(id);
   if (pending) return pending;
   const request = fetch(
-    `/v1/similar-captures?captureId=${id}&generation=${data.generation}&limit=24`,
+    `/v1/similar-captures?captureId=${id}&generation=${data.generation}&limit=100`,
     { headers: { accept: "application/json" }, credentials: "same-origin" },
   )
     .then(async (response) => {
@@ -491,6 +521,10 @@ export function ensureSemanticNeighbors(id: number): Promise<void> {
       }
       embeddings[key] = rows;
     })
+    .catch((error) => {
+      embeddings[key] = [];
+      throw error;
+    })
     .finally(() => semanticRequests.delete(id));
   semanticRequests.set(id, request);
   return request;
@@ -507,6 +541,73 @@ export type CaptureEvidenceFact = {
 
 const captureEvidence = new Map<number, Record<string, CaptureEvidenceRow[]>>();
 const evidenceRequests = new Map<number, Promise<void>>();
+
+function hydrateCaptureEvidence(
+  id: number,
+  evidence: Record<string, CaptureEvidenceRow[]>,
+): void {
+  const key = String(id);
+  const historical = evidence.historical_font?.flatMap(({ values }) => {
+    const familyId = Number(values[0]);
+    const family = normalizeObservedFontFamily(String(values[1] ?? ""));
+    if (!Number.isSafeInteger(familyId) || !family) return [];
+    return [
+      {
+        familyId,
+        family,
+        subfamily: String(values[2] || "Regular"),
+        links: Math.max(0, Number(values[3]) || 0),
+      },
+    ];
+  });
+  if (historical?.length) historicalFonts[key] = historical;
+
+  const styles = evidence.text_style?.map(({ values }) => {
+    const lineHeight = values[6] == null ? null : Number(values[6]);
+    const letterSpacing = values[7] == null ? null : Number(values[7]);
+    return {
+      family: normalizeObservedFontFamily(String(values[0] ?? "")) || null,
+      generic: String(values[4] || "unknown"),
+      weight: Number(values[1]) || 400,
+      style: String(values[5] || "normal"),
+      size: Number(values[2]) || 0,
+      lineHeight:
+        lineHeight != null && Number.isFinite(lineHeight) ? lineHeight : null,
+      letterSpacing:
+        letterSpacing != null && Number.isFinite(letterSpacing)
+          ? letterSpacing
+          : null,
+      occurrences: Math.max(0, Number(values[3]) || 0),
+    };
+  });
+  if (styles?.length) {
+    styles.sort((a, b) => b.occurrences - a.occurrences || b.size - a.size);
+    textStyles[key] = styles;
+  }
+
+  if (!(palettes[key]?.length > 0)) {
+    const colors = [
+      ...new Set(
+        (evidence.legacy_color ?? [])
+          .map(({ values }) => Number(values[0]))
+          .filter(Number.isSafeInteger)
+          .map((value) => value & 0xffffff),
+      ),
+    ];
+    if (colors.length) {
+      const coverage = Math.floor(1_000_000 / colors.length);
+      palettes[key] = colors.map((value) => ({
+        r: (value >> 16) & 0xff,
+        g: (value >> 8) & 0xff,
+        b: value & 0xff,
+        coverage,
+      }));
+    }
+  }
+
+  const capture = captureById.get(id);
+  if (capture) indexCaptureFonts(capture);
+}
 
 export function ensureCaptureEvidence(id: number): Promise<void> {
   if (captureEvidence.has(id)) return Promise.resolve();
@@ -533,6 +634,7 @@ export function ensureCaptureEvidence(id: number): Promise<void> {
         throw new Error("Capture evidence returned an invalid generation");
       }
       captureEvidence.set(id, payload.evidence);
+      hydrateCaptureEvidence(id, payload.evidence);
     })
     .finally(() => evidenceRequests.delete(id));
   evidenceRequests.set(id, request);
@@ -711,6 +813,54 @@ export function coTerms(
     .slice(0, 8);
 }
 
+const fontSimilarityRequests = new Map<string, Promise<void>>();
+export function fontSimilarityReady(family: string): boolean {
+  const key = observedFontFamilyKey(family);
+  return Object.keys(fontSimilarity).some(
+    (name) => observedFontFamilyKey(name) === key,
+  );
+}
+
+export function ensureFontSimilarity(family: string): Promise<void> {
+  const key = observedFontFamilyKey(family);
+  const existing = Object.keys(fontSimilarity).find(
+    (name) => observedFontFamilyKey(name) === key,
+  );
+  if (existing) return Promise.resolve();
+  const pending = fontSimilarityRequests.get(key);
+  if (pending) return pending;
+  const familyId = fontCatalogIdsOf(family)[0];
+  if (!familyId) {
+    fontSimilarity[family] = [];
+    return Promise.resolve();
+  }
+  const request = loadSimilarFonts(familyId, data.generation)
+    .then((rows) => {
+      const seen = new Set<string>();
+      fontSimilarity[family] = rows.flatMap((row) => {
+        const candidateKey = observedFontFamilyKey(row.familyName);
+        if (!candidateKey || candidateKey === key || seen.has(candidateKey)) {
+          return [];
+        }
+        seen.add(candidateKey);
+        return [
+          {
+            id: row.familyId,
+            name: row.familyName,
+            score: 1 / (1 + Math.max(0, row.visualDistance)),
+          },
+        ];
+      });
+    })
+    .catch((error) => {
+      fontSimilarity[family] = [];
+      throw error;
+    })
+    .finally(() => fontSimilarityRequests.delete(key));
+  fontSimilarityRequests.set(key, request);
+  return request;
+}
+
 export function similarFonts(
   family: string,
 ): { name: string; score: number }[] {
@@ -847,7 +997,27 @@ export function neighborDistance(id: number): Map<number, number> {
   return map;
 }
 
+export function fieldFilters(view: FieldView): FieldFilter[] {
+  if (view.kind === "all") return [];
+  return view.kind === "filtered" ? view.filters : [view];
+}
+
+export function combineFieldViews(views: FieldView[]): FieldView {
+  const filters = views.flatMap(fieldFilters);
+  if (filters.length === 0) return { kind: "all" };
+  if (filters.length === 1) return filters[0]!;
+  return { kind: "filtered", filters };
+}
+
+export function latestFieldFilter(view: FieldView): FieldFilter | null {
+  const filters = fieldFilters(view);
+  return filters.at(-1) ?? null;
+}
+
 export function viewTitle(view: FieldView): string {
+  if (view.kind === "filtered") {
+    return view.filters.map(viewTitle).join(" + ") || "Field";
+  }
   if (view.kind === "all") return "Field";
   if (view.kind === "saved") return "Saved";
   if (view.kind === "term") return termById.get(view.id)?.label ?? view.id;
@@ -879,6 +1049,10 @@ export function viewTitle(view: FieldView): string {
 }
 
 export function viewTone(view: FieldView): "term" | "type" | "data" | "fg" {
+  if (view.kind === "filtered") {
+    const latest = latestFieldFilter(view);
+    return latest ? viewTone(latest) : "fg";
+  }
   if (view.kind === "term" || view.kind === "facet") return "term";
   if (view.kind === "font" || view.kind === "typeSimilar") return "type";
   if (view.kind === "palette" || view.kind === "visual") return "data";
@@ -886,6 +1060,10 @@ export function viewTone(view: FieldView): "term" | "type" | "data" | "fg" {
 }
 
 export function viewPalette(view: FieldView): PaletteSwatch[] {
+  if (view.kind === "filtered") {
+    const latest = latestFieldFilter(view);
+    return latest ? viewPalette(latest) : [];
+  }
   if (
     view.kind === "palette" ||
     view.kind === "visual" ||
@@ -909,6 +1087,9 @@ function fontEntryMeta(entry: {
 }
 
 export function viewMeta(view: FieldView): string {
+  if (view.kind === "filtered") {
+    return `${view.filters.length} combined filters`;
+  }
   if (view.kind === "term") {
     const term = termById.get(view.id);
     return term?.facetLabel ?? "";
@@ -1026,56 +1207,98 @@ function idsToCaptures(ids: number[]): Capture[] {
   return out;
 }
 
+function matchesForFilter(
+  filter: FieldFilter,
+  savedIds: Set<string>,
+): Capture[] {
+  const pool = rankedCaptures;
+  if (filter.kind === "saved") {
+    return pool.filter((capture) => savedIds.has(String(capture.id)));
+  }
+  if (filter.kind === "term") {
+    return pool.filter((capture) => termSetOf(capture.id).has(filter.id));
+  }
+  if (filter.kind === "facet") {
+    const facet = facetById.get(filter.id);
+    const ids = new Set(facet?.terms.map((term) => term.id) ?? []);
+    return pool.filter((capture) =>
+      assignmentsOf(capture.id).some((row) => ids.has(row.term)),
+    );
+  }
+  if (filter.kind === "font") {
+    const ids = fontCaptureIds.get(observedFontFamilyKey(filter.family))?.ids;
+    return ids ? pool.filter((capture) => ids.has(capture.id)) : [];
+  }
+  if (filter.kind === "palette") {
+    const ids = new Set(similarPaletteIds(filter.id));
+    return pool.filter((capture) => ids.has(capture.id));
+  }
+  if (filter.kind === "domain") {
+    return pool.filter((capture) => capture.origin === filter.origin);
+  }
+  if (filter.kind === "search") {
+    return idsToCaptures(filter.captureIds);
+  }
+  if (filter.kind === "visual") {
+    return idsToCaptures([
+      filter.id,
+      ...neighborsOf(filter.id).map((row) => row.captureId),
+    ]).slice(0, 100);
+  }
+  if (filter.kind === "semantic") {
+    return idsToCaptures([
+      filter.id,
+      ...semanticSimilar(filter.id).map((row) => row.id),
+    ]);
+  }
+  if (filter.kind === "typeSimilar") {
+    return idsToCaptures([
+      filter.id,
+      ...typeSimilar(filter.id).map((row) => row.id),
+    ]);
+  }
+  if (filter.kind === "adjacent") {
+    return idsToCaptures([
+      filter.id,
+      ...adjacentCaptures(filter.id).map((row) => row.id),
+    ]);
+  }
+  return pool.filter((capture) => motionOf(capture.id));
+}
+
 export function captureView(
   view: FieldView,
   savedIds: Set<string>,
 ): { captures: Capture[]; total: number } {
-  const pool = rankedCaptures;
   let matches: Capture[];
   if (view.kind === "all") {
     matches = fieldCaptures();
-  } else if (view.kind === "saved") {
-    matches = pool.filter((capture) => savedIds.has(String(capture.id)));
-  } else if (view.kind === "term") {
-    matches = pool.filter((capture) => termSetOf(capture.id).has(view.id));
-  } else if (view.kind === "facet") {
-    const facet = facetById.get(view.id);
-    const ids = new Set(facet?.terms.map((term) => term.id) ?? []);
-    matches = pool.filter((capture) =>
-      assignmentsOf(capture.id).some((row) => ids.has(row.term)),
-    );
-  } else if (view.kind === "font") {
-    const ids = fontCaptureIds.get(observedFontFamilyKey(view.family))?.ids;
-    matches = ids ? pool.filter((capture) => ids.has(capture.id)) : [];
-  } else if (view.kind === "palette") {
-    const ids = new Set(similarPaletteIds(view.id));
-    matches = pool.filter((capture) => ids.has(capture.id));
-  } else if (view.kind === "domain") {
-    matches = pool.filter((capture) => capture.origin === view.origin);
-  } else if (view.kind === "search") {
-    matches = idsToCaptures(view.captureIds);
-  } else if (view.kind === "visual") {
-    matches = idsToCaptures([
-      view.id,
-      ...neighborsOf(view.id).map((row) => row.captureId),
-    ]);
-  } else if (view.kind === "semantic") {
-    matches = idsToCaptures([
-      view.id,
-      ...semanticSimilar(view.id).map((row) => row.id),
-    ]);
-  } else if (view.kind === "typeSimilar") {
-    matches = idsToCaptures([
-      view.id,
-      ...typeSimilar(view.id).map((row) => row.id),
-    ]);
-  } else if (view.kind === "adjacent") {
-    matches = idsToCaptures([
-      view.id,
-      ...adjacentCaptures(view.id).map((row) => row.id),
-    ]);
+  } else if (view.kind === "filtered") {
+    const filters = view.filters;
+    if (filters.length === 0) {
+      matches = fieldCaptures();
+    } else {
+      const orderedIndex = filters.findIndex(
+        (filter) => filter.kind === "search",
+      );
+      const seed =
+        orderedIndex >= 0
+          ? matchesForFilter(filters[orderedIndex]!, savedIds)
+          : rankedCaptures;
+      const required = filters
+        .filter((_, index) => index !== orderedIndex)
+        .map(
+          (filter) =>
+            new Set(
+              matchesForFilter(filter, savedIds).map((capture) => capture.id),
+            ),
+        );
+      matches = seed.filter((capture) =>
+        required.every((ids) => ids.has(capture.id)),
+      );
+    }
   } else {
-    matches = pool.filter((capture) => motionOf(capture.id));
+    matches = matchesForFilter(view, savedIds);
   }
   return { captures: bounded(matches), total: matches.length };
 }
