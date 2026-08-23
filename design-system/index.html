@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2f0e9" />
+    <title>Fudge Composition System</title>
+  </head>
+  <body>
+    <main class="demo-shell">
+      <section class="demo-context">
+        <span>Composition algebra / login</span>
+        <p>
+          Structure and state derive rhythm, motion, sound, and haptics. The
+          component callsite contains no feedback instructions.
+        </p>
+      </section>
+
+      <fudge-form id="login-composition" density="comfortable">
+        <form novalidate>
+          <fudge-heading
+            text="Sign in"
+            description="Continue to your Fudge workspace."
+          ></fudge-heading>
+
+          <fudge-field
+            name="email"
+            label="Email address"
+            type="email"
+            autocomplete="email"
+            required
+          ></fudge-field>
+
+          <fudge-field
+            name="password"
+            label="Password"
+            type="password"
+            autocomplete="current-password"
+            required
+          ></fudge-field>
+
+          <fudge-action label="Continue"></fudge-action>
+
+          <output
+            id="login-status"
+            data-compose-kind="message"
+            aria-live="polite"
+          ></output>
+        </form>
+      </fudge-form>
+    </main>
+
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>
