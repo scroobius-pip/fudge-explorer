@@ -306,9 +306,11 @@ function hueSwatch(captureId: number, termId: string): PaletteSwatch | null {
   let bestScore = Infinity;
   for (const swatch of swatches) {
     const metrics = swatchMetrics(swatch);
-    if (metrics.chroma < 0.06) continue;
+    if (metrics.chroma < 0.025) continue;
+    const distance = hueDistance(metrics.hue, target.hue);
+    if (distance > 45) continue;
     const score =
-      hueDistance(metrics.hue, target.hue) +
+      distance +
       Math.abs(metrics.lightness - target.lightness) * 20 -
       Math.min(4, swatch.coverage / 250_000);
     if (score < bestScore) {

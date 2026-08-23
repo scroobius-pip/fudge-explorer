@@ -1,4 +1,9 @@
-import { loadCatalogFile, loadSimilarFonts } from "./api";
+import { loadSimilarFonts } from "./api";
+import {
+  loadCatalogInWorker,
+  loadCaptureEvidenceInWorker,
+  type CaptureEvidenceRow,
+} from "./corpus-client";
 import { normalizeObservedFontFamily, observedFontFamilyKey } from "./fonts";
 import type {
   Capture,
@@ -19,7 +24,7 @@ import type {
   TextStyle,
 } from "./types";
 
-const catalogLoad = await loadCatalogFile();
+const catalogLoad = await loadCatalogInWorker();
 const data = catalogLoad.initial;
 
 export type CatalogDetailsStatus = "loading" | "ready" | "failed";
@@ -174,12 +179,27 @@ const pageVideo = data.pageVideo ?? {};
 const fontSimilarity = data.fontSimilarity ?? {};
 const fontMetadata = data.fontMetadata ?? {};
 
-const termCaptureIds = new Map<string, number[]>();
-const domainCaptureIds = new Map<string, number[]>();
+const termCaptureIds = new Map<string, number[]>(
+  Object.entries(data.termCaptureIds),
+);
+const domainCaptureIds = new Map<string, number[]>(
+  Object.entries(data.domainCaptureIds),
+);
 const fontCaptureIds = new Map<
   string,
   { name: string; ids: Set<number>; catalogIds: number[] }
->();
+>(
+  Object.entries(data.fontCaptureIndex).map(([key, entry]) => [
+    key,
+    { ...entry, ids: new Set(entry.ids) },
+  ]),
+);
+const searchTextByCapture = new Map<number, string>(
+  Object.entries(data.searchTextByCapture).map(([id, text]) => [
+    Number(id),
+    text,
+  ]),
+);
 
 function evidencedFontFamilies(captureId: number): string[] {
   return [
@@ -205,27 +225,6 @@ function addFontCapture(captureId: number, family: string): void {
   fontCaptureIds.set(key, entry);
 }
 
-for (const capture of captures) {
-  const originList = domainCaptureIds.get(capture.origin) ?? [];
-  originList.push(capture.id);
-  domainCaptureIds.set(capture.origin, originList);
-}
-
-function rebuildTermEvidence(): void {
-  termCaptureIds.clear();
-  for (const capture of captures) {
-    for (const row of assignments[String(capture.id)] ?? []) {
-      const list = termCaptureIds.get(row.term) ?? [];
-      list.push(capture.id);
-      termCaptureIds.set(row.term, list);
-    }
-  }
-}
-
-rebuildTermEvidence();
-
-const searchTextByCapture = new Map<number, string>();
-
 function indexCaptureFonts(capture: Capture): void {
   for (const family of evidencedFontFamilies(capture.id)) {
     addFontCapture(capture.id, family);
@@ -247,20 +246,15 @@ function indexCaptureFonts(capture: Capture): void {
   );
 }
 
-function rebuildFontEvidence(): void {
-  fontCaptureIds.clear();
-  searchTextByCapture.clear();
-  for (const capture of captures) indexCaptureFonts(capture);
-}
-
-rebuildFontEvidence();
-
 const rankedCaptures = [...captures].sort(
   (a, b) =>
     (mainRank.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
       (mainRank.get(b.id) ?? Number.MAX_SAFE_INTEGER) ||
     (b.capturedAt ?? 0) - (a.capturedAt ?? 0) ||
     b.id - a.id,
+);
+const captureRank = new Map(
+  rankedCaptures.map((capture, index) => [capture.id, index]),
 );
 
 const catalogListeners = new Set<() => void>();
@@ -285,8 +279,22 @@ void catalogLoad.details.then((details) => {
     return;
   }
   replaceRecord(assignments, details.assignments);
-  rebuildTermEvidence();
-  rebuildFontEvidence();
+  replaceRecord(palettes, details.palettes);
+  replaceRecord(colorRoles, details.colorRoles);
+  replaceRecord(fonts, details.fonts);
+  replaceRecord(typeRoles, details.typeRoles);
+  fontCaptureIds.clear();
+  for (const [key, entry] of Object.entries(details.fontCaptureIndex)) {
+    fontCaptureIds.set(key, { ...entry, ids: new Set(entry.ids) });
+  }
+  termCaptureIds.clear();
+  for (const [term, ids] of Object.entries(details.termCaptureIds)) {
+    termCaptureIds.set(term, ids);
+  }
+  searchTextByCapture.clear();
+  for (const [id, text] of Object.entries(details.searchTextByCapture)) {
+    searchTextByCapture.set(Number(id), text);
+  }
   catalogDetailsStatus = "ready";
   for (const listener of catalogListeners) listener();
 });
@@ -530,7 +538,6 @@ export function ensureSemanticNeighbors(id: number): Promise<void> {
   return request;
 }
 
-type CaptureEvidenceRow = { identity: unknown; values: unknown[] };
 export type CaptureEvidenceFact = {
   id: string;
   label: string;
@@ -613,18 +620,8 @@ export function ensureCaptureEvidence(id: number): Promise<void> {
   if (captureEvidence.has(id)) return Promise.resolve();
   const pending = evidenceRequests.get(id);
   if (pending) return pending;
-  const request = fetch(
-    `/v1/capture-evidence?captureId=${id}&generation=${data.generation}`,
-    { headers: { accept: "application/json" }, credentials: "same-origin" },
-  )
-    .then(async (response) => {
-      if (!response.ok)
-        throw new Error(`Capture evidence failed (${response.status})`);
-      const payload = (await response.json()) as {
-        observedGeneration?: number;
-        captureId?: number;
-        evidence?: Record<string, CaptureEvidenceRow[]>;
-      };
+  const request = loadCaptureEvidenceInWorker(id, data.generation)
+    .then((payload) => {
       if (
         !Number.isSafeInteger(payload.observedGeneration) ||
         (payload.observedGeneration ?? 0) < 1 ||
@@ -1207,6 +1204,14 @@ function idsToCaptures(ids: number[]): Capture[] {
   return out;
 }
 
+function rankedIndexedCaptures(ids: Iterable<number>): Capture[] {
+  return idsToCaptures([...ids]).sort(
+    (a, b) =>
+      (captureRank.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+      (captureRank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+  );
+}
+
 function matchesForFilter(
   filter: FieldFilter,
   savedIds: Set<string>,
@@ -1216,25 +1221,24 @@ function matchesForFilter(
     return pool.filter((capture) => savedIds.has(String(capture.id)));
   }
   if (filter.kind === "term") {
-    return pool.filter((capture) => termSetOf(capture.id).has(filter.id));
+    return rankedIndexedCaptures(termCaptureIds.get(filter.id) ?? []);
   }
   if (filter.kind === "facet") {
     const facet = facetById.get(filter.id);
-    const ids = new Set(facet?.terms.map((term) => term.id) ?? []);
-    return pool.filter((capture) =>
-      assignmentsOf(capture.id).some((row) => ids.has(row.term)),
+    const ids = new Set(
+      (facet?.terms ?? []).flatMap((term) => termCaptureIds.get(term.id) ?? []),
     );
+    return rankedIndexedCaptures(ids);
   }
   if (filter.kind === "font") {
     const ids = fontCaptureIds.get(observedFontFamilyKey(filter.family))?.ids;
-    return ids ? pool.filter((capture) => ids.has(capture.id)) : [];
+    return ids ? rankedIndexedCaptures(ids) : [];
   }
   if (filter.kind === "palette") {
-    const ids = new Set(similarPaletteIds(filter.id));
-    return pool.filter((capture) => ids.has(capture.id));
+    return rankedIndexedCaptures(similarPaletteIds(filter.id));
   }
   if (filter.kind === "domain") {
-    return pool.filter((capture) => capture.origin === filter.origin);
+    return rankedIndexedCaptures(domainCaptureIds.get(filter.origin) ?? []);
   }
   if (filter.kind === "search") {
     return idsToCaptures(filter.captureIds);
@@ -1308,163 +1312,4 @@ export function capturesInView(
   savedIds: Set<string>,
 ): Capture[] {
   return captureView(view, savedIds).captures;
-}
-
-type RankedSearchHit = { hit: SearchHit; score: number };
-
-function normalizedSearchText(value: string) {
-  return value
-    .normalize("NFKC")
-    .toLocaleLowerCase("en-US")
-    .replace(/[_-]+/g, " ")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim()
-    .replace(/\s+/g, " ");
-}
-
-function cheapTextScore(query: string, ...values: string[]) {
-  const compactQuery = query.replace(/\s+/g, "");
-  let best = 0;
-  for (const raw of values) {
-    const value = normalizedSearchText(raw);
-    if (!value) continue;
-    const compact = value.replace(/\s+/g, "");
-    if (value === query) best = Math.max(best, 1_000);
-    else if (compact === compactQuery) best = Math.max(best, 960);
-    else if (value.startsWith(query))
-      best = Math.max(best, 840 - Math.min(120, value.length - query.length));
-    else {
-      const index = value.indexOf(query);
-      if (index >= 0) best = Math.max(best, 700 - Math.min(240, index * 4));
-    }
-    const queryTokens = query.split(" ");
-    const words = new Set(value.split(" "));
-    const exactTokens = queryTokens.filter((token) => words.has(token)).length;
-    best = Math.max(best, (exactTokens / queryTokens.length) * 520);
-  }
-  return best;
-}
-
-function rankedHits(rows: RankedSearchHit[], limit: number) {
-  return rows
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        a.hit.title.localeCompare(b.hit.title) ||
-        a.hit.id.localeCompare(b.hit.id),
-    )
-    .slice(0, limit);
-}
-
-export function searchCatalog(
-  query: string,
-): { label: string; items: SearchHit[] }[] {
-  const q = normalizedSearchText(query);
-  if (!q) return [];
-  const tokens = q.split(" ");
-  const captureHits = rankedHits(
-    rankedCaptures
-      .filter((capture) => {
-        const text = searchTextByCapture.get(capture.id) ?? "";
-        return tokens.every((token) => text.includes(token));
-      })
-      .map((capture) => {
-        const hit: SearchHit = {
-          kind: "capture",
-          id: String(capture.id),
-          title: capture.title,
-          sub: capture.host,
-        };
-        return {
-          hit,
-          score: Math.max(
-            180,
-            cheapTextScore(q, capture.title, capture.host, capture.origin),
-          ),
-        };
-      }),
-    8,
-  );
-  const termHits = rankedHits(
-    [...termById.values()]
-      .filter(
-        (term) =>
-          normalizedSearchText(term.label).includes(q) ||
-          normalizedSearchText(term.id).includes(q),
-      )
-      .map((term) => {
-        const hit: SearchHit = {
-          kind: "term",
-          id: term.id,
-          title: term.label,
-          sub: `${term.facetLabel} · ${termCaptureCount(term.id)}`,
-        };
-        return { hit, score: cheapTextScore(q, term.label, term.id) };
-      }),
-    8,
-  );
-  const fontHits = rankedHits(
-    [...fontCaptureIds.values()]
-      .filter((entry) => normalizedSearchText(entry.name).includes(q))
-      .map((entry) => {
-        const hit: SearchHit = {
-          kind: "font",
-          id: entry.name,
-          title: entry.name,
-          sub: fontEntryMeta(entry),
-        };
-        return { hit, score: cheapTextScore(q, entry.name) };
-      }),
-    6,
-  );
-  const domainHits = rankedHits(
-    [...domainCaptureIds.entries()]
-      .filter(([origin]) => normalizedSearchText(hostFrom(origin)).includes(q))
-      .map(([origin, ids]) => {
-        const title = hostFrom(origin);
-        const hit: SearchHit = {
-          kind: "domain",
-          id: origin,
-          title,
-          sub: `${ids.length} captures`,
-        };
-        return { hit, score: cheapTextScore(q, title, origin) };
-      }),
-    5,
-  );
-  const facetHits = rankedHits(
-    facets
-      .filter(
-        (facet) =>
-          normalizedSearchText(facet.label).includes(q) ||
-          normalizedSearchText(facet.id).includes(q),
-      )
-      .map((facet) => {
-        const hit: SearchHit = {
-          kind: "facet",
-          id: facet.id,
-          title: facet.label,
-          sub: facet.group,
-        };
-        return { hit, score: cheapTextScore(q, facet.label, facet.id) };
-      }),
-    5,
-  );
-  return [
-    { label: "Captures", rows: captureHits },
-    { label: "Terms", rows: termHits },
-    { label: "Facets", rows: facetHits },
-    { label: "Fonts", rows: fontHits },
-    { label: "Domains", rows: domainHits },
-  ]
-    .filter((group) => group.rows.length > 0)
-    .sort(
-      (a, b) =>
-        (b.rows[0]?.score ?? 0) - (a.rows[0]?.score ?? 0) ||
-        a.label.localeCompare(b.label),
-    )
-    .map((group) => ({
-      label: group.label,
-      items: group.rows.map((row) => row.hit),
-    }));
 }

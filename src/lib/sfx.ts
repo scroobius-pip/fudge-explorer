@@ -358,6 +358,9 @@ function readSoundTheme(): SoundThemeId {
   }
 }
 
+const SILENCE_FLOOR = 0.000001;
+const FRICTION_RELEASE_SECONDS = 0.09;
+
 class PhysicsSfx {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -432,6 +435,15 @@ class PhysicsSfx {
     if (this.master && this.ctx) {
       const level = theme === "off" ? 0 : soundThemeConfig(theme).master;
       this.master.gain.setTargetAtTime(level, this.ctx.currentTime, 0.025);
+      for (const gain of [
+        this.frictionGain,
+        this.zoomGain,
+        this.zoomToneGain,
+      ]) {
+        if (!gain) continue;
+        gain.gain.cancelScheduledValues(this.ctx.currentTime);
+        gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.008);
+      }
     }
     for (const listener of this.themeListeners) listener(theme);
   }
@@ -480,7 +492,11 @@ class PhysicsSfx {
       Math.min(1, (speed - spec.threshold) / Math.max(1, 18 - spec.threshold)),
     );
     const amp = spec.gain * energy * theme.noise;
-    this.frictionGain!.gain.setTargetAtTime(amp, t, 0.05);
+    const gain = this.frictionGain!.gain;
+    gain.cancelScheduledValues(t);
+    gain.setValueAtTime(Math.max(0, gain.value), t);
+    gain.linearRampToValueAtTime(amp, t + 0.012);
+    gain.linearRampToValueAtTime(0, t + FRICTION_RELEASE_SECONDS);
     this.frictionFilter!.Q.setTargetAtTime(spec.q, t, 0.04);
     this.frictionFilter!.frequency.setTargetAtTime(
       spec.base + Math.min(speed, 40) * spec.speedScale,
@@ -517,16 +533,28 @@ class PhysicsSfx {
 
     noiseGain.gain.cancelScheduledValues(t);
     noiseGain.gain.setValueAtTime(
-      Math.max(0.0001, noiseGain.gain.value, amp * spec.noiseMix * theme.noise),
+      Math.max(
+        SILENCE_FLOOR,
+        noiseGain.gain.value,
+        amp * spec.noiseMix * theme.noise,
+      ),
       t,
     );
-    noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + spec.duration);
+    noiseGain.gain.exponentialRampToValueAtTime(
+      SILENCE_FLOOR,
+      t + spec.duration,
+    );
+    noiseGain.gain.setValueAtTime(0, t + spec.duration + 0.02);
     toneGain.gain.cancelScheduledValues(t);
     toneGain.gain.setValueAtTime(
-      Math.max(0.0001, toneGain.gain.value, amp * spec.toneMix),
+      Math.max(SILENCE_FLOOR, toneGain.gain.value, amp * spec.toneMix),
       t,
     );
-    toneGain.gain.exponentialRampToValueAtTime(0.0001, t + spec.duration);
+    toneGain.gain.exponentialRampToValueAtTime(
+      SILENCE_FLOOR,
+      t + spec.duration,
+    );
+    toneGain.gain.setValueAtTime(0, t + spec.duration + 0.02);
 
     filter.Q.setValueAtTime(spec.q, t);
     filter.frequency.cancelScheduledValues(t);

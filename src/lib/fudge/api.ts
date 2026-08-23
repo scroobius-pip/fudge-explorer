@@ -52,11 +52,23 @@ function reportProgress(value: number, label: string): void {
   if (nextValue === lastProgressValue && label === lastProgressLabel) return;
   lastProgressValue = nextValue;
   lastProgressLabel = label;
-  window.dispatchEvent(
-    new CustomEvent("fudge:load-progress", {
-      detail: { value: nextValue, label },
-    }),
-  );
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("fudge:load-progress", {
+        detail: { value: nextValue, label },
+      }),
+    );
+  } else {
+    (
+      globalThis as unknown as {
+        postMessage(message: unknown): void;
+      }
+    ).postMessage({
+      type: "progress",
+      value: nextValue,
+      label,
+    });
+  }
 }
 
 const FACET_GROUPS: Record<string, string> = {
@@ -266,6 +278,22 @@ export function catalogFromBundles(
     : base;
   const captures = captureRows(data.captures);
   const assignments = assignmentRows(data.assignments);
+  const facets = facetRows(data.terms);
+  const palettes = paletteRows(data.color_roles, data.raster_palette ?? [], {
+    ...(bootstrap.legacyColors ?? {}),
+    ...(details?.legacyColors ?? {}),
+  });
+  const colorRoles = colorRoleRows(data.color_roles);
+  const fonts = fontRows(data.font_obs);
+  const historicalFonts = historicalFontRows(data.hist_fonts ?? []);
+  const fontCatalogIds = familyCatalogIds(data.families);
+  const fontMetadata = fontMetadataRows(
+    data.families,
+    data.designers ?? [],
+    data.vendors ?? [],
+  );
+  const typeRoles = typeRoleRows(data.type_roles);
+  const textStyles = textStyleRows(data.text_styles ?? []);
   const mainCaptureIds = selectFieldIds(captures, assignments);
   const mainSet = new Set(mainCaptureIds);
   const typedCaptures = captures.map((capture) => ({
@@ -274,6 +302,16 @@ export function catalogFromBundles(
       ? ("primary" as const)
       : ("neighbor" as const),
   }));
+  const termCaptureIds = termCaptureIndex(assignments);
+  const domainCaptureIds = buildDomainCaptureIndex(typedCaptures);
+  const fontCaptureIndex = buildFontCaptureIndex(
+    typedCaptures,
+    fonts,
+    historicalFonts,
+    typeRoles,
+    textStyles,
+    fontCatalogIds,
+  );
 
   return {
     generation: data.observed_generation,
@@ -283,23 +321,28 @@ export function catalogFromBundles(
     captures: typedCaptures,
     mainCaptureIds,
     pivotIds: mainCaptureIds.slice(0, 8),
-    facets: facetRows(data.terms),
+    facets,
     assignments,
-    palettes: paletteRows(data.color_roles, data.raster_palette ?? [], {
-      ...(bootstrap.legacyColors ?? {}),
-      ...(details?.legacyColors ?? {}),
-    }),
-    colorRoles: colorRoleRows(data.color_roles),
-    fonts: fontRows(data.font_obs),
-    historicalFonts: historicalFontRows(data.hist_fonts ?? []),
-    fontCatalogIds: familyCatalogIds(data.families),
-    fontMetadata: fontMetadataRows(
-      data.families,
-      data.designers ?? [],
-      data.vendors ?? [],
+    termCaptureIds,
+    domainCaptureIds,
+    fontCaptureIndex,
+    searchTextByCapture: buildSearchTextIndex(
+      typedCaptures,
+      assignments,
+      facets,
+      fonts,
+      historicalFonts,
+      typeRoles,
+      textStyles,
     ),
-    typeRoles: typeRoleRows(data.type_roles),
-    textStyles: textStyleRows(data.text_styles ?? []),
+    palettes,
+    colorRoles,
+    fonts,
+    historicalFonts,
+    fontCatalogIds,
+    fontMetadata,
+    typeRoles,
+    textStyles,
     motion: motionRows(data.motion_assets),
     pageVideo: pageVideoRows(data.video_observations ?? []),
     embeddingNeighbors: {},
@@ -440,6 +483,123 @@ function assignmentRows(rows: Row[]): Record<string, TermRef[]> {
     });
   }
   return grouped;
+}
+
+function buildDomainCaptureIndex(
+  captures: RawCapture[],
+): Record<string, number[]> {
+  const grouped: Record<string, number[]> = {};
+  for (const capture of captures) {
+    (grouped[capture.origin] ??= []).push(capture.id);
+  }
+  return grouped;
+}
+
+function termCaptureIndex(
+  assignments: Record<string, TermRef[]>,
+): Record<string, number[]> {
+  const grouped: Record<string, number[]> = {};
+  for (const [captureIdText, rows] of Object.entries(assignments)) {
+    const captureId = Number(captureIdText);
+    if (!Number.isSafeInteger(captureId)) continue;
+    for (const row of rows) (grouped[row.term] ??= []).push(captureId);
+  }
+  return grouped;
+}
+
+function captureFontFamilies(
+  captureId: number,
+  fonts: Record<string, FontUse[]>,
+  historicalFonts: Record<string, HistoricalFontUse[]>,
+  typeRoles: Record<string, TypeRole[]>,
+  textStyles: Record<string, TextStyle[]>,
+): string[] {
+  const key = String(captureId);
+  return [
+    ...new Set(
+      [
+        ...(fonts[key] ?? []).map((row) => row.family),
+        ...(historicalFonts[key] ?? []).map((row) => row.family),
+        ...(typeRoles[key] ?? []).map((row) => row.family),
+        ...(textStyles[key] ?? []).flatMap((row) =>
+          row.family ? [row.family] : [],
+        ),
+      ]
+        .map(normalizeObservedFontFamily)
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function buildFontCaptureIndex(
+  captures: RawCapture[],
+  fonts: Record<string, FontUse[]>,
+  historicalFonts: Record<string, HistoricalFontUse[]>,
+  typeRoles: Record<string, TypeRole[]>,
+  textStyles: Record<string, TextStyle[]>,
+  fontCatalogIds: Record<string, number[]>,
+): CatalogFile["fontCaptureIndex"] {
+  const grouped = new Map<
+    string,
+    { name: string; ids: number[]; catalogIds: number[] }
+  >();
+  for (const capture of captures) {
+    for (const family of captureFontFamilies(
+      capture.id,
+      fonts,
+      historicalFonts,
+      typeRoles,
+      textStyles,
+    )) {
+      const key = observedFontFamilyKey(family);
+      const entry = grouped.get(key) ?? {
+        name: family,
+        ids: [],
+        catalogIds: fontCatalogIds[key] ?? [],
+      };
+      entry.ids.push(capture.id);
+      grouped.set(key, entry);
+    }
+  }
+  return Object.fromEntries(grouped);
+}
+
+function buildSearchTextIndex(
+  captures: RawCapture[],
+  assignments: Record<string, TermRef[]>,
+  facets: Facet[],
+  fonts: Record<string, FontUse[]>,
+  historicalFonts: Record<string, HistoricalFontUse[]>,
+  typeRoles: Record<string, TypeRole[]>,
+  textStyles: Record<string, TextStyle[]>,
+): Record<string, string> {
+  const termLabels = new Map(
+    facets.flatMap((facet) =>
+      facet.terms.map((term) => [term.id, term.label] as const),
+    ),
+  );
+  return Object.fromEntries(
+    captures.map((capture) => [
+      capture.id,
+      [
+        capture.title,
+        capture.origin,
+        capture.path,
+        ...(assignments[capture.id] ?? []).map(
+          (row) => termLabels.get(row.term) ?? row.term,
+        ),
+        ...captureFontFamilies(
+          capture.id,
+          fonts,
+          historicalFonts,
+          typeRoles,
+          textStyles,
+        ),
+      ]
+        .join(" ")
+        .toLocaleLowerCase("en-US"),
+    ]),
+  );
 }
 
 function selectFieldIds(

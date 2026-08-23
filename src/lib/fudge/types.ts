@@ -114,6 +114,13 @@ export type CatalogFile = {
   pivotIds: number[];
   facets: Facet[];
   assignments: Record<string, TermRef[]>;
+  termCaptureIds: Record<string, number[]>;
+  domainCaptureIds: Record<string, number[]>;
+  fontCaptureIndex: Record<
+    string,
+    { name: string; ids: number[]; catalogIds: number[] }
+  >;
+  searchTextByCapture: Record<string, string>;
   palettes: Record<string, PaletteSwatch[]>;
   colorRoles: Record<string, ColorRole[]>;
   fonts: Record<string, FontUse[]>;

@@ -63,7 +63,8 @@ class HapticFeedback {
     if (
       !this.enabled ||
       !this.supported() ||
-      document.visibilityState !== "visible"
+      document.visibilityState !== "visible" ||
+      (navigator.userActivation && !navigator.userActivation.hasBeenActive)
     ) {
       return;
     }

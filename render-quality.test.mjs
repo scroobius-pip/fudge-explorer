@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   RENDER_TARGET_FPS,
+  RENDER_QUALITY_PROFILES,
   advanceRenderQualityGovernor,
   createRenderQualityGovernor,
   selectInitialRenderQuality,
@@ -22,7 +23,7 @@ test("selects a conservative initial tier only when the device reports constrain
       deviceMemory: 16,
       devicePixelRatio: 2,
     }),
-    "high",
+    "balanced",
   );
   assert.equal(
     selectInitialRenderQuality({
@@ -30,7 +31,7 @@ test("selects a conservative initial tier only when the device reports constrain
       deviceMemory: 4,
       coarsePointer: true,
     }),
-    "balanced",
+    "low",
   );
   assert.equal(
     selectInitialRenderQuality({
@@ -38,36 +39,54 @@ test("selects a conservative initial tier only when the device reports constrain
       deviceMemory: 2,
       saveData: true,
     }),
-    "low",
+    "minimal",
   );
 });
 
 test("holds quality at and above the 30 fps target", () => {
   assert.equal(RENDER_TARGET_FPS, 30);
-  const state = sample(createRenderQualityGovernor("high"), 30, 8);
-  assert.equal(state.tier, "high");
+  const state = sample(createRenderQualityGovernor("balanced"), 30, 8);
+  assert.equal(state.tier, "balanced");
 });
 
 test("ignores a brief frame-rate dip", () => {
-  const state = sample(createRenderQualityGovernor("high"), 20, 0.5);
+  const state = sample(createRenderQualityGovernor("high"), 20, 0.3);
   assert.equal(state.tier, "high");
 });
 
 test("drops one tier after sustained sub-target rendering", () => {
-  const state = sample(createRenderQualityGovernor("high"), 20, 1);
+  const state = sample(createRenderQualityGovernor("high"), 20, 0.5);
   assert.equal(state.tier, "balanced");
   assert.ok(state.cooldownSeconds > 0);
 });
 
 test("cooldown prevents oscillation before another sustained decline", () => {
-  let state = sample(createRenderQualityGovernor("high"), 20, 1);
-  state = sample(state, 20, 4.1);
+  let state = sample(createRenderQualityGovernor("high"), 20, 0.5);
+  state = sample(state, 20, 0.5);
   assert.equal(state.tier, "balanced");
-  state = sample(state, 20, 1);
+  state = sample(state, 20, 0.6);
   assert.equal(state.tier, "low");
 });
 
 test("restores one tier only after sustained headroom", () => {
-  const state = sample(createRenderQualityGovernor("balanced"), 60, 4.2);
+  const state = sample(createRenderQualityGovernor("balanced"), 60, 1.1);
   assert.equal(state.tier, "high");
+});
+
+test("uses five granular profiles without exceeding 4x anisotropy", () => {
+  assert.deepEqual(Object.keys(RENDER_QUALITY_PROFILES), [
+    "minimal",
+    "low",
+    "balanced",
+    "high",
+    "ultra",
+  ]);
+  assert.ok(
+    Object.values(RENDER_QUALITY_PROFILES).every(
+      (profile) => profile.anisotropy <= 4,
+    ),
+  );
+  assert.ok(
+    RENDER_QUALITY_PROFILES.balanced.dpr < RENDER_QUALITY_PROFILES.ultra.dpr,
+  );
 });

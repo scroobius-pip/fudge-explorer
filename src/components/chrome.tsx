@@ -29,10 +29,10 @@ import {
   paletteOf,
   pxSize,
   latestFieldFilter,
-  searchCatalog,
   viewPalette,
   viewTitle,
 } from "@/lib/fudge/catalog";
+import { searchCatalogInWorker } from "@/lib/fudge/corpus-client";
 import {
   armsOf,
   type Stop as StopData,
@@ -105,10 +105,29 @@ export function Chrome({
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const filtersRef = useRef<HTMLDivElement>(null);
-  const lexicalGroups = useMemo(
-    () => searchCatalog(deferredQuery),
-    [deferredQuery],
-  );
+  const [lexicalGroups, setLexicalGroups] = useState<
+    ReturnType<typeof browseCatalog>
+  >([]);
+  const [workerSearchPending, setWorkerSearchPending] = useState(false);
+  useEffect(() => {
+    let current = true;
+    if (!deferredQuery.trim()) {
+      setLexicalGroups([]);
+      setWorkerSearchPending(false);
+      return;
+    }
+    setWorkerSearchPending(true);
+    void searchCatalogInWorker(deferredQuery)
+      .then((groups) => {
+        if (current) setLexicalGroups(groups);
+      })
+      .finally(() => {
+        if (current) setWorkerSearchPending(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [deferredQuery]);
   const starters = useMemo(() => browseCatalog(), []);
   const hasFilters = filters.length > 0;
   const normalizedQuery = deferredQuery.trim();
@@ -126,7 +145,7 @@ export function Chrome({
     };
     return [{ label: "All captures", items: [searchAction] }, ...lexicalGroups];
   }, [hasFilters, lexicalGroups, normalizedQuery]);
-  const lexicalPending = query !== deferredQuery;
+  const lexicalPending = query !== deferredQuery || workerSearchPending;
   const searchPending = lexicalPending;
   const showResults = open && (query.trim().length > 0 || uploadError !== null);
   const showSuggest = open && !query.trim() && !uploadError && !focused;
@@ -447,6 +466,11 @@ export function Chrome({
               ))}
           </div>
         )}
+        {viewError && !focused && (
+          <p className="view-search-error" role="alert">
+            {viewError}
+          </p>
+        )}
       </div>
       {fontHeader && (
         <FontViewHeader
@@ -528,10 +552,10 @@ export function Chrome({
         </div>
       )}
 
-      {empty && !viewPending && (
+      {empty && !viewPending && !viewError && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
           <p className="font-display text-3xl tracking-tight">
-            {viewError ?? "Nothing in this set"}
+            Nothing in this set
           </p>
         </div>
       )}

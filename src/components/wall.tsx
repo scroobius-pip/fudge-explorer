@@ -155,6 +155,8 @@ function AdaptiveQualityGovernor({
   const sampleFrames = useRef(0);
   const lastFrameAt = useRef(0);
   const lastReportAt = useRef(0);
+  const inclineAfter = useRef(performance.now() + 4_000);
+  const longTaskSeconds = useRef(0);
 
   useEffect(() => {
     if (governor.current.tier !== tier) {
@@ -166,40 +168,75 @@ function AdaptiveQualityGovernor({
     gl.domElement.dataset.qualityTier = tier;
     gl.domElement.dataset.qualityDpr = dpr.toFixed(2);
     gl.domElement.dataset.qualityTargetFps = String(RENDER_TARGET_FPS);
+    const profile = RENDER_QUALITY_PROFILES[tier];
+    gl.domElement.dataset.qualityAnisotropy = String(profile.anisotropy);
+    gl.domElement.dataset.qualityTextureEdge = String(profile.textureEdge);
+    gl.domElement.dataset.qualityAmbientVideos = String(
+      profile.ambientVideoLimit,
+    );
     invalidate();
   }, [dpr, gl, invalidate, tier]);
+
+  useEffect(() => {
+    if (typeof PerformanceObserver === "undefined") return;
+    try {
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.duration < 50) continue;
+          longTaskSeconds.current = Math.min(
+            1,
+            longTaskSeconds.current + entry.duration / 1000,
+          );
+        }
+      });
+      observer.observe({ type: "longtask", buffered: true });
+      return () => observer.disconnect();
+    } catch {
+      return;
+    }
+  }, []);
 
   useFrame((_, delta) => {
     const now = performance.now();
     const gap = lastFrameAt.current ? now - lastFrameAt.current : 0;
     lastFrameAt.current = now;
-    if (delta <= 0 || delta > 0.2 || gap > 250) {
+    if (delta <= 0 || delta > 0.18 || gap > 180) {
       averageFps.current = 0;
       sampleFrames.current = 0;
       governor.current = {
         ...governor.current,
         belowTargetSeconds: 0,
-        aboveTargetSeconds: 0,
       };
       return;
     }
 
     const fps = Math.min(240, 1 / delta);
-    const alpha = 1 - Math.exp(-delta * 3);
+    const alpha = 1 - Math.exp(-delta * 8);
     averageFps.current =
       averageFps.current === 0
         ? fps
         : THREE.MathUtils.lerp(averageFps.current, fps, alpha);
     sampleFrames.current += 1;
-    if (sampleFrames.current < 8) return;
+    if (sampleFrames.current < 4) return;
 
+    const longTaskPenalty = Math.min(0.2, longTaskSeconds.current);
+    longTaskSeconds.current = Math.max(
+      0,
+      longTaskSeconds.current - longTaskPenalty,
+    );
+    const governedFps =
+      longTaskPenalty > 0
+        ? Math.min(20, averageFps.current)
+        : now < inclineAfter.current && averageFps.current >= RENDER_TARGET_FPS
+          ? RENDER_TARGET_FPS
+          : averageFps.current;
     const next = advanceRenderQualityGovernor(
       governor.current,
-      averageFps.current,
-      delta,
+      governedFps,
+      delta + longTaskPenalty,
     );
     governor.current = next;
-    if (now - lastReportAt.current >= 500) {
+    if (now - lastReportAt.current >= 250) {
       lastReportAt.current = now;
       gl.domElement.dataset.qualityFps = averageFps.current.toFixed(1);
     }
@@ -455,8 +492,11 @@ function LayerFrames({
         null);
   const renderedIds = new Set(visibleIds);
   if (focusedId != null) renderedIds.add(focusedId);
-  const playVisibleVideos =
-    quality.ambientVideo && interactive && playVideos && visibleIds.size <= 50;
+  const ambientVideoIds = new Set(
+    [...renderedIds]
+      .filter((id) => id !== focusedId)
+      .slice(0, quality.ambientVideoLimit),
+  );
 
   return snapshot.slots.map((slot, index) => {
     if (!renderedIds.has(slot.id)) return null;
@@ -479,7 +519,7 @@ function LayerFrames({
           interactive &&
           playVideos &&
           ((focusedId === capture.id && quality.focusedVideo) ||
-            playVisibleVideos)
+            ambientVideoIds.has(capture.id))
         }
         didDragRef={didDragRef}
         onHover={onHover}

@@ -64,7 +64,7 @@ async function decode(src: string, maxEdge: number): Promise<THREE.Texture> {
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
     tex.generateMipmaps = true;
-    tex.anisotropy = 8;
+    tex.anisotropy = 1;
     tex.flipY = true;
     tex.userData.rev = DECODE_REV;
     tex.userData.maxEdge = maxEdge;

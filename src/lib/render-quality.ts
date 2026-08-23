@@ -1,6 +1,7 @@
 export const RENDER_TARGET_FPS = 30;
 
-export type RenderQualityTier = "low" | "balanced" | "high";
+export type RenderQualityTier =
+  "minimal" | "low" | "balanced" | "high" | "ultra";
 
 export type RenderQualityProfile = {
   dpr: number;
@@ -8,7 +9,7 @@ export type RenderQualityProfile = {
   focusedTextureEdge: number;
   anisotropy: number;
   blur: boolean;
-  ambientVideo: boolean;
+  ambientVideoLimit: number;
   focusedVideo: boolean;
 };
 
@@ -16,41 +17,65 @@ export const RENDER_QUALITY_PROFILES: Record<
   RenderQualityTier,
   RenderQualityProfile
 > = {
-  low: {
+  minimal: {
     dpr: 1,
-    textureEdge: 640,
-    focusedTextureEdge: 1536,
-    anisotropy: 2,
+    textureEdge: 512,
+    focusedTextureEdge: 1280,
+    anisotropy: 1,
     blur: false,
-    ambientVideo: false,
+    ambientVideoLimit: 0,
+    focusedVideo: false,
+  },
+  low: {
+    dpr: 1.15,
+    textureEdge: 640,
+    focusedTextureEdge: 1408,
+    anisotropy: 1,
+    blur: false,
+    ambientVideoLimit: 0,
     focusedVideo: false,
   },
   balanced: {
-    dpr: 1.5,
+    dpr: 1.35,
     textureEdge: 768,
-    focusedTextureEdge: 1792,
-    anisotropy: 4,
+    focusedTextureEdge: 1600,
+    anisotropy: 2,
     blur: false,
-    ambientVideo: false,
+    ambientVideoLimit: 0,
     focusedVideo: true,
   },
   high: {
+    dpr: 1.65,
+    textureEdge: 896,
+    focusedTextureEdge: 1792,
+    anisotropy: 4,
+    blur: false,
+    ambientVideoLimit: 2,
+    focusedVideo: true,
+  },
+  ultra: {
     dpr: 2,
     textureEdge: 1024,
     focusedTextureEdge: 2048,
-    anisotropy: 8,
+    anisotropy: 4,
     blur: true,
-    ambientVideo: true,
+    ambientVideoLimit: 6,
     focusedVideo: true,
   },
 };
 
-const TIER_ORDER: readonly RenderQualityTier[] = ["low", "balanced", "high"];
-const DECLINE_FPS = 28;
-const INCLINE_FPS = 50;
-const DECLINE_SECONDS = 0.8;
-const INCLINE_SECONDS = 4;
-const CHANGE_COOLDOWN_SECONDS = 4;
+const TIER_ORDER: readonly RenderQualityTier[] = [
+  "minimal",
+  "low",
+  "balanced",
+  "high",
+  "ultra",
+];
+const DECLINE_FPS = 29;
+const INCLINE_FPS = 48;
+const DECLINE_SECONDS = 0.4;
+const INCLINE_SECONDS = 1;
+const CHANGE_COOLDOWN_SECONDS = 0.75;
 
 export type RenderDeviceCapabilities = {
   hardwareConcurrency?: number;
@@ -63,7 +88,6 @@ export type RenderDeviceCapabilities = {
 export function selectInitialRenderQuality({
   hardwareConcurrency,
   deviceMemory,
-  devicePixelRatio,
   coarsePointer,
   saveData,
 }: RenderDeviceCapabilities): RenderQualityTier {
@@ -72,19 +96,16 @@ export function selectInitialRenderQuality({
     (hardwareConcurrency != null && hardwareConcurrency <= 2) ||
     (deviceMemory != null && deviceMemory <= 2)
   ) {
-    return "low";
+    return "minimal";
   }
   if (
     coarsePointer ||
-    (hardwareConcurrency != null && hardwareConcurrency <= 6) ||
-    (deviceMemory != null && deviceMemory <= 4) ||
-    ((devicePixelRatio ?? 1) > 2.5 &&
-      hardwareConcurrency != null &&
-      hardwareConcurrency < 8)
+    (hardwareConcurrency != null && hardwareConcurrency <= 4) ||
+    (deviceMemory != null && deviceMemory <= 4)
   ) {
-    return "balanced";
+    return "low";
   }
-  return "high";
+  return "balanced";
 }
 
 export type RenderQualityGovernorState = {
@@ -111,7 +132,7 @@ export function advanceRenderQualityGovernor(
   elapsedSeconds: number,
 ): RenderQualityGovernorState {
   if (!Number.isFinite(fps) || !Number.isFinite(elapsedSeconds)) return state;
-  const elapsed = Math.max(0, Math.min(elapsedSeconds, 0.25));
+  const elapsed = Math.max(0, Math.min(elapsedSeconds, 0.2));
   if (elapsed === 0) return state;
 
   if (state.cooldownSeconds > 0) {
