@@ -404,15 +404,19 @@ for (const plan of ["explorer", "chat", "pro", "studio"]) {
 test("provider destinations prefill the copied prompt", () => {
   const prompt = "Review this capture:\nhttps://pin.fontofweb.com/10087";
   const expected = {
+    fudge: ["https://design.withfudge.com", "/", "prompt"],
     chatgpt: ["https://chatgpt.com", "/"],
     claude: ["https://claude.ai", "/new"],
     gemini: ["https://gemini.google.com", "/app"],
   };
-  for (const provider of ["chatgpt", "claude", "gemini"]) {
+  for (const provider of ["fudge", "chatgpt", "claude", "gemini"]) {
     const destination = new URL(aiProviderUrl(provider, prompt));
     assert.equal(destination.origin, expected[provider][0]);
     assert.equal(destination.pathname, expected[provider][1]);
-    assert.equal(destination.searchParams.get("q"), prompt);
+    assert.equal(
+      destination.searchParams.get(expected[provider][2] ?? "q"),
+      prompt,
+    );
     assert.equal(destination.hash, "");
   }
 });

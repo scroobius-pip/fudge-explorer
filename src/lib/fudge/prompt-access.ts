@@ -7,9 +7,10 @@ export const FUDGE_BILLING_PLANS_URL =
 export const FUDGE_PIN_START_URL = "https://api.withfudge.com/auth/pin/start";
 export const FUDGE_PIN_VERIFY_URL = "https://api.withfudge.com/auth/pin/verify";
 
-export type AiProvider = "chatgpt" | "claude" | "gemini";
+export type AiProvider = "fudge" | "chatgpt" | "claude" | "gemini";
 
 export const AI_PROVIDER_LABELS: Record<AiProvider, string> = {
+  fudge: "Fudge Chat",
   chatgpt: "ChatGPT",
   claude: "Claude",
   gemini: "Gemini",
@@ -17,13 +18,15 @@ export const AI_PROVIDER_LABELS: Record<AiProvider, string> = {
 
 export function aiProviderUrl(provider: AiProvider, prompt: string) {
   const destination = new URL(
-    provider === "chatgpt"
-      ? "https://chatgpt.com/"
+    provider === "fudge"
+      ? "https://design.withfudge.com/"
+      : provider === "chatgpt"
+        ? "https://chatgpt.com/"
       : provider === "claude"
         ? "https://claude.ai/new"
         : "https://gemini.google.com/app",
   );
-  destination.searchParams.set("q", prompt);
+  destination.searchParams.set(provider === "fudge" ? "prompt" : "q", prompt);
   return destination.href;
 }
 
