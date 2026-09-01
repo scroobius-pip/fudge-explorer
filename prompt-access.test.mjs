@@ -223,35 +223,19 @@ test("invalid email and PIN values never reach the authentication API", async ()
 
 const PLAN_FIXTURES = [
   {
-    id: "explorer",
-    name: "Explorer",
-    monthlyPrice: "$9/mo",
-    yearlyPrice: "$90/yr",
-    note: "Use captured prompts.",
-    configured: true,
-  },
-  {
-    id: "chat",
-    name: "Chat",
-    monthlyPrice: "$19/mo",
-    yearlyPrice: "$190/yr",
-    note: "Work in Fudge Chat.",
-    configured: true,
-  },
-  {
     id: "pro",
     name: "Pro",
-    monthlyPrice: "$29/mo",
-    yearlyPrice: "$290/yr",
-    note: "Use hosted MCP.",
+    quarterlyPrice: "$117/qtr",
+    yearlyPrice: "$390/yr",
+    note: "Full access for individual projects.",
     configured: true,
   },
   {
     id: "studio",
     name: "Studio",
-    monthlyPrice: "$99/mo",
+    quarterlyPrice: "$297/qtr",
     yearlyPrice: "$990/yr",
-    note: "Run high-volume work.",
+    note: "Full access for teams and client work.",
     configured: true,
   },
 ];
@@ -276,7 +260,7 @@ test("all Fudge plans load from the deployed plan catalog", async () => {
 test("missing, malformed, and failed Fudge pricing returns no plans", async () => {
   assert.equal(
     await readFudgePlans(async () =>
-      Response.json({ plans: PLAN_FIXTURES.slice(0, 3) }),
+      Response.json({ plans: PLAN_FIXTURES.slice(0, 1) }),
     ),
     null,
   );
@@ -284,7 +268,7 @@ test("missing, malformed, and failed Fudge pricing returns no plans", async () =
     await readFudgePlans(async () =>
       Response.json({
         plans: PLAN_FIXTURES.map((plan) =>
-          plan.id === "explorer" ? { ...plan, monthlyPrice: 9 } : plan,
+          plan.id === "pro" ? { ...plan, quarterlyPrice: 117 } : plan,
         ),
       }),
     ),
@@ -376,8 +360,8 @@ test("clipboard rejection prevents confirmation and provider opening", async () 
   assert.deepEqual(events, ["build", "copy"]);
 });
 
-for (const plan of ["explorer", "chat", "pro", "studio"]) {
-  for (const period of ["monthly", "yearly"]) {
+for (const plan of ["pro", "studio"]) {
+  for (const period of ["quarterly", "yearly"]) {
     test(`${period} ${plan} checkout sends the exact billing request`, async () => {
       const calls = [];
       const destination = await createFudgeCheckout(

@@ -420,56 +420,52 @@ const PLAN_FEATURE_ROWS: Array<{
   {
     label: "Usage limits",
     values: {
-      explorer: "Prompt copying",
-      chat: "1×",
-      pro: "10×",
-      studio: "50×",
+      pro: "3,000 queries / month",
+      studio: "15,000 queries / month",
     },
   },
   {
     label: "Copy prompts for ChatGPT / Claude",
-    values: { explorer: true, chat: true, pro: true, studio: true },
+    values: { pro: true, studio: true },
   },
   {
     label: "Website review",
-    values: { explorer: false, chat: true, pro: true, studio: true },
+    values: { pro: true, studio: true },
   },
   {
     label: "Competitor search & inspect",
-    values: { explorer: false, chat: true, pro: true, studio: true },
+    values: { pro: true, studio: true },
   },
   {
     label: "Font alternatives (free & paid)",
-    values: { explorer: false, chat: true, pro: true, studio: true },
+    values: { pro: true, studio: true },
   },
   {
     label: "Color palettes & accessibility",
-    values: { explorer: false, chat: true, pro: true, studio: true },
+    values: { pro: true, studio: true },
   },
   {
     label: "Chrome extension",
-    values: { explorer: true, chat: true, pro: true, studio: true },
+    values: { pro: true, studio: true },
   },
   {
     label: "Bookmarks",
-    values: { explorer: true, chat: true, pro: true, studio: true },
+    values: { pro: true, studio: true },
   },
   {
     label: "Site design guide",
     values: {
-      explorer: "Included",
-      chat: "Generate from your site",
       pro: "Generate from your site",
       studio: "Generate from your site",
     },
   },
   {
     label: "Fudge chat agent",
-    values: { explorer: false, chat: true, pro: true, studio: true },
+    values: { pro: true, studio: true },
   },
   {
     label: "In Cursor / Claude / Codex / any MCP client",
-    values: { explorer: false, chat: false, pro: true, studio: true },
+    values: { pro: true, studio: true },
   },
 ];
 
@@ -507,15 +503,15 @@ function PlanFeature({
 }
 
 function PlanPrice({
-  monthlyPrice,
+  quarterlyPrice,
   period,
   yearlyPrice,
 }: {
-  monthlyPrice: string;
+  quarterlyPrice: string;
   period: ExplorerBillingPeriod;
   yearlyPrice: string;
 }) {
-  const selected = period === "monthly" ? monthlyPrice : yearlyPrice;
+  const selected = period === "quarterly" ? quarterlyPrice : yearlyPrice;
   return (
     <span className="prompt-pricing-price">
       <b>{selected.split("/")[0]}</b>
@@ -534,7 +530,7 @@ export function ExplorerPricingModal({
   ) => Promise<void>;
   onClose: () => void;
 }) {
-  const [period, setPeriod] = useState<ExplorerBillingPeriod>("monthly");
+  const [period, setPeriod] = useState<ExplorerBillingPeriod>("quarterly");
   const [plans, setPlans] =
     useState<Awaited<ReturnType<typeof readFudgePlans>>>(null);
   const [loading, setLoading] = useState(true);
@@ -569,7 +565,7 @@ export function ExplorerPricingModal({
   return (
     <PromptModal
       title="Choose a Fudge plan"
-      description="Explorer lets you use captured website prompts in ChatGPT or Claude. Chat adds the Fudge chat agent, and Pro and Studio add hosted MCP."
+      description="Start free with 6 Fudge Chat queries each month. Pro and Studio include every Fudge tool and a 3-day free trial."
       onClose={onClose}
       size="pricing"
     >
@@ -581,12 +577,12 @@ export function ExplorerPricingModal({
         <button
           type="button"
           role="radio"
-          aria-checked={period === "monthly"}
+          aria-checked={period === "quarterly"}
           data-autofocus
-          className={period === "monthly" ? "is-selected" : ""}
-          onClick={() => setPeriod("monthly")}
+          className={period === "quarterly" ? "is-selected" : ""}
+          onClick={() => setPeriod("quarterly")}
         >
-          Monthly
+          Quarterly
         </button>
         <button
           type="button"
@@ -605,8 +601,6 @@ export function ExplorerPricingModal({
           className="prompt-pricing-loading"
           aria-label="Loading Fudge pricing"
         >
-          <span />
-          <span />
           <span />
           <span />
         </div>
@@ -629,7 +623,7 @@ export function ExplorerPricingModal({
                         <div>
                           <strong>{plan.name}</strong>
                           <PlanPrice
-                            monthlyPrice={plan.monthlyPrice}
+                            quarterlyPrice={plan.quarterlyPrice}
                             period={period}
                             yearlyPrice={plan.yearlyPrice}
                           />
@@ -645,7 +639,7 @@ export function ExplorerPricingModal({
                           ) : null}
                           <span>
                             {plan.configured
-                              ? `Choose ${plan.name}`
+                              ? "Start 3-day free trial"
                               : "Unavailable"}
                           </span>
                           {plan.id === "studio" &&
@@ -702,7 +696,7 @@ export function ExplorerPricingModal({
                   <div>
                     <strong>{plan.name}</strong>
                     <PlanPrice
-                      monthlyPrice={plan.monthlyPrice}
+                      quarterlyPrice={plan.quarterlyPrice}
                       period={period}
                       yearlyPrice={plan.yearlyPrice}
                     />
@@ -733,7 +727,7 @@ export function ExplorerPricingModal({
                     <LoaderCircle className="size-4 prompt-modal-spinner" />
                   ) : null}
                   <span>
-                    {plan.configured ? `Choose ${plan.name}` : "Unavailable"}
+                    {plan.configured ? "Start 3-day free trial" : "Unavailable"}
                   </span>
                   {plan.id === "studio" &&
                   checkoutBusy !== plan.id &&

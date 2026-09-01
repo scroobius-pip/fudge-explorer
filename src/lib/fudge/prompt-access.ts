@@ -34,22 +34,20 @@ const FUDGE_LOGIN_URL = "https://api.withfudge.com/auth/google";
 const FUDGE_LOGIN_RETURN_URL =
   "https://explorer.withfudge.com/?fudge-auth=complete";
 
-export type ExplorerBillingPeriod = "monthly" | "yearly";
+export type ExplorerBillingPeriod = "quarterly" | "yearly";
 
-export type FudgePlanId = "explorer" | "chat" | "pro" | "studio";
+export type FudgePlanId = "pro" | "studio";
 
 export type FudgePlanDetails = {
   id: FudgePlanId;
   name: string;
-  monthlyPrice: string;
+  quarterlyPrice: string;
   yearlyPrice: string;
   note: string;
   configured: boolean;
 };
 
 const FUDGE_PLAN_IDS: readonly FudgePlanId[] = [
-  "explorer",
-  "chat",
   "pro",
   "studio",
 ];
@@ -188,7 +186,7 @@ export async function readFudgePlans(
       if (
         !isRecord(plan) ||
         typeof plan.name !== "string" ||
-        typeof plan.monthlyPrice !== "string" ||
+        typeof plan.quarterlyPrice !== "string" ||
         typeof plan.yearlyPrice !== "string" ||
         typeof plan.note !== "string" ||
         typeof plan.configured !== "boolean"
@@ -198,7 +196,7 @@ export async function readFudgePlans(
       plans.push({
         id,
         name: plan.name,
-        monthlyPrice: plan.monthlyPrice,
+        quarterlyPrice: plan.quarterlyPrice,
         yearlyPrice: plan.yearlyPrice,
         note: plan.note,
         configured: plan.configured,
