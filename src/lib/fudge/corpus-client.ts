@@ -1,6 +1,6 @@
 import type { CatalogLoad } from "./api";
 import { searchCatalogSnapshot } from "./corpus-search";
-import type { CatalogFile, SearchHit } from "./types";
+import type { CatalogDetailsProjection, CatalogFile, SearchHit } from "./types";
 
 export type CaptureEvidenceRow = { identity: unknown; values: unknown[] };
 export type CaptureEvidencePayload = {
@@ -12,7 +12,7 @@ export type CaptureEvidencePayload = {
 type CorpusWorkerMessage =
   | { type: "progress"; value: number; label: string }
   | { type: "initial"; catalog: CatalogFile }
-  | { type: "details"; catalog: CatalogFile | null }
+  | { type: "details"; catalog: CatalogDetailsProjection | null }
   | { type: "search-result"; id: number; groups: SearchGroups }
   | {
       type: "capture-evidence-result";
@@ -46,7 +46,9 @@ export function loadCatalogInWorker(): Promise<CatalogLoad> {
           .then((load) => {
             latestCatalog = load.initial;
             void load.details.then((details) => {
-              if (details) latestCatalog = details;
+              if (details && latestCatalog) {
+                latestCatalog = { ...latestCatalog, ...details };
+              }
             });
             return load;
           })
@@ -110,7 +112,7 @@ function startCatalogWorker(): Promise<CatalogLoad> {
   catalogWorker = worker;
   let initialReceived = false;
   const { promise: details, resolve: resolveDetails } =
-    Promise.withResolvers<CatalogFile | null>();
+    Promise.withResolvers<CatalogDetailsProjection | null>();
   const { promise, resolve, reject } = Promise.withResolvers<CatalogLoad>();
 
   worker.onmessage = (event: MessageEvent<CorpusWorkerMessage>) => {
@@ -144,7 +146,9 @@ function startCatalogWorker(): Promise<CatalogLoad> {
       return;
     }
     if (message.type === "details") {
-      if (message.catalog) latestCatalog = message.catalog;
+      if (message.catalog && latestCatalog) {
+        latestCatalog = { ...latestCatalog, ...message.catalog };
+      }
       resolveDetails(message.catalog);
       return;
     }

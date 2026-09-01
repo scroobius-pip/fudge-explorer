@@ -1,63 +1,167 @@
 import * as THREE from "three";
 
-const MAX = 4;
-const waiting: Array<() => void> = [];
+const MAX = 2;
+const waiting: Array<{
+  priority: number;
+  sequence: number;
+  start(): void;
+  cancel(): void;
+}> = [];
 let active = 0;
+let sequence = 0;
 
 const textures = new Map<string, THREE.Texture>();
-const pending = new Map<string, Promise<THREE.Texture>>();
+const pending = new Map<
+  string,
+  {
+    controller: AbortController;
+    consumers: number;
+    promise: Promise<THREE.Texture>;
+  }
+>();
 
-export function acquireSlot(): Promise<void> {
-  return new Promise((resolve) => {
-    const start = () => {
+export type TextureLoad = {
+  promise: Promise<THREE.Texture>;
+  cancel(): void;
+};
+
+export function textureQueueBusy(): boolean {
+  return active > 0 || waiting.length > 0 || pending.size > 0;
+}
+export function acquireSlot(
+  priority = Number.MAX_SAFE_INTEGER,
+  signal?: AbortSignal,
+): Promise<void> {
+  const { promise, resolve, reject } = Promise.withResolvers<void>();
+  let settled = false;
+  const request = {
+    priority,
+    sequence: sequence++,
+    start: () => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener("abort", onAbort);
       active += 1;
       resolve();
-    };
-    if (active < MAX) start();
-    else waiting.push(start);
-  });
+    },
+    cancel: () => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener("abort", onAbort);
+      reject(new DOMException("Texture load cancelled", "AbortError"));
+    },
+  };
+  const onAbort = () => {
+    const index = waiting.indexOf(request);
+    if (index >= 0) waiting.splice(index, 1);
+    request.cancel();
+  };
+  if (signal?.aborted) request.cancel();
+  else if (active < MAX) request.start();
+  else {
+    signal?.addEventListener("abort", onAbort, { once: true });
+    waiting.push(request);
+    waiting.sort(
+      (a, b) => a.priority - b.priority || a.sequence - b.sequence,
+    );
+  }
+  return promise;
 }
 
 export function releaseSlot() {
   active = Math.max(0, active - 1);
   const next = waiting.shift();
-  if (next) next();
+  next?.start();
+}
+
+export function cancelTextureLoads() {
+  for (const request of pending.values()) request.controller.abort();
 }
 
 const DECODE_REV = 6;
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+function loadImage(blob: Blob, signal: AbortSignal): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    const objectUrl = URL.createObjectURL(blob);
     img.decoding = "async";
-    img.onload = () => resolve(img);
-    img.onerror = () => {
-      const pin = src.match(/pin\.fontofweb\.com\/(\d+)/);
-      if (pin) {
-        loadImage(`/api/media/${pin[1]}`).then(resolve, reject);
-        return;
-      }
-      reject(new Error(`image ${src}`));
+    const cleanup = () => {
+      signal.removeEventListener("abort", onAbort);
+      img.onload = null;
+      img.onerror = null;
+      URL.revokeObjectURL(objectUrl);
     };
-    img.src = src;
+    const onAbort = () => {
+      cleanup();
+      img.removeAttribute("src");
+      reject(new DOMException("Texture load cancelled", "AbortError"));
+    };
+    img.onload = () => {
+      cleanup();
+      resolve(img);
+    };
+    img.onerror = () => {
+      cleanup();
+      reject(new Error("Unable to decode capture image"));
+    };
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    img.src = objectUrl;
   });
 }
 
-async function decode(src: string, maxEdge: number): Promise<THREE.Texture> {
-  await acquireSlot();
+async function decode(
+  src: string,
+  maxEdge: number,
+  priority: number,
+  signal: AbortSignal,
+): Promise<THREE.Texture> {
+  await acquireSlot(priority, signal);
   try {
-    const img = await loadImage(src);
-    const edge = Math.max(img.naturalWidth, img.naturalHeight);
-    let source: HTMLImageElement | ImageBitmap = img;
-    if (edge > maxEdge && typeof createImageBitmap === "function") {
-      const scale = maxEdge / edge;
-      source = await createImageBitmap(img, {
+    const response = await fetch(src, { signal });
+    if (!response.ok) throw new Error(`image ${response.status}`);
+    const blob = await response.blob();
+    if (signal.aborted) {
+      throw new DOMException("Texture load cancelled", "AbortError");
+    }
+
+    let source: HTMLImageElement | ImageBitmap;
+    if (typeof createImageBitmap === "function") {
+      const original = await createImageBitmap(blob, {
         imageOrientation: "flipY",
-        resizeWidth: Math.max(1, Math.round(img.naturalWidth * scale)),
-        resizeHeight: Math.max(1, Math.round(img.naturalHeight * scale)),
-        resizeQuality: "high",
       });
+      if (signal.aborted) {
+        original.close();
+        throw new DOMException("Texture load cancelled", "AbortError");
+      }
+      const edge = Math.max(original.width, original.height);
+      source = original;
+      if (edge > maxEdge) {
+        const scale = maxEdge / edge;
+        try {
+          source = await createImageBitmap(original, {
+            resizeWidth: Math.max(1, Math.round(original.width * scale)),
+            resizeHeight: Math.max(1, Math.round(original.height * scale)),
+            resizeQuality: "high",
+          });
+        } finally {
+          original.close();
+        }
+      }
+    } else {
+      source = await loadImage(blob, signal);
+    }
+    if (signal.aborted) {
+      if (
+        typeof ImageBitmap !== "undefined" &&
+        source instanceof ImageBitmap
+      ) {
+        source.close();
+      }
+      throw new DOMException("Texture load cancelled", "AbortError");
     }
     const tex = new THREE.Texture(source);
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -86,32 +190,71 @@ function hasResolution(tex: THREE.Texture, minEdge: number) {
 export function loadCaptureTexture(
   src: string,
   maxEdge: number,
-): Promise<THREE.Texture> {
+  priority = Number.MAX_SAFE_INTEGER,
+): TextureLoad {
   const hit = textures.get(src);
-  if (hit && hasResolution(hit, maxEdge)) return Promise.resolve(hit);
+  if (hit && hasResolution(hit, maxEdge)) {
+    return { promise: Promise.resolve(hit), cancel() {} };
+  }
   if (hit && !isCurrent(hit)) textures.delete(src);
   const pendingKey = `${src}:${maxEdge}`;
-  const open = pending.get(pendingKey);
-  if (open) return open;
-  const work = decode(src, maxEdge)
-    .then((tex) => {
-      const current = textures.get(src);
+  let request = pending.get(pendingKey);
+  if (request?.controller.signal.aborted) {
+    pending.delete(pendingKey);
+    request = undefined;
+  }
+  if (!request) {
+    const controller = new AbortController();
+    request = {
+      controller,
+      consumers: 0,
+      promise: Promise.resolve(null as unknown as THREE.Texture),
+    };
+    const currentRequest = request;
+    currentRequest.promise = decode(
+      src,
+      maxEdge,
+      priority,
+      controller.signal,
+    )
+      .then((tex) => {
+        const current = textures.get(src);
+        if (
+          !current ||
+          !isCurrent(current) ||
+          Number(current.userData.maxEdge) < maxEdge
+        ) {
+          textures.set(src, tex);
+        }
+        return tex;
+      })
+      .finally(() => {
+        if (pending.get(pendingKey) === currentRequest) {
+          pending.delete(pendingKey);
+        }
+      });
+    pending.set(pendingKey, currentRequest);
+  }
+  request.consumers += 1;
+  const subscribedRequest = request;
+  let cancelled = false;
+  return {
+    promise: subscribedRequest.promise,
+    cancel() {
+      if (cancelled) return;
+      cancelled = true;
+      subscribedRequest.consumers = Math.max(
+        0,
+        subscribedRequest.consumers - 1,
+      );
       if (
-        !current ||
-        !isCurrent(current) ||
-        Number(current.userData.maxEdge) < maxEdge
+        subscribedRequest.consumers === 0 &&
+        pending.get(pendingKey) === subscribedRequest
       ) {
-        textures.set(src, tex);
+        subscribedRequest.controller.abort();
       }
-      pending.delete(pendingKey);
-      return tex;
-    })
-    .catch((error) => {
-      pending.delete(pendingKey);
-      throw error;
-    });
-  pending.set(pendingKey, work);
-  return work;
+    },
+  };
 }
 
 export function peekTexture(src: string, minEdge = 0): THREE.Texture | null {

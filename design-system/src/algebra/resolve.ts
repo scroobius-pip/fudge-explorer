@@ -50,6 +50,9 @@ function deriveSpace(
   const parent = node.parentId ? byId.get(node.parentId) : undefined;
   if (node.kind === "message") return "support";
   if (parent?.kind === "field") return "control";
+  if (node.kind === "item") return "control";
+  if (node.kind === "group") return "support";
+  if (node.kind === "card" || node.kind === "surface") return "section";
   if (node.kind === "action") return "section";
   if (node.kind === "field") {
     return previous.kind === "heading" ? "section" : "field";
@@ -146,7 +149,8 @@ function groupChildren(nodes: CompositionNode[]) {
 function validateGraph(graph: CompositionGraph) {
   const ids = new Set<string>();
   for (const node of graph.nodes) {
-    if (ids.has(node.id)) throw new Error(`Duplicate composition id: ${node.id}`);
+    if (ids.has(node.id))
+      throw new Error(`Duplicate composition id: ${node.id}`);
     ids.add(node.id);
   }
   if (!ids.has(graph.rootId)) throw new Error("Composition root is missing");
@@ -158,7 +162,8 @@ function validateGraph(graph: CompositionGraph) {
     const seen = new Set([node.id]);
     let parentId = node.parentId;
     while (parentId != null) {
-      if (seen.has(parentId)) throw new Error(`Composition cycle at: ${node.id}`);
+      if (seen.has(parentId))
+        throw new Error(`Composition cycle at: ${node.id}`);
       seen.add(parentId);
       parentId = byId.get(parentId)?.parentId ?? null;
     }

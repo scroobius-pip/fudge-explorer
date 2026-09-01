@@ -34,7 +34,6 @@ export function readCatalogDetailsStatus(): CatalogDetailsStatus {
   return catalogDetailsStatus;
 }
 
-const VIEW_LIMIT = 480;
 export const LENS_GROUPS: { id: LensId; label: string; facets: string[] }[] = [
   { id: "all", label: "All", facets: [] },
   {
@@ -299,16 +298,6 @@ void catalogLoad.details.then((details) => {
   for (const listener of catalogListeners) listener();
 });
 
-function fieldCaptures(): Capture[] {
-  return mainIds.flatMap((id) => {
-    const capture = captureById.get(id);
-    return capture ? [capture] : [];
-  });
-}
-
-function bounded(rows: Capture[]): Capture[] {
-  return rows.slice(0, VIEW_LIMIT);
-}
 
 export function assignmentsOf(id: number): TermRef[] {
   return assignments[String(id)] ?? [];
@@ -1137,7 +1126,9 @@ export function typeFaceList(id: number): string | null {
   return names.length ? names.join(" + ") : null;
 }
 
-export function browseCatalog(): { label: string; items: SearchHit[] }[] {
+export function browseCatalog(
+  savedCount = 0,
+): { label: string; items: SearchHit[] }[] {
   const terms = [...termById.values()]
     .filter((term) => !term.id.startsWith("component."))
     .map((term) => ({
@@ -1171,21 +1162,23 @@ export function browseCatalog(): { label: string; items: SearchHit[] }[] {
       sub: `${ids.length} captures`,
     }));
 
-  const facetHits = facets
-    .map((facet) => ({
-      kind: "facet" as const,
-      id: facet.id,
-      title: facet.label,
-      sub: `${facet.group} · ${facet.terms.length} terms`,
-      count: facet.terms.reduce((n, term) => n + termCaptureCount(term.id), 0),
-    }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6)
-    .map(({ count: _c, ...hit }) => hit);
-
   return [
+    ...(savedCount > 0
+      ? [
+          {
+            label: "Library",
+            items: [
+              {
+                kind: "saved" as const,
+                id: "saved",
+                title: "Saved",
+                sub: `${savedCount} ${savedCount === 1 ? "capture" : "captures"}`,
+              },
+            ],
+          },
+        ]
+      : []),
     { label: "Terms", items: terms.map(({ count: _c, ...hit }) => hit) },
-    { label: "Facets", items: facetHits },
     { label: "Fonts", items: fonts },
     { label: "Domains", items: domains },
   ].filter((group) => group.items.length > 0);
@@ -1276,11 +1269,11 @@ export function captureView(
 ): { captures: Capture[]; total: number } {
   let matches: Capture[];
   if (view.kind === "all") {
-    matches = fieldCaptures();
+    matches = rankedCaptures;
   } else if (view.kind === "filtered") {
     const filters = view.filters;
     if (filters.length === 0) {
-      matches = fieldCaptures();
+      matches = rankedCaptures;
     } else {
       const orderedIndex = filters.findIndex(
         (filter) => filter.kind === "search",
@@ -1304,7 +1297,7 @@ export function captureView(
   } else {
     matches = matchesForFilter(view, savedIds);
   }
-  return { captures: bounded(matches), total: matches.length };
+  return { captures: matches, total: matches.length };
 }
 
 export function capturesInView(

@@ -7,8 +7,9 @@
   },
   "scripts": {
     "build": "vite build",
+    "train:suggestions": "node --experimental-strip-types scripts/train-search-suggestions.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test worker.test.mjs explorer-bundle.test.mjs prompt-access.test.mjs render-quality.test.mjs corpus-worker.test.mjs",
+    "test": "node --experimental-strip-types --test worker.test.mjs explorer-bundle.test.mjs prompt-access.test.mjs render-quality.test.mjs texture-queue.test.mjs corpus-worker.test.mjs search-suggestions.test.mjs full-field.test.mjs",
     "dev": "npm run build && npx wrangler dev",
     "preview": "npm run build && node scripts/preview.mjs",
     "deploy": "npm run build && npx wrangler deploy"

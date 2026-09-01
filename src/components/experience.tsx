@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Bookmark, BookmarkCheck } from "lucide-react";
 import {
   captureById,
   combineFieldViews,
@@ -47,6 +48,9 @@ export function FieldExperience() {
     initialNavigation.focusedId,
   );
   const [savedIds, setSavedIds] = useState<Set<string>>(readSavedIds);
+  const [savedFeedback, setSavedFeedback] = useState<
+    "added" | "removed" | null
+  >(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [knockId, setKnockId] = useState<string | null>(null);
   const [pendingViewKey, setPendingViewKey] = useState<string | null>(null);
@@ -60,6 +64,7 @@ export function FieldExperience() {
   const navigationReady = useRef(false);
   const searchControllerRef = useRef<AbortController | null>(null);
   const replaceNavigation = useRef(false);
+  const savedFeedbackTimer = useRef(0);
   const [searchViewError, setSearchViewError] = useState<{
     key: string;
     message: string;
@@ -72,6 +77,7 @@ export function FieldExperience() {
   const view = useMemo(() => combineFieldViews(activeTrail), [activeTrail]);
   const activeFilters = useMemo(() => fieldFilters(view), [view]);
   const activeFilter = latestFieldFilter(view);
+  const savedActive = view.kind === "saved";
   const focused = focusedId ? (captureById.get(focusedId) ?? null) : null;
   const awaitingCatalogDetails =
     catalogDetailsStatus === "loading" &&
@@ -83,18 +89,20 @@ export function FieldExperience() {
     () => captureView(view, savedIds),
     [relationEpoch, savedIds, view],
   );
-  const layers = useMemo(
-    () =>
-      trail.map((_, depth) => {
-        const layerView = combineFieldViews(trail.slice(0, depth + 1));
-        return {
-          view: layerView,
-          depth,
-          captures: captureView(layerView, savedIds).captures,
-        };
-      }),
-    [relationEpoch, savedIds, trail],
-  );
+  const layers = useMemo(() => {
+    if (savedActive) {
+      return [{ view, depth: 0, captures: field.captures }];
+    }
+    return trail.map((_, depth) => {
+      const layerView = combineFieldViews(trail.slice(0, depth + 1));
+      return {
+        view: layerView,
+        depth,
+        captures: captureView(layerView, savedIds).captures,
+      };
+    });
+  }, [field.captures, relationEpoch, savedActive, savedIds, trail, view]);
+  const wallActiveIndex = savedActive ? 0 : viewIndex;
   const visible = field.captures;
   const arms = useMemo(
     () => armsOf(view, focused),
@@ -238,35 +246,45 @@ export function FieldExperience() {
   );
 
   const transmitView = useCallback(
-    (next: FieldView, fromId: number | null = focusedId) => {
-      const prefix = trail.slice(0, viewIndex + 1);
+    (
+      next: FieldView,
+      fromId: number | null = focusedId,
+      mode: "push" | "replace" = "push",
+    ) => {
+      const prefix =
+        mode === "replace" ? [ROOT] : trail.slice(0, viewIndex + 1);
       const additions =
         next.kind === "all"
           ? []
           : fieldFilters(next).filter(
               (candidate) => !prefix.some((item) => sameView(item, candidate)),
             );
+
+      const nextTrail =
+        next.kind === "all"
+          ? [ROOT]
+          : next.kind === "saved"
+            ? [ROOT, next]
+            : [...prefix, ...additions];
+      const nextView = combineFieldViews(nextTrail);
+      const nextSet = captureView(nextView, savedIds).captures;
+      const nextIndex = nextTrail.length - 1;
       if (
-        (next.kind === "all" && prefix.length === 1) ||
-        (next.kind !== "all" && additions.length === 0)
+        focusedId == null &&
+        nextIndex === viewIndex &&
+        sameView(nextView, view)
       ) {
         strike({
           transmit: false,
           axis: "0",
           d: 0,
           v: 1,
-          material: materialOf(next),
+          material: materialOf(nextView),
         });
-        setKnockId(viewTitleKey(next));
+        setKnockId(viewTitleKey(nextView));
         window.setTimeout(() => setKnockId(null), 320);
         return;
       }
-
-      const nextTrail =
-        next.kind === "all" ? [ROOT] : [...prefix, ...additions];
-      const nextView = combineFieldViews(nextTrail);
-      const nextSet = captureView(nextView, savedIds).captures;
-      const nextIndex = nextTrail.length - 1;
       const move = moveOf(view, nextView, fromId, null);
       focusByView.current.set(viewStateKey(view), focusedId);
       strike({
@@ -392,11 +410,22 @@ export function FieldExperience() {
     [focusedId, visible.length],
   );
 
+  const transmitFromContext = useCallback(
+    (next: FieldView) => {
+      transmitView(
+        next,
+        focusedId,
+        focusedId == null ? "push" : "replace",
+      );
+    },
+    [focusedId, transmitView],
+  );
+
   const onHitStop = useCallback(
     (stop: Stop) => {
       if (!stop.view) return;
       const target = stop.view;
-      transmitView(target, focusedId);
+      transmitFromContext(target);
       if (target.kind !== "visual") return;
       const key = viewStateKey(target);
       setPendingViewKey(key);
@@ -410,7 +439,7 @@ export function FieldExperience() {
           setPendingViewKey((current) => (current === key ? null : current));
         });
     },
-    [focusedId, transmitView],
+    [transmitFromContext],
   );
 
   const onRemoveFilter = useCallback(
@@ -447,6 +476,12 @@ export function FieldExperience() {
       window.localStorage.setItem(SAVED_KEY, JSON.stringify([...next]));
       return next;
     });
+    setSavedFeedback(saving ? "added" : "removed");
+    window.clearTimeout(savedFeedbackTimer.current);
+    savedFeedbackTimer.current = window.setTimeout(
+      () => setSavedFeedback(null),
+      420,
+    );
     strike({
       transmit: true,
       axis: "0",
@@ -457,9 +492,14 @@ export function FieldExperience() {
     });
   }, [focused, savedIds]);
 
+  const onToggleSavedView = useCallback(() => {
+    transmitView(savedActive ? ROOT : { kind: "saved" });
+  }, [savedActive, transmitView]);
+
   useEffect(
     () => () => {
       searchControllerRef.current?.abort();
+      window.clearTimeout(savedFeedbackTimer.current);
     },
     [],
   );
@@ -562,7 +602,7 @@ export function FieldExperience() {
       <div className="sheet-well">
         <Wall
           layers={layers}
-          activeIndex={viewIndex}
+          activeIndex={wallActiveIndex}
           focused={focused}
           reducedMotion={reducedMotion}
           onFocus={onFocus}
@@ -575,14 +615,46 @@ export function FieldExperience() {
         />
       </div>
       <Juice />
-      <McpLink />
-      <SoundControl />
-      <MobileMenu />
+      <div className="top-actions">
+        <button
+          type="button"
+          className={cn(
+            "saved-view-launch",
+            savedActive && "is-active",
+            savedFeedback && `is-${savedFeedback}`,
+          )}
+          aria-label={`${savedActive ? "Close" : "Open"} saved captures`}
+          aria-pressed={savedActive}
+          onPointerEnter={() => sfx.contact("paper")}
+          onPointerDown={() => sfx.press("paper")}
+          onClick={() => {
+            haptics.selection();
+            onToggleSavedView();
+          }}
+        >
+          {savedActive ? (
+            <BookmarkCheck className="size-4" strokeWidth={1.7} />
+          ) : (
+            <Bookmark className="size-4" strokeWidth={1.7} />
+          )}
+          <span>Saved</span>
+          <small aria-live="polite">{savedIds.size}</small>
+        </button>
+        <SoundControl />
+        <McpLink />
+      </div>
+      <MobileMenu
+        savedActive={savedActive}
+        savedCount={savedIds.size}
+        onToggleSaved={onToggleSavedView}
+      />
       <Chrome
         view={view}
         filters={activeFilters}
         focused={focused}
+        relationEpoch={relationEpoch}
         saved={focused ? savedIds.has(String(focused.id)) : false}
+        savedCount={savedIds.size}
         matchCount={field.total}
         viewPending={viewPending}
         viewError={
@@ -600,7 +672,7 @@ export function FieldExperience() {
         }
         empty={empty}
         knockId={knockId}
-        onHitView={transmitView}
+        onHitView={transmitFromContext}
         onHitStop={onHitStop}
         onSearchView={transmitView}
         onTextSearch={onTextSearch}

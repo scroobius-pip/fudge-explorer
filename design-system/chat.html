@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2f0e9" />
+    <title>Chat · Fudge</title>
+  </head>
+  <body class="chat">
+    <aside class="chat-rail" aria-label="Chat">
+      <a class="site-wordmark" data-home-link href="./index.html">Fudge</a>
+      <button type="button" data-new-chat>＋ New</button>
+      <a data-explorer-link href="./explorer.html">Explorer</a>
+      <a data-explorer-link href="./explorer.html">Saved</a>
+      <button type="button" data-current="true">Current conversation</button>
+      <a data-pricing-link href="./pricing.html">Usage · Plan</a>
+      <a data-mcp-link href="./mcp.html">Use in my AI tool</a>
+    </aside>
+    <div class="chat-main">
+      <div class="chat-topbar">
+        <strong id="chat-title">New conversation</strong>
+        <fudge-button variant="ghost" data-mcp-link>Use Fudge in my AI tool</fudge-button>
+      </div>
+      <div class="chat-stream" id="chat-stream">
+        <section class="chat-starters" aria-label="Task starters">
+          <fudge-button variant="secondary" data-example="Review this pricing page">Review this page</fudge-button>
+          <fudge-button variant="secondary" data-example="Find two-plan pricing references">Find references</fudge-button>
+          <fudge-button variant="secondary" data-example="Inspect this screenshot">Inspect screenshot</fudge-button>
+          <fudge-button variant="secondary" data-example="Turn this into code">Turn into code</fudge-button>
+        </section>
+      </div>
+      <div class="chat-composer">
+        <fudge-composer placeholder="Ask a follow-up, paste a URL, or attach a screenshot"></fudge-composer>
+      </div>
+    </div>
+    <fudge-dialog id="capture-dialog">
+      <fudge-capture id="capture-details" layout="details"></fudge-capture>
+    </fudge-dialog>
+    <script type="module" src="/src/chat.ts"></script>
+  </body>
+</html>

@@ -4,8 +4,12 @@ export type CompositionKind =
   | "field"
   | "control"
   | "message"
-  | "action";
-
+  | "action"
+  | "surface"
+  | "card"
+  | "group"
+  | "menu"
+  | "item";
 export type CompositionState =
   | "idle"
   | "focused"
@@ -50,11 +54,7 @@ export type NodePlan = {
 };
 
 export type FeedbackEvent =
-  | "focus"
-  | "submit"
-  | "confirm"
-  | "reject"
-  | "disable";
+  "focus" | "submit" | "confirm" | "reject" | "disable";
 
 export type FeedbackPlan = {
   event: FeedbackEvent;

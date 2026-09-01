@@ -368,18 +368,18 @@ test("serves generation-keyed compressed corpus artifacts without live queries",
   const bootstrapBytes = await compress(bootstrap);
   const detailsBytes = await compress(details);
   const manifest = {
-    contractVersion: "fudge-explorer-artifact-v1",
+    contractVersion: "fudge-explorer-artifact-v3",
     generation: 77,
     builtAt: new Date().toISOString(),
     bootstrap: {
-      key: "explorer/corpus/v1/77/bootstrap.json.gz",
+      key: "explorer/corpus/v3/77/bootstrap.json.gz",
     },
     details: {
-      key: "explorer/corpus/v1/77/details.json.gz",
+      key: "explorer/corpus/v3/77/details.json.gz",
     },
   };
   const objects = new Map([
-    ["explorer/corpus/v1/current.json", JSON.stringify(manifest)],
+    ["explorer/corpus/v3/current.json", JSON.stringify(manifest)],
     [manifest.bootstrap.key, bootstrapBytes],
     [manifest.details.key, detailsBytes],
   ]);
@@ -498,9 +498,9 @@ test("builds and persists missing corpus artifacts before serving them", async (
   );
   assert.equal(first.status, 200);
   assert.equal(first.headers.get("x-fudge-corpus-source"), "artifact");
-  assert.ok(stored.has("explorer/corpus/v1/current.json"));
-  assert.ok(stored.has("explorer/corpus/v1/77/bootstrap.json.gz"));
-  assert.ok(stored.has("explorer/corpus/v1/77/details.json.gz"));
+  assert.ok(stored.has("explorer/corpus/v3/current.json"));
+  assert.ok(stored.has("explorer/corpus/v3/77/bootstrap.json.gz"));
+  assert.ok(stored.has("explorer/corpus/v3/77/details.json.gz"));
   assert.ok(liveQueries > 0);
 
   const queriesAfterBuild = liveQueries;

@@ -1,4 +1,5 @@
 export const RENDER_TARGET_FPS = 30;
+export const FOCUSED_TEXTURE_EDGE = 2048;
 
 export type RenderQualityTier =
   "minimal" | "low" | "balanced" | "high" | "ultra";
@@ -6,7 +7,6 @@ export type RenderQualityTier =
 export type RenderQualityProfile = {
   dpr: number;
   textureEdge: number;
-  focusedTextureEdge: number;
   anisotropy: number;
   blur: boolean;
   ambientVideoLimit: number;
@@ -20,7 +20,6 @@ export const RENDER_QUALITY_PROFILES: Record<
   minimal: {
     dpr: 1,
     textureEdge: 512,
-    focusedTextureEdge: 1280,
     anisotropy: 1,
     blur: false,
     ambientVideoLimit: 0,
@@ -29,7 +28,6 @@ export const RENDER_QUALITY_PROFILES: Record<
   low: {
     dpr: 1.15,
     textureEdge: 640,
-    focusedTextureEdge: 1408,
     anisotropy: 1,
     blur: false,
     ambientVideoLimit: 0,
@@ -38,7 +36,6 @@ export const RENDER_QUALITY_PROFILES: Record<
   balanced: {
     dpr: 1.35,
     textureEdge: 768,
-    focusedTextureEdge: 1600,
     anisotropy: 2,
     blur: false,
     ambientVideoLimit: 0,
@@ -47,19 +44,17 @@ export const RENDER_QUALITY_PROFILES: Record<
   high: {
     dpr: 1.65,
     textureEdge: 896,
-    focusedTextureEdge: 1792,
     anisotropy: 4,
     blur: false,
-    ambientVideoLimit: 2,
+    ambientVideoLimit: 1,
     focusedVideo: true,
   },
   ultra: {
     dpr: 2,
     textureEdge: 1024,
-    focusedTextureEdge: 2048,
     anisotropy: 4,
     blur: true,
-    ambientVideoLimit: 6,
+    ambientVideoLimit: 2,
     focusedVideo: true,
   },
 };
@@ -72,9 +67,9 @@ const TIER_ORDER: readonly RenderQualityTier[] = [
   "ultra",
 ];
 const DECLINE_FPS = 29;
-const INCLINE_FPS = 48;
+const INCLINE_FPS = 56;
 const DECLINE_SECONDS = 0.4;
-const INCLINE_SECONDS = 1;
+const INCLINE_SECONDS = 2;
 const CHANGE_COOLDOWN_SECONDS = 0.75;
 
 export type RenderDeviceCapabilities = {

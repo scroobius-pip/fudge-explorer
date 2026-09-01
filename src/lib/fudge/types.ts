@@ -135,6 +135,18 @@ export type CatalogFile = {
   fontSimilarity: Record<string, { id: number; name: string; score: number }[]>;
 };
 
+export type CatalogDetailsProjection = Pick<
+  CatalogFile,
+  | "assignments"
+  | "termCaptureIds"
+  | "palettes"
+  | "colorRoles"
+  | "fonts"
+  | "typeRoles"
+  | "fontCaptureIndex"
+  | "searchTextByCapture"
+>;
+
 export type Capture = RawCapture & {
   aspect: number;
   host: string;
@@ -161,7 +173,7 @@ export type FieldView =
   { kind: "all" } | FieldFilter | { kind: "filtered"; filters: FieldFilter[] };
 
 export type SearchHit = {
-  kind: "capture" | "term" | "font" | "domain" | "facet" | "search";
+  kind: "capture" | "term" | "font" | "domain" | "facet" | "search" | "saved";
   id: string;
   title: string;
   sub: string;

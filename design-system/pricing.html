@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2f0e9" />
+    <title>Pricing · Fudge</title>
+  </head>
+  <body>
+    <div data-chrome="header" data-current="pricing"></div>
+    <main class="site-page">
+      <span class="site-kicker">Pricing</span>
+      <h1 class="site-title">One product. Choose the capacity that fits your work.</h1>
+      <p class="site-copy">
+        Pro and Studio include Explorer, Chat, saved references, prompt
+        handoff, and hosted MCP. The amount charged is first; the monthly
+        equivalent is second.
+      </p>
+      <div class="home-period" role="group" aria-label="Billing period" style="margin:1.25rem 0">
+        <fudge-button variant="primary" data-period="quarterly">Quarterly</fudge-button>
+        <fudge-button variant="secondary" data-period="yearly">Yearly</fudge-button>
+      </div>
+      <div class="home-grid-2">
+        <fudge-card>
+          <fudge-card-header>
+            <fudge-card-title>Pro</fudge-card-title>
+            <p class="home-price" data-price="pro">$117</p>
+            <p class="home-price-note" data-period-label="pro">$117 billed every 3 months · $39/month equivalent.</p>
+          </fudge-card-header>
+          <fudge-card-content>
+            <p class="site-copy">Explorer and saved references. Fudge Chat. Prompt handoff and hosted MCP. Individual capacity.</p>
+            <fudge-button variant="primary" data-plan="pro">Choose Pro</fudge-button>
+          </fudge-card-content>
+        </fudge-card>
+        <fudge-card>
+          <fudge-card-header>
+            <fudge-card-title>Studio</fudge-card-title>
+            <p class="home-price" data-price="studio">$297</p>
+            <p class="home-price-note" data-period-label="studio">$297 billed every 3 months · $99/month equivalent.</p>
+          </fudge-card-header>
+          <fudge-card-content>
+            <p class="site-copy">The same complete Fudge capability set, at higher-volume capacity.</p>
+            <fudge-button variant="primary" data-plan="studio">Choose Studio</fudge-button>
+          </fudge-card-content>
+        </fudge-card>
+      </div>
+      <fudge-alert class="home-free" style="margin-top:1.25rem">
+        <div>
+          <strong>Free</strong>
+          <p>Start with 6 Chat queries each month. Free sits outside the paid pair.</p>
+        </div>
+        <fudge-button variant="secondary" data-chat-link>Start with a real question</fudge-button>
+      </fudge-alert>
+      <section style="margin-top:2rem">
+        <h2 class="site-kicker">Only genuine differences</h2>
+        <div class="compare-row"><span>Monthly capacity</span><span>Pro amount · Studio amount</span></div>
+        <div class="compare-row"><span>Best fit</span><span>Individual work · Higher-volume work</span></div>
+      </section>
+      <section class="home-faq" style="margin-top:2rem">
+        <h2 class="site-title" style="font-size:2rem">Transactional questions</h2>
+        <div class="home-faq-list">
+          <details><summary>When does usage reset?</summary><p>Usage resets each month. The composer and any current answer stay visible.</p></details>
+          <details><summary>What is charged today?</summary><p>The selected period total is charged first. The monthly equivalent is shown second.</p></details>
+          <details><summary>Can I change plans later?</summary><p>Yes. Plan, period, and return destination stay visible through the change.</p></details>
+          <details><summary>What happens to an existing subscription?</summary><p>The current plan stays until you confirm a change. Public pricing only advertises Pro and Studio.</p></details>
+        </div>
+      </section>
+    </main>
+    <fudge-dialog id="purchase-dialog">
+      <div class="purchase-summary">
+        <h2 class="site-title" style="font-size:2rem">Keep the selection visible</h2>
+        <p class="site-copy" id="purchase-copy"></p>
+        <fudge-button variant="primary" data-chat-link>Continue with this plan</fudge-button>
+      </div>
+    </fudge-dialog>
+    <div data-chrome="footer"></div>
+    <script type="module" src="/src/pricing.ts"></script>
+  </body>
+</html>

@@ -7,7 +7,10 @@ import type { Slot } from "@/lib/fudge/layout";
 import { loadCaptureTexture, peekTexture } from "@/lib/fudge/texture-queue";
 import { sfx } from "@/lib/sfx";
 import type { Capture } from "@/lib/fudge/types";
-import type { RenderQualityProfile } from "@/lib/render-quality";
+import {
+  FOCUSED_TEXTURE_EDGE,
+  type RenderQualityProfile,
+} from "@/lib/render-quality";
 
 const PLANE_GEOMETRY = new THREE.PlaneGeometry(1, 1);
 const PLACEHOLDER_MATERIAL = new THREE.ShaderMaterial({
@@ -73,6 +76,7 @@ type FrameProps = {
   transition?: FrameTransition;
   interactive?: boolean;
   loadTexture?: boolean;
+  loadPriority?: number;
   playVideo?: boolean;
   didDragRef: MutableRefObject<boolean>;
   onFocus: (id: number) => void;
@@ -118,6 +122,7 @@ export function Frame({
   transition,
   interactive = true,
   loadTexture = true,
+  loadPriority = Number.MAX_SAFE_INTEGER,
   playVideo = false,
   didDragRef,
   onFocus,
@@ -128,8 +133,8 @@ export function Frame({
   const imageRef = useRef<THREE.Mesh>(null);
   const videoMeshRef = useRef<THREE.Mesh>(null);
   const videoEl = useRef<HTMLVideoElement | null>(null);
-  const requestedEdge =
-    focusedId === capture.id ? quality.focusedTextureEdge : quality.textureEdge;
+  const isFocused = focusedId === capture.id;
+  const requestedEdge = isFocused ? FOCUSED_TEXTURE_EDGE : quality.textureEdge;
   const [texture, setTexture] = useState<THREE.Texture | null>(() =>
     peekTexture(mediaUrl(capture.id)),
   );
@@ -163,8 +168,14 @@ export function Frame({
       return;
     }
     let alive = true;
+    let request: ReturnType<typeof loadCaptureTexture> | null = null;
     const timer = window.setTimeout(() => {
-      void loadCaptureTexture(src, requestedEdge)
+      request = loadCaptureTexture(
+        src,
+        requestedEdge,
+        isFocused ? -1 : loadPriority,
+      );
+      void request.promise
         .then((tex) => {
           if (!alive) return;
           tex.needsUpdate = true;
@@ -176,8 +187,15 @@ export function Frame({
     return () => {
       alive = false;
       window.clearTimeout(timer);
+      request?.cancel();
     };
-  }, [loadTexture, requestedEdge, src, transition?.role]);
+  }, [
+    isFocused,
+    loadTexture,
+    requestedEdge,
+    src,
+    transition?.role,
+  ]);
 
   useEffect(() => {
     if (!texture) return;
@@ -278,18 +296,11 @@ export function Frame({
     animationActive.current = true;
     invalidate();
   }, [focusedId, invalidate, quality.blur, slot, transition]);
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1);
     const group = groupRef.current;
     if (!group) return;
-    const placeholderVisible = !texture;
-    if (placeholderVisible) {
-      PLACEHOLDER_MATERIAL.uniforms.uTime.value = reducedMotion
-        ? 0
-        : state.clock.elapsedTime;
-    }
-    if (!animationActive.current && !videoTexture && !placeholderVisible)
-      return;
+    if (!animationActive.current && !videoTexture) return;
     const isFocused = focusedId === capture.id;
     const dimmed = Boolean(focusedId) && !isFocused;
     const rest = slot.position;
@@ -437,7 +448,6 @@ export function Frame({
       rotationMoving ||
       opacityMoving ||
       videoTexture ||
-      placeholderVisible ||
       transitionWaiting
     ) {
       invalidate();

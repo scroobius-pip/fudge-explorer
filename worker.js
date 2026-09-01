@@ -50,8 +50,8 @@ const encoder = new TextEncoder();
 const BUNDLE_TTL_MS = 5 * 60 * 1000;
 const BOOTSTRAP_CACHE_CONTROL =
   "public, max-age=300, s-maxage=900, stale-while-revalidate=3600";
-const CORPUS_ARTIFACT_CONTRACT = "fudge-explorer-artifact-v1";
-const CORPUS_ARTIFACT_PREFIX = "explorer/corpus/v1";
+const CORPUS_ARTIFACT_CONTRACT = "fudge-explorer-artifact-v3";
+const CORPUS_ARTIFACT_PREFIX = "explorer/corpus/v3";
 const CORPUS_MANIFEST_KEY = `${CORPUS_ARTIFACT_PREFIX}/current.json`;
 let artifactRefresh;
 let artifactManifest;

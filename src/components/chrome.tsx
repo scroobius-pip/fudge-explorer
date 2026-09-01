@@ -1,6 +1,8 @@
 import {
+  startTransition,
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -57,7 +59,9 @@ export function Chrome({
   view,
   filters,
   focused,
+  relationEpoch,
   saved,
+  savedCount,
   matchCount,
   viewPending,
   viewError,
@@ -76,7 +80,9 @@ export function Chrome({
   view: FieldView;
   filters: FieldFilter[];
   focused: Capture | null;
+  relationEpoch: number;
   saved: boolean;
+  savedCount: number;
   matchCount: number;
   viewPending: boolean;
   viewError: string | null;
@@ -92,7 +98,10 @@ export function Chrome({
   onToggleSave: () => void;
   onClose: () => void;
 }) {
-  const arms = armsOf(view, focused);
+  const arms = useMemo(
+    () => armsOf(view, focused),
+    [focused, relationEpoch, view],
+  );
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [open, setOpen] = useState(false);
@@ -105,30 +114,38 @@ export function Chrome({
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const filtersRef = useRef<HTMLDivElement>(null);
+  const legendContentRef = useRef<HTMLDivElement>(null);
+  const [legendHeight, setLegendHeight] = useState(0);
   const [lexicalGroups, setLexicalGroups] = useState<
     ReturnType<typeof browseCatalog>
   >([]);
   const [workerSearchPending, setWorkerSearchPending] = useState(false);
   useEffect(() => {
     let current = true;
-    if (!deferredQuery.trim()) {
+    const value = deferredQuery.trim();
+    if (!value) {
       setLexicalGroups([]);
       setWorkerSearchPending(false);
       return;
     }
     setWorkerSearchPending(true);
-    void searchCatalogInWorker(deferredQuery)
-      .then((groups) => {
-        if (current) setLexicalGroups(groups);
-      })
-      .finally(() => {
-        if (current) setWorkerSearchPending(false);
-      });
+    const timer = window.setTimeout(() => {
+      void searchCatalogInWorker(value)
+        .then((groups) => {
+          if (current) {
+            startTransition(() => setLexicalGroups(groups));
+          }
+        })
+        .finally(() => {
+          if (current) setWorkerSearchPending(false);
+        });
+    }, 80);
     return () => {
       current = false;
+      window.clearTimeout(timer);
     };
   }, [deferredQuery]);
-  const starters = useMemo(() => browseCatalog(), []);
+  const starters = useMemo(() => browseCatalog(savedCount), [savedCount]);
   const hasFilters = filters.length > 0;
   const normalizedQuery = deferredQuery.trim();
   const groups = useMemo(() => {
@@ -149,13 +166,20 @@ export function Chrome({
   const searchPending = lexicalPending;
   const showResults = open && (query.trim().length > 0 || uploadError !== null);
   const showSuggest = open && !query.trim() && !uploadError && !focused;
+  const legendVisible = !focused && (showResults || showSuggest);
   const navigationGroups =
     query.trim().length > 0 ? groups : uploadError ? [] : starters;
-  const navigationHits = navigationGroups.flatMap((group) => group.items);
+  const navigationHits = useMemo(
+    () => navigationGroups.flatMap((group) => group.items),
+    [navigationGroups],
+  );
   const activeHit =
     navigationHits[Math.min(activeResult, navigationHits.length - 1)] ?? null;
   const activeHitKey = activeHit ? searchHitKey(activeHit) : null;
-  const colors = focused ? paletteOf(focused.id).map(hexSwatch) : [];
+  const colors = useMemo(
+    () => (focused ? paletteOf(focused.id).map(hexSwatch) : []),
+    [focused, relationEpoch],
+  );
   const plate = focused ?? held;
   const filterKey = filters.map((item) => viewTitle(item)).join("/");
   const displayView = latestFieldFilter(view) ?? view;
@@ -209,6 +233,7 @@ export function Chrome({
   const activateHit = (hit: SearchHit) => {
     sfx.press("glass");
     if (hit.kind === "search") onTextSearch(hit.id);
+    else if (hit.kind === "saved") onSearchView({ kind: "saved" });
     else if (hit.kind === "capture") onFocusCapture(Number(hit.id));
     else if (hit.kind === "term") onSearchView({ kind: "term", id: hit.id });
     else if (hit.kind === "facet") onSearchView({ kind: "facet", id: hit.id });
@@ -242,18 +267,31 @@ export function Chrome({
   }, [deferredQuery, open]);
 
   useEffect(() => {
-    if (!open || !activeHit) return;
+    if (!open || !activeHit || !keying) return;
     window.requestAnimationFrame(() => {
       document
         .getElementById(searchHitDomId(activeHit))
         ?.scrollIntoView({ block: "nearest" });
     });
-  }, [activeHitKey, open]);
+  }, [activeHitKey, keying, open]);
   useEffect(() => {
     const element = filtersRef.current;
     if (!element) return;
     element.scrollLeft = element.scrollWidth;
   }, [filterKey]);
+  useLayoutEffect(() => {
+    const element = legendContentRef.current;
+    if (!element) return;
+    const measure = () => {
+      const next = Math.ceil(element.getBoundingClientRect().height);
+      setLegendHeight((current) => (current === next ? current : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
 
   useEffect(
     () => () => {
@@ -425,16 +463,23 @@ export function Chrome({
             )}
           </div>
         </div>
-        {!focused && (showResults || showSuggest) && (
-          <div
-            id="explorer-search-results"
-            role="listbox"
-            className="legend [backdrop-filter:blur(42px)_saturate(1.04)]"
-          >
+        <div
+          id="explorer-search-results"
+          role="listbox"
+          aria-hidden={!legendVisible}
+          className={cn(
+            "legend [backdrop-filter:blur(42px)_saturate(1.04)]",
+            legendVisible && "is-open",
+          )}
+          style={
+            {
+              "--legend-height": `${legendHeight}px`,
+            } as CSSProperties
+          }
+        >
+          <div ref={legendContentRef} className="legend-content">
             {showResults &&
-              (lexicalPending ? (
-                <p className="px-3 py-3 text-sm text-muted">Searching…</p>
-              ) : navigationGroups.length > 0 ? (
+              (navigationGroups.length > 0 ? (
                 navigationGroups.map((group) => (
                   <HitGroup
                     key={group.label}
@@ -445,6 +490,8 @@ export function Chrome({
                     onActive={(hit) => selectHit(hit, true)}
                   />
                 ))
+              ) : lexicalPending ? (
+                <p className="px-3 py-3 text-sm text-muted">Searching…</p>
               ) : uploadError ? null : (
                 <p className="px-3 py-3 text-sm text-muted">No matches</p>
               ))}
@@ -465,7 +512,8 @@ export function Chrome({
                 />
               ))}
           </div>
-        )}
+        </div>
+
         {viewError && !focused && (
           <p className="view-search-error" role="alert">
             {viewError}

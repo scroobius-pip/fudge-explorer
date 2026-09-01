@@ -4,52 +4,378 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f2f0e9" />
-    <title>Fudge Composition System</title>
+    <meta
+      name="description"
+      content="Check a website, find real visual references, or ask a design question. One Fudge product."
+    />
+    <title>Fudge</title>
   </head>
-  <body>
-    <main class="demo-shell">
-      <section class="demo-context">
-        <span>Composition algebra / login</span>
-        <p>
-          Structure and state derive rhythm, motion, sound, and haptics. The
-          component callsite contains no feedback instructions.
+  <body class="home">
+    <a class="home-skip" href="#start-hero">Skip to start</a>
+
+    <section id="start-hero" class="home-fold" aria-labelledby="hero-title">
+      <header class="home-header">
+        <div class="home-header-inner">
+          <a class="home-wordmark" href="/" aria-label="Fudge home">
+            <svg viewBox="49.354 164.332 293.006 328.011" aria-hidden="true">
+              <path
+                d="M314.788 336.851 L201.515 336.851 Q190.515 336.851 190.515 347.851 L190.515 464.771 Q190.515 474.771 180.515 474.771 L76.926 474.771 Q66.926 474.771 69.241 465.043 L88.417 384.453 Q90.732 374.725 99.212 369.425 L146.983 339.569 Q156.311 333.739 146.555 328.657 L113.001 311.179 Q104.132 306.559 99.636 297.627 L77.371 253.4 Q72.875 244.468 71.928 234.513 L67.879 191.955 Q66.932 182 76.932 182 L180.515 182 Q190.515 182 190.593 192 L191.153 263.294 Q191.239 274.294 196.721 264.758 L221.979 220.824 Q226.963 212.155 236.159 208.227 L283.997 187.793 Q293.193 183.865 303.174 183.246 L314.807 182.523 Q324.788 181.904 324.788 191.904 L324.788 326.851 Q324.788 336.851 314.788 336.851 Z"
+              />
+            </svg>
+          </a>
+          <nav class="home-nav" aria-label="Marketing">
+            <a class="home-nav-link" href="#how-it-works">How it works</a>
+            <a class="home-nav-link" data-explorer-link href="./explorer.html">Explorer</a>
+            <a class="home-nav-link" data-pricing-link href="./pricing.html">Pricing</a>
+          </nav>
+          <div class="home-header-actions">
+            <fudge-menu class="home-menu">
+              <fudge-menu-trigger>Menu</fudge-menu-trigger>
+              <fudge-menu-item data-href="#how-it-works">How it works</fudge-menu-item>
+              <fudge-menu-item data-explorer-link>Explorer</fudge-menu-item>
+              <fudge-menu-item data-pricing-link>Pricing</fudge-menu-item>
+            </fudge-menu>
+            <fudge-button variant="primary" data-chat-link>Open Fudge</fudge-button>
+          </div>
+        </div>
+      </header>
+
+      <div class="home-float">
+        <fudge-capture class="home-float-card" data-side="left" data-offset="0.1" data-depth="12" style="width:min(23vw,28rem)" capture-id="3626" title="Lando Norris" domain="landonorris.com" video aspect-ratio="1.7"></fudge-capture>
+        <fudge-capture class="home-float-card" data-side="right" data-offset="0.01" data-depth="9" style="width:min(27vw,32rem)" capture-id="6143" title="Overview | Claude" domain="claude.com" video aspect-ratio="1.73"></fudge-capture>
+        <fudge-capture class="home-float-card" data-side="left" data-offset="0.025" data-depth="16" style="width:min(14vw,17rem)" capture-id="5530" title="Midlife Engineering" domain="midlife.engineering" video aspect-ratio="1.28"></fudge-capture>
+        <fudge-capture class="home-float-card" data-side="right" data-offset="0.025" data-depth="14" style="width:min(23vw,27rem)" capture-id="9798" title="Besimple AI" domain="besimple.ai" video aspect-ratio="1.3"></fudge-capture>
+        <fudge-capture class="home-float-card" data-side="left" data-offset="0.01" data-depth="8" style="width:min(29vw,34rem)" capture-id="9716" title="Square" domain="squareup.com" video aspect-ratio="1.72"></fudge-capture>
+        <fudge-capture class="home-float-card" data-side="right" data-offset="0.055" data-depth="11" style="width:min(21vw,24rem)" capture-id="10041" title="Stripe" domain="stripe.com" video aspect-ratio="1.72"></fudge-capture>
+      </div>
+
+      <div class="home-fold-center">
+        <div class="home-fold-lead">
+          <svg class="home-mark" viewBox="49.354 164.332 293.006 328.011" role="img" aria-label="Fudge">
+            <path
+              d="M314.788 336.851 L201.515 336.851 Q190.515 336.851 190.515 347.851 L190.515 464.771 Q190.515 474.771 180.515 474.771 L76.926 474.771 Q66.926 474.771 69.241 465.043 L88.417 384.453 Q90.732 374.725 99.212 369.425 L146.983 339.569 Q156.311 333.739 146.555 328.657 L113.001 311.179 Q104.132 306.559 99.636 297.627 L77.371 253.4 Q72.875 244.468 71.928 234.513 L67.879 191.955 Q66.932 182 76.932 182 L180.515 182 Q190.515 182 190.593 192 L191.153 263.294 Q191.239 274.294 196.721 264.758 L221.979 220.824 Q226.963 212.155 236.159 208.227 L283.997 187.793 Q293.193 183.865 303.174 183.246 L314.807 182.523 Q324.788 181.904 324.788 191.904 L324.788 326.851 Q324.788 336.851 314.788 336.851 Z"
+            />
+          </svg>
+          <h1 id="hero-title">Check a website, find references, or ask a design question.</h1>
+          <p class="home-lede">
+            One Fudge product. Explore real visual references, ask Fudge for
+            help, or use the same capability from your AI tool.
+          </p>
+        </div>
+        <div class="home-fold-input">
+          <fudge-composer
+            placeholder="Paste a website, drop a screenshot, or describe what you need"
+          ></fudge-composer>
+          <div class="home-try" aria-label="Starting queries">
+            <span>Try</span>
+            <button type="button" data-example="https://stripe.com/pricing">Review this pricing page</button>
+            <button type="button" data-example="editorial landing pages">Editorial landing pages</button>
+            <button type="button" data-example="What typeface is used on this homepage?">What typeface is this homepage using?</button>
+            <button type="button" data-example="two-plan pricing pages">Two-plan pricing pages</button>
+          </div>
+          <div class="home-fold-links">
+            <fudge-button variant="ghost" data-explorer-link>Explore references</fudge-button>
+            <fudge-button variant="ghost" data-mcp-link>Use Fudge in my AI tool</fudge-button>
+          </div>
+        </div>
+        <div class="home-fold-foot">
+          <p class="home-proof">Real captured pages · visible sources · saved references · one Fudge account</p>
+          <p class="home-tools">Works with the AI tools you already use</p>
+          <div class="home-platforms" aria-label="Supported AI tools">
+            <span style="--icon:url('https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/cursor.svg')" title="Cursor"></span>
+            <span style="--icon:url('https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/claude.svg')" title="Claude"></span>
+            <span style="--icon:url('https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/openai.svg')" title="OpenAI"></span>
+            <span style="--icon:url('https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/googlegemini.svg')" title="Gemini"></span>
+            <span style="--icon:url('https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/zedindustries.svg')" title="Zed"></span>
+            <span style="--icon:url('https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/warp.svg')" title="Warp"></span>
+            <span style="--icon:url('https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/windsurf.svg')" title="Windsurf"></span>
+            <span style="--icon:url('https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/anthropic.svg')" title="Anthropic"></span>
+          </div>
+        </div>
+      </div>
+
+      <fudge-dialog id="capture-dialog">
+        <fudge-capture id="capture-details" layout="details"></fudge-capture>
+      </fudge-dialog>
+    </section>
+
+    <main class="home-main">
+
+      <section id="how-it-works" class="home-steps" aria-labelledby="steps-title">
+        <span class="home-kicker">How it works</span>
+        <h2 class="home-section-title" id="steps-title">Find. Understand. Use.</h2>
+        <p class="home-copy">
+          Three jobs inside one product. The reference you open is the
+          reference you keep.
         </p>
+        <div class="home-grid-3">
+          <fudge-card>
+            <div class="home-evidence">
+              <img src="/refs/4647.jpg" alt="" width="800" height="450" />
+            </div>
+            <fudge-card-header>
+              <span class="home-step-index">01 · Find</span>
+              <fudge-card-title>Search real captures</fudge-card-title>
+              <fudge-card-description>
+                Look through actual websites and interfaces, not generated
+                mockups.
+              </fudge-card-description>
+            </fudge-card-header>
+          </fudge-card>
+          <fudge-card>
+            <div class="home-evidence">
+              <img src="/refs/8776.jpg" alt="" width="800" height="450" />
+            </div>
+            <fudge-card-header>
+              <span class="home-step-index">02 · Understand</span>
+              <fudge-card-title>Open the same page</fudge-card-title>
+              <fudge-card-description>
+                Screenshot, source, type, and palette stay attached to the
+                capture.
+              </fudge-card-description>
+            </fudge-card-header>
+          </fudge-card>
+          <fudge-card>
+            <div class="home-evidence">
+              <img
+                src="/refs/8776.jpg"
+                alt=""
+                width="800"
+                height="450"
+                style="object-position: left center"
+              />
+            </div>
+            <fudge-card-header>
+              <span class="home-step-index">03 · Use</span>
+              <fudge-card-title>Keep working with it</fudge-card-title>
+              <fudge-card-description>
+                Ask Fudge about it, save it, or hand the same reference to
+                another AI tool.
+              </fudge-card-description>
+            </fudge-card-header>
+          </fudge-card>
+        </div>
       </section>
 
-      <fudge-form id="login-composition" density="comfortable">
-        <form novalidate>
-          <fudge-heading
-            text="Sign in"
-            description="Continue to your Fudge workspace."
-          ></fudge-heading>
+      <section id="continuity" aria-labelledby="continuity-title">
+        <span class="home-kicker">One reference</span>
+        <h2 class="home-section-title" id="continuity-title">
+          The object does not change when the job does.
+        </h2>
+        <p class="home-copy">
+          Title, source, screenshot, type, and palette stay together from the
+          field, through inspection, into the task.
+        </p>
+        <fudge-card class="home-story">
+          <div class="home-story-grid">
+            <article class="home-stage">
+              <span class="home-step-index">Find</span>
+              <img src="/refs/4647.jpg" alt="The capture in the Explorer field." />
+              <strong>In the field</strong>
+              <p class="home-plan-fit">crazycreative.design · visible among related pages</p>
+            </article>
+            <article class="home-stage">
+              <span class="home-step-index">Inspect</span>
+              <img src="/refs/8776.jpg" alt="The same capture opened with source, type, and palette." />
+              <strong>Design That’s Crazy Good</strong>
+              <p class="home-plan-fit">Bricolage Grotesque · 96 pt · Regular</p>
+              <div class="home-palette" aria-label="Screenshot palette">
+                <span style="background:#131313"></span>
+                <span style="background:#e7f850"></span>
+                <span style="background:#85fdfe"></span>
+                <span style="background:#72c1fe"></span>
+                <span style="background:#6d6e6f"></span>
+                <span style="background:#a595f8"></span>
+                <span style="background:#fe66c7"></span>
+                <span style="background:#f0b9d9"></span>
+              </div>
+            </article>
+            <article class="home-stage">
+              <span class="home-step-index">Use</span>
+              <img src="/refs/8776.jpg" alt="The same capture attached to a Fudge task." />
+              <span class="home-chip">crazycreative.design</span>
+              <p class="home-plan-fit">
+                Same title, source, and screenshot attached to Ask Fudge or a
+                prompt handoff.
+              </p>
+            </article>
+          </div>
+        </fudge-card>
+      </section>
 
-          <fudge-field
-            name="email"
-            label="Email address"
-            type="email"
-            autocomplete="email"
-            required
-          ></fudge-field>
+      <section id="pricing" class="home-pricing" aria-labelledby="pricing-title">
+        <span class="home-kicker">Pricing</span>
+        <h2 class="home-section-title" id="pricing-title">
+          One product. Choose the capacity that fits.
+        </h2>
+        <p class="home-copy">
+          Pro and Studio include Explorer, Chat, saved references, prompt
+          handoff, and hosted MCP. The amount charged is first; the monthly
+          equivalent is second.
+        </p>
+        <div class="home-period" role="group" aria-label="Billing period">
+          <fudge-button variant="primary" data-period="quarterly">
+            Quarterly
+          </fudge-button>
+          <fudge-button variant="secondary" data-period="yearly">
+            Yearly
+          </fudge-button>
+        </div>
+        <div class="home-grid-2">
+          <fudge-card>
+            <fudge-card-header>
+              <fudge-card-title>Pro</fudge-card-title>
+              <p class="home-price" data-price="pro">$117</p>
+              <p class="home-price-note" data-period-label="pro">
+                $117 billed every 3 months · $39/month equivalent.
+              </p>
+              <p class="home-plan-fit">Complete Fudge access for individual work.</p>
+            </fudge-card-header>
+            <fudge-card-content>
+              <fudge-button class="home-plan-action" variant="primary" data-plan="pro">
+                Choose Pro
+              </fudge-button>
+            </fudge-card-content>
+          </fudge-card>
+          <fudge-card>
+            <fudge-card-header>
+              <fudge-card-title>Studio</fudge-card-title>
+              <p class="home-price" data-price="studio">$297</p>
+              <p class="home-price-note" data-period-label="studio">
+                $297 billed every 3 months · $99/month equivalent.
+              </p>
+              <p class="home-plan-fit">The same product, at higher-volume capacity.</p>
+            </fudge-card-header>
+            <fudge-card-content>
+              <fudge-button class="home-plan-action" variant="primary" data-plan="studio">
+                Choose Studio
+              </fudge-button>
+            </fudge-card-content>
+          </fudge-card>
+        </div>
+      </section>
 
-          <fudge-field
-            name="password"
-            label="Password"
-            type="password"
-            autocomplete="current-password"
-            required
-          ></fudge-field>
+      <section id="free-entry" aria-labelledby="free-title">
+        <fudge-alert class="home-free">
+          <div>
+            <strong id="free-title">Free</strong>
+            <p>
+              Start with 6 Chat queries each month. Free sits outside the paid
+              pair; it is not a third plan card.
+            </p>
+          </div>
+          <fudge-button variant="secondary" data-chat-link>
+            Start with a real question
+          </fudge-button>
+        </fudge-alert>
+      </section>
 
-          <fudge-action label="Continue"></fudge-action>
+      <section id="faq" class="home-faq" aria-labelledby="faq-title">
+        <span class="home-kicker">Questions</span>
+        <h2 class="home-section-title" id="faq-title">What visitors actually ask</h2>
+        <div class="home-faq-list">
+          <details>
+            <summary>What does Fudge check?</summary>
+            <p>
+              A real captured website or screenshot: layout, typography,
+              color, and related visual references. It does not invent a
+              design from a blank prompt.
+            </p>
+          </details>
+          <details>
+            <summary>What do I receive?</summary>
+            <p>
+              A readable answer with the same reference identity: title,
+              source, screenshot, and the details that matter for the task.
+              You can open that reference in Explorer, save it, or hand it to
+              another AI tool.
+            </p>
+          </details>
+          <details>
+            <summary>Can I use a screenshot instead of a URL?</summary>
+            <p>
+              Yes. Paste a URL, describe the job, or attach a screenshot in
+              Chat. Fudge routes that intent without turning Explorer, Chat,
+              and MCP into separate products.
+            </p>
+          </details>
+          <details>
+            <summary>
+              Does one paid plan include Explorer, Chat, and hosted MCP?
+            </summary>
+            <p>
+              Yes. Pro and Studio are the same Fudge product at different
+              capacity. Explorer, Chat, saved references, prompt handoff, and
+              hosted MCP are included.
+            </p>
+          </details>
+          <details>
+            <summary>Can I use Fudge from Cursor or Claude?</summary>
+            <p>
+              Yes. Hosted MCP is the same capability from your AI tool. Setup
+              appears when you choose to work that way; it is not a top-level
+              product.
+            </p>
+          </details>
+          <details>
+            <summary>
+              Does a reference stay the same if I ask Fudge about it?
+            </summary>
+            <p>
+              Yes. Title, source, and screenshot stay attached when you
+              inspect, save, discuss, or hand the reference off.
+            </p>
+          </details>
+        </div>
+      </section>
 
-          <output
-            id="login-status"
-            data-compose-kind="message"
-            aria-live="polite"
-          ></output>
-        </form>
-      </fudge-form>
+      <section class="home-endcap" aria-labelledby="endcap-title">
+        <div>
+          <span class="home-kicker">Start</span>
+          <h2 id="endcap-title">Find the reference, then keep working with it.</h2>
+        </div>
+        <div class="home-endcap-copy">
+          <p class="home-copy">
+            Open the spatial Explorer, or ask Fudge with a page, screenshot,
+            or question. External-tool setup stays secondary.
+          </p>
+          <div class="home-chips">
+            <fudge-button variant="secondary" data-explorer-link>
+              Explore references
+            </fudge-button>
+            <fudge-button variant="primary" data-chat-link>Ask Fudge</fudge-button>
+          </div>
+        </div>
+      </section>
     </main>
 
-    <script type="module" src="/src/index.ts"></script>
+    <footer class="home-footer">
+      <div class="home-footer-inner">
+        <div class="home-footer-col">
+          <strong>Fudge</strong>
+          <p>Visual reference research and design work.</p>
+        </div>
+        <div class="home-footer-col">
+          <strong>Product</strong>
+          <a data-explorer-link href="./explorer.html">Explorer</a>
+          <a data-chat-link href="./chat.html">Chat</a>
+          <a data-pricing-link href="./pricing.html">Pricing</a>
+        </div>
+        <div class="home-footer-col">
+          <strong>Resources</strong>
+          <a href="#how-it-works">How it works</a>
+          <a data-explorer-link href="./explorer.html">Examples</a>
+          <a href="#faq">Help</a>
+          <a href="#faq">Privacy</a>
+        </div>
+        <div class="home-footer-col">
+          <strong>Account</strong>
+          <a data-chat-link href="./chat.html">Sign in</a>
+          <a data-pricing-link href="./pricing.html">Billing</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/home.ts"></script>
   </body>
 </html>

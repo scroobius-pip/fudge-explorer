@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  FOCUSED_TEXTURE_EDGE,
   RENDER_TARGET_FPS,
   RENDER_QUALITY_PROFILES,
   advanceRenderQualityGovernor,
@@ -69,8 +70,12 @@ test("cooldown prevents oscillation before another sustained decline", () => {
 });
 
 test("restores one tier only after sustained headroom", () => {
-  const state = sample(createRenderQualityGovernor("balanced"), 60, 1.1);
+  const state = sample(createRenderQualityGovernor("balanced"), 60, 2.1);
   assert.equal(state.tier, "high");
+});
+
+test("keeps focused captures crisp across adaptive quality tiers", () => {
+  assert.equal(FOCUSED_TEXTURE_EDGE, 2_048);
 });
 
 test("uses five granular profiles without exceeding 4x anisotropy", () => {

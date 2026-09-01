@@ -8,9 +8,17 @@
   --fudge-color-text: #1c1b17;
   --fudge-color-muted: #6f6d66;
   --fudge-color-subtle: #9a9890;
-  --fudge-color-line: color-mix(in oklab, var(--fudge-color-text) 8%, var(--fudge-color-surface));
+  --fudge-color-line: color-mix(
+    in oklab,
+    var(--fudge-color-text) 8%,
+    var(--fudge-color-surface)
+  );
   --fudge-color-accent: oklch(64.6% 0.222 41.116);
-  --fudge-color-accent-soft: color-mix(in oklab, var(--fudge-color-accent) 14%, var(--fudge-color-surface));
+  --fudge-color-accent-soft: color-mix(
+    in oklab,
+    var(--fudge-color-accent) 14%,
+    var(--fudge-color-surface)
+  );
   --fudge-color-danger: #a53c2f;
   --fudge-radius-surface: 16px;
   --fudge-radius-control: 12px;
@@ -26,7 +34,11 @@
 
 ::selection {
   color: var(--fudge-color-text);
-  background: color-mix(in oklab, var(--fudge-color-accent) 24%, var(--fudge-color-surface));
+  background: color-mix(
+    in oklab,
+    var(--fudge-color-accent) 24%,
+    var(--fudge-color-surface)
+  );
 }
 
 :focus-visible {
@@ -112,10 +124,446 @@ fudge-form {
   -webkit-backdrop-filter: blur(36px) saturate(1.08) brightness(1.04);
 }
 
+fudge-surface,
+fudge-card {
+  display: block;
+  color: var(--fudge-color-text);
+  background: color-mix(in oklab, var(--fudge-color-surface) 86%, transparent);
+  backdrop-filter: blur(36px) saturate(1.08) brightness(1.04);
+  -webkit-backdrop-filter: blur(36px) saturate(1.08) brightness(1.04);
+}
+
+fudge-surface {
+  border-radius: var(--fudge-radius-surface);
+  padding: 1rem;
+}
+
+fudge-surface[data-variant="accent"] {
+  color: var(--fudge-color-accent);
+  background: var(--fudge-color-accent-soft);
+}
+
+fudge-card {
+  overflow: hidden;
+  border-radius: var(--fudge-radius-surface);
+}
+
+fudge-card[data-variant="transparent"] {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+fudge-card-header,
+fudge-card-content,
+fudge-card-footer {
+  display: block;
+  padding: 1rem;
+}
+
+fudge-card-header + fudge-card-content {
+  padding-top: 0;
+}
+
+fudge-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0;
+}
+
+fudge-card-title {
+  display: block;
+  font-family: "Instrument Serif", serif;
+  font-size: 1.7rem;
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+
+fudge-card-description {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--fudge-color-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+fudge-menu {
+  position: relative;
+  display: block;
+  width: max-content;
+}
+
+fudge-menu-trigger {
+  display: block;
+}
+
+.fudge-menu-trigger,
+.fudge-menu-item {
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: var(--fudge-radius-control);
+  color: var(--fudge-color-text);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.fudge-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0.85rem;
+}
+
+.fudge-menu-trigger:hover,
+.fudge-menu-trigger:focus-visible {
+  color: var(--fudge-color-accent);
+  background: var(--fudge-color-accent-soft);
+  outline: none;
+}
+
+fudge-menu-item {
+  display: block;
+}
+
+.fudge-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 0.75rem;
+  text-align: left;
+}
+
+.fudge-menu-item:hover,
+.fudge-menu-item:focus-visible {
+  color: var(--fudge-color-accent);
+  background: var(--fudge-color-accent-soft);
+  outline: none;
+}
+
+fudge-menu-panel,
+.fudge-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  z-index: 4;
+  display: block;
+  width: 13rem;
+  border-radius: var(--fudge-radius-surface);
+  padding: 0.5rem;
+  background: color-mix(
+    in oklab,
+    var(--fudge-color-surface) 91%,
+    var(--fudge-color-text) 9%
+  );
+  backdrop-filter: blur(40px) saturate(1.04);
+  -webkit-backdrop-filter: blur(40px) saturate(1.04);
+  transform: translateX(-50%);
+}
+
+fudge-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  place-items: center;
+  padding: 1.25rem;
+  background: color-mix(in oklab, var(--fudge-color-text) 22%, transparent);
+  backdrop-filter: blur(12px) saturate(0.88);
+  -webkit-backdrop-filter: blur(12px) saturate(0.88);
+}
+
+fudge-dialog:not([hidden]) {
+  display: grid;
+}
+
+fudge-dialog > * {
+  width: min(29rem, calc(100vw - 2.5rem));
+  max-height: calc(100dvh - 2.5rem);
+  overflow-y: auto;
+  border-radius: var(--fudge-radius-surface);
+  padding: 1.35rem;
+  color: var(--fudge-color-text);
+  background: color-mix(
+    in oklab,
+    var(--fudge-color-surface) 94%,
+    var(--fudge-color-text) 6%
+  );
+  backdrop-filter: blur(42px) saturate(1.04);
+  -webkit-backdrop-filter: blur(42px) saturate(1.04);
+}
+fudge-button {
+  display: inline-flex;
+}
+
+.fudge-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--fudge-radius-control);
+  padding: 0 0.85rem;
+  color: var(--fudge-color-text);
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.fudge-button[data-variant="primary"] {
+  color: var(--fudge-color-surface);
+  background: var(--fudge-color-text);
+}
+
+.fudge-button[data-variant="secondary"] {
+  background: color-mix(in oklab, var(--fudge-color-surface) 86%, transparent);
+}
+
+.fudge-button[data-variant="tertiary"] {
+  color: var(--fudge-color-accent);
+  background: var(--fudge-color-accent-soft);
+}
+
+.fudge-button[data-variant="danger"] {
+  color: var(--fudge-color-surface);
+  background: var(--fudge-color-danger);
+}
+
+.fudge-button[data-variant="ghost"] {
+  color: var(--fudge-color-muted);
+}
+
+.fudge-button:hover:not(:disabled),
+.fudge-button[data-visual-state="focused"] {
+  color: var(--fudge-color-accent);
+  background: var(--fudge-color-accent-soft);
+}
+
+.fudge-button[data-variant="primary"]:hover:not(:disabled) {
+  color: var(--fudge-color-surface);
+  background: var(--fudge-color-accent);
+}
+
+.fudge-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.fudge-button:disabled {
+  cursor: wait;
+  opacity: 0.56;
+}
+
+.demo-primitives {
+  display: grid;
+  width: min(29rem, calc(100vw - 2rem));
+  gap: 0.75rem;
+}
+
+.demo-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
 fudge-form[density="compact"] {
   --fudge-space-control: 0.55rem;
   --fudge-space-field: 0.75rem;
   --fudge-space-section: 1.1rem;
+}
+
+.fudge-textarea-control {
+  display: block;
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+  border: 0;
+  border-radius: var(--fudge-radius-control);
+  padding: 0.8rem 0.9rem;
+  color: var(--fudge-color-text);
+  background: color-mix(
+    in oklab,
+    var(--fudge-color-surface) 90%,
+    var(--fudge-color-text) 10%
+  );
+  font: inherit;
+  line-height: 1.45;
+  outline: none;
+}
+
+.fudge-textarea-control:focus {
+  background: var(--fudge-color-accent-soft);
+}
+
+.fudge-fieldset-control {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.fudge-fieldset-control legend {
+  margin-bottom: 0.55rem;
+  color: var(--fudge-color-muted);
+  font-size: 0.75rem;
+}
+
+.fudge-selection-label {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--fudge-color-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.fudge-selection-control {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fudge-selection-box {
+  position: relative;
+  display: inline-grid;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 1.15rem;
+  place-items: center;
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--fudge-color-surface) 88%, var(--fudge-color-text) 12%);
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.fudge-selection-box::after {
+  width: 0.5rem;
+  height: 0.28rem;
+  border-bottom: 1.5px solid var(--fudge-color-surface);
+  border-left: 1.5px solid var(--fudge-color-surface);
+  content: "";
+  opacity: 0;
+  transform: translateY(-0.06rem) rotate(-45deg) scale(0.7);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.fudge-selection-control:checked + .fudge-selection-box {
+  background: var(--fudge-color-accent);
+}
+
+.fudge-selection-control:checked + .fudge-selection-box::after {
+  opacity: 1;
+  transform: translateY(-0.06rem) rotate(-45deg) scale(1);
+}
+
+.fudge-selection-control:focus-visible + .fudge-selection-box {
+  background: var(--fudge-color-accent-soft);
+  outline: 2px solid var(--fudge-color-accent);
+  outline-offset: 2px;
+}
+
+.fudge-selection-control[role="switch"] + .fudge-selection-box {
+  width: 2.35rem;
+  height: 1.35rem;
+  flex-basis: 2.35rem;
+  border-radius: 999px;
+  place-items: center start;
+  padding: 0.2rem;
+}
+
+.fudge-selection-control[role="switch"] + .fudge-selection-box::after {
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fudge-color-surface);
+  opacity: 1;
+  transform: none;
+}
+
+.fudge-selection-control[role="switch"]:checked + .fudge-selection-box {
+  place-items: center end;
+  background: var(--fudge-color-accent);
+}
+
+fudge-alert,
+fudge-status {
+  display: block;
+  border-radius: var(--fudge-radius-control);
+  padding: 0.7rem 0.8rem;
+  color: var(--fudge-color-muted);
+  background: color-mix(in oklab, var(--fudge-color-surface) 86%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+fudge-alert[data-variant="accent"] {
+  color: var(--fudge-color-accent);
+  background: var(--fudge-color-accent-soft);
+}
+
+fudge-alert[data-variant="danger"] {
+  color: var(--fudge-color-danger);
+  background: color-mix(
+    in oklab,
+    var(--fudge-color-danger) 7%,
+    var(--fudge-color-surface)
+  );
+}
+
+fudge-popover,
+fudge-tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+fudge-popover-trigger,
+fudge-tooltip > *:first-child {
+  display: inline-block;
+}
+
+fudge-popover-content,
+fudge-tooltip-content {
+  position: absolute;
+  z-index: 5;
+  min-width: 12rem;
+  border-radius: var(--fudge-radius-surface);
+  padding: 0.75rem 0.8rem;
+  color: var(--fudge-color-text);
+  background: color-mix(
+    in oklab,
+    var(--fudge-color-surface) 91%,
+    var(--fudge-color-text) 9%
+  );
+  backdrop-filter: blur(40px) saturate(1.04);
+  -webkit-backdrop-filter: blur(40px) saturate(1.04);
+}
+
+fudge-popover-content {
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+fudge-tooltip-content {
+  bottom: calc(100% + 0.4rem);
+  left: 50%;
+  color: var(--fudge-color-surface);
+  background: var(--fudge-color-text);
+  font-family: "Space Mono", monospace;
+  font-size: 0.65rem;
+  white-space: nowrap;
+  transform: translateX(-50%);
 }
 
 fudge-form form,
@@ -170,7 +618,11 @@ fudge-field input {
   border-radius: var(--fudge-radius-control);
   padding: 0 0.9rem;
   color: var(--fudge-color-text);
-  background: color-mix(in oklab, var(--fudge-color-surface) 90%, var(--fudge-color-text) 10%);
+  background: color-mix(
+    in oklab,
+    var(--fudge-color-surface) 90%,
+    var(--fudge-color-text) 10%
+  );
   font: inherit;
   outline: none;
   transition: background 150ms ease;
@@ -181,7 +633,11 @@ fudge-field[data-visual-state="focused"] input {
 }
 
 fudge-field[data-visual-state="invalid"] input {
-  background: color-mix(in oklab, var(--fudge-color-danger) 7%, var(--fudge-color-surface));
+  background: color-mix(
+    in oklab,
+    var(--fudge-color-danger) 7%,
+    var(--fudge-color-surface)
+  );
 }
 
 .fudge-field-message {
@@ -209,7 +665,6 @@ fudge-action button {
   font-weight: 500;
   cursor: pointer;
 }
-
 
 fudge-action button:hover:not(:disabled) {
   background: var(--fudge-color-accent);
@@ -281,24 +736,36 @@ fudge-form[data-state="success"] #login-status {
 }
 
 @keyframes fudge-spin {
-  to { transform: rotate(1turn); }
+  to {
+    transform: rotate(1turn);
+  }
 }
 
 @keyframes fudge-lift {
-  50% { transform: translateY(-1px); }
+  50% {
+    transform: translateY(-1px);
+  }
 }
 
 @keyframes fudge-compress {
-  50% { transform: scale(0.99); }
+  50% {
+    transform: scale(0.99);
+  }
 }
 
 @keyframes fudge-advance {
-  50% { transform: translateY(-2px); }
+  50% {
+    transform: translateY(-2px);
+  }
 }
 
 @keyframes fudge-boundary {
-  33% { transform: translateX(-3px); }
-  66% { transform: translateX(3px); }
+  33% {
+    transform: translateX(-3px);
+  }
+  66% {
+    transform: translateX(3px);
+  }
 }
 
 @media (max-width: 760px) {
@@ -318,4 +785,228 @@ fudge-form[data-state="success"] #login-status {
   [data-feedback-motion] {
     animation: none;
   }
+}
+
+fudge-composer {
+  display: block;
+  width: 100%;
+}
+
+.fudge-composer-form {
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--fudge-color-surface) 88%, transparent);
+  backdrop-filter: blur(28px) saturate(1.06);
+  -webkit-backdrop-filter: blur(28px) saturate(1.06);
+}
+
+fudge-composer[data-expanded] .fudge-composer-form {
+  border-radius: 1.5rem;
+}
+
+.fudge-composer-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.75rem 0.75rem 0;
+}
+
+.fudge-composer-file {
+  max-width: 12rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  color: var(--fudge-color-text);
+  background: color-mix(in oklab, var(--fudge-color-text) 8%, transparent);
+  font: inherit;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.fudge-composer-grid {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
+  gap: 0.25rem;
+  align-items: end;
+  padding: 0.4rem;
+}
+
+fudge-composer[data-expanded] .fudge-composer-grid {
+  grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
+  grid-template-areas: "input input input" "attach . send";
+}
+
+fudge-composer[data-expanded] .fudge-composer-input {
+  grid-area: input;
+}
+
+fudge-composer[data-expanded] .fudge-composer-icon:first-of-type {
+  grid-area: attach;
+}
+
+fudge-composer[data-expanded] .fudge-composer-send {
+  grid-area: send;
+  justify-self: end;
+}
+
+.fudge-composer-input {
+  width: 100%;
+  min-height: 2.5rem;
+  max-height: 10rem;
+  resize: none;
+  border: 0;
+  padding: 0.55rem 0.35rem;
+  color: var(--fudge-color-text);
+  background: transparent;
+  font: inherit;
+  line-height: 1.45;
+  outline: none;
+}
+
+.fudge-composer-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  color: var(--fudge-color-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.fudge-composer-icon svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.fudge-composer-icon:hover,
+.fudge-composer-icon:focus-visible {
+  color: var(--fudge-color-text);
+  background: var(--fudge-color-accent-soft);
+  outline: none;
+}
+
+.fudge-composer-send {
+  color: var(--fudge-color-surface);
+  background: var(--fudge-color-accent);
+}
+
+.fudge-composer-send:hover:not(:disabled),
+.fudge-composer-send:focus-visible {
+  color: var(--fudge-color-surface);
+  background: var(--fudge-color-accent);
+}
+
+.fudge-composer-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+fudge-capture {
+  display: grid;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  color: var(--fudge-color-text);
+  background: color-mix(in oklab, var(--fudge-color-surface) 92%, transparent);
+  cursor: pointer;
+}
+
+fudge-capture[layout="details"] {
+  cursor: default;
+  background: color-mix(in oklab, var(--fudge-color-surface) 96%, var(--fudge-color-text) 4%);
+}
+
+.fudge-capture-media {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--fudge-color-text) 8%, var(--fudge-color-surface));
+}
+
+fudge-capture[layout="details"] .fudge-capture-media {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--fudge-color-text) 16%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 16px 16px;
+}
+
+.fudge-capture-media img,
+.fudge-capture-media video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+fudge-capture[layout="details"] .fudge-capture-media img,
+fudge-capture[layout="details"] .fudge-capture-media video {
+  object-fit: contain;
+}
+
+.fudge-capture-media video {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+fudge-capture:hover .fudge-capture-media video,
+fudge-capture:focus-visible .fudge-capture-media video {
+  opacity: 1;
+}
+
+.fudge-capture-body {
+  display: none;
+  gap: 0.55rem;
+  padding: 0.85rem 0.9rem 1rem;
+}
+
+fudge-capture[layout="details"] .fudge-capture-body {
+  display: grid;
+}
+
+.fudge-capture-heading {
+  display: flex;
+  gap: 0.75rem;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.fudge-capture-title {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.fudge-capture-title img {
+  display: inline;
+  width: 14px;
+  height: 14px;
+  margin-right: 0.3rem;
+  vertical-align: -2px;
+  border-radius: 999px;
+}
+
+.fudge-capture-domain,
+.fudge-capture-fonts {
+  margin: 0;
+  color: var(--fudge-color-muted);
+  font-size: 0.75rem;
+}
+
+.fudge-capture-palette {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  overflow: hidden;
+  min-height: 1.35rem;
+  border-radius: 0.35rem;
+}
+
+.fudge-capture-palette span {
+  min-height: inherit;
 }

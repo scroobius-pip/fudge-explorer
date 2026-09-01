@@ -19,6 +19,10 @@ import {
 import type { Capture, FieldView } from "@/lib/fudge/types";
 import { sfx } from "@/lib/sfx";
 import {
+  cancelTextureLoads,
+  textureQueueBusy,
+} from "@/lib/fudge/texture-queue";
+import {
   RENDER_QUALITY_PROFILES,
   RENDER_TARGET_FPS,
   advanceRenderQualityGovernor,
@@ -121,9 +125,11 @@ const LAYOUT_CACHE_LIMIT = 32;
 
 type ViewSnapshot = {
   key: string;
+  view: FieldView;
   depth: number;
   captures: Capture[];
   slots: Slot[];
+  cullSlots: Slot[];
   bounds: LayoutBounds;
 };
 
@@ -224,10 +230,12 @@ function AdaptiveQualityGovernor({
       0,
       longTaskSeconds.current - longTaskPenalty,
     );
+    const texturesBusy = textureQueueBusy();
     const governedFps =
       longTaskPenalty > 0
         ? Math.min(20, averageFps.current)
-        : now < inclineAfter.current && averageFps.current >= RENDER_TARGET_FPS
+        : (now < inclineAfter.current || texturesBusy) &&
+            averageFps.current >= RENDER_TARGET_FPS
           ? RENDER_TARGET_FPS
           : averageFps.current;
     const next = advanceRenderQualityGovernor(
@@ -239,6 +247,7 @@ function AdaptiveQualityGovernor({
     if (now - lastReportAt.current >= 250) {
       lastReportAt.current = now;
       gl.domElement.dataset.qualityFps = averageFps.current.toFixed(1);
+      gl.domElement.dataset.qualityTextureBusy = String(texturesBusy);
     }
     if (next.tier !== requestedTier.current) {
       requestedTier.current = next.tier;
@@ -251,6 +260,17 @@ function AdaptiveQualityGovernor({
 
 function viewKey(view: FieldView, depth: number) {
   return `${depth}:${JSON.stringify(view)}`;
+}
+
+function captureSignature(captures: Capture[]) {
+  let hash = 2166136261;
+  for (const capture of captures) {
+    hash ^= capture.id;
+    hash = Math.imul(hash, 16777619);
+    hash ^= Math.round(capture.aspect * 10_000);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${captures.length}:${hash >>> 0}`;
 }
 
 function sameIds(a: Set<number>, b: Set<number>) {
@@ -274,7 +294,7 @@ function initialVisibleIds(snapshot: ViewSnapshot) {
   const halfH = Math.min(bounds.halfH + 0.2, 4.2);
   const top = bounds.cy + bounds.halfH;
   const cy = Math.max(bounds.cy, top - halfH);
-  const ids = new Set<number>();
+  const visible: Slot[] = [];
   for (const slot of slots) {
     const [x, y] = slot.position;
     const [w, h] = slot.size;
@@ -282,12 +302,28 @@ function initialVisibleIds(snapshot: ViewSnapshot) {
       Math.abs(x - bounds.cx) <= halfW + w / 2 &&
       Math.abs(y - cy) <= halfH + h / 2
     ) {
-      ids.add(slot.id);
+      visible.push(slot);
     }
   }
-  if (ids.size > 0) return ids;
-  for (const slot of slots.slice(0, 24)) ids.add(slot.id);
-  return ids;
+  const candidates = visible.length > 0 ? visible : slots.slice(0, 24);
+  candidates.sort(
+    (a, b) =>
+      Math.hypot(a.position[0] - bounds.cx, a.position[1] - cy) -
+        Math.hypot(b.position[0] - bounds.cx, b.position[1] - cy) ||
+      a.id - b.id,
+  );
+  return new Set(candidates.map((slot) => slot.id));
+}
+
+function lowerBoundSlotX(slots: Slot[], x: number) {
+  let low = 0;
+  let high = slots.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (slots[middle]!.position[0] < x) low = middle + 1;
+    else high = middle;
+  }
+  return low;
 }
 
 function searchedCaptureSlot(capture: Capture, snapshot: ViewSnapshot): Slot {
@@ -325,35 +361,42 @@ function Scene({
   const cacheRef = useRef(
     new Map<
       string,
-      { signature: string; slots: Slot[]; bounds: LayoutBounds }
+      { signature: string; slots: Slot[]; cullSlots: Slot[]; bounds: LayoutBounds }
     >(),
   );
   const snapshots = useMemo<ViewSnapshot[]>(() => {
     const materialized = layers.map((layer) => {
-      const key = viewKey(layer.view, layer.depth);
-      const signature = layer.captures
-        .map((capture) => `${capture.id}:${capture.aspect.toFixed(4)}`)
-        .join("|");
+      const signature = captureSignature(layer.captures);
+      const baseKey = viewKey(layer.view, layer.depth);
+      const key =
+        layer.view.kind === "saved" ? `${baseKey}:${signature}` : baseKey;
       const cached = cacheRef.current.get(key);
       if (cached?.signature === signature) {
         cacheRef.current.delete(key);
         cacheRef.current.set(key, cached);
         return {
           key,
+          view: layer.view,
           depth: layer.depth,
           captures: layer.captures,
           slots: cached.slots,
+          cullSlots: cached.cullSlots,
           bounds: cached.bounds,
         };
       }
       const slots = denseLayout(layer.captures, layer.depth);
+      const cullSlots = [...slots].sort(
+        (a, b) => a.position[0] - b.position[0],
+      );
       const bounds = layoutBounds(slots);
-      cacheRef.current.set(key, { signature, slots, bounds });
+      cacheRef.current.set(key, { signature, slots, cullSlots, bounds });
       return {
         key,
+        view: layer.view,
         depth: layer.depth,
         captures: layer.captures,
         slots,
+        cullSlots,
         bounds,
       };
     });
@@ -446,7 +489,7 @@ function Scene({
             onHover={(id) => {
               hoveredCaptureRef.current = id;
             }}
-            interactive={activeLayer}
+            interactive={activeLayer && !traveling}
             loadTextures={activeLayer && !traveling}
             playVideos={activeLayer && !traveling}
           />
@@ -485,29 +528,39 @@ function LayerFrames({
     () => new Map(snapshot.captures.map((capture) => [capture.id, capture])),
     [snapshot.captures],
   );
+  const slotsById = useMemo(
+    () =>
+      new Map(
+        snapshot.slots.map((slot, index) => [slot.id, { slot, index }] as const),
+      ),
+    [snapshot.slots],
+  );
   const focusPos =
-    focusedId == null
-      ? null
-      : (snapshot.slots.find((slot) => slot.id === focusedId)?.position ??
-        null);
+    focusedId == null ? null : (slotsById.get(focusedId)?.slot.position ?? null);
   const renderedIds = new Set(visibleIds);
   if (focusedId != null) renderedIds.add(focusedId);
+  const priorityById = new Map(
+    [...visibleIds].map((id, priority) => [id, priority] as const),
+  );
+  const renderedRows = snapshot.slots
+    .map((slot) => slot.id)
+    .filter((id) => renderedIds.has(id));
   const ambientVideoIds = new Set(
-    [...renderedIds]
+    [...visibleIds]
       .filter((id) => id !== focusedId)
       .slice(0, quality.ambientVideoLimit),
   );
 
-  return snapshot.slots.map((slot, index) => {
-    if (!renderedIds.has(slot.id)) return null;
-    const capture = byId.get(slot.id);
-    if (!capture) return null;
+  return renderedRows.map((id) => {
+    const capture = byId.get(id);
+    const indexedSlot = slotsById.get(id);
+    if (!capture || !indexedSlot) return null;
     return (
       <Frame
         key={`${snapshot.key}:${capture.id}`}
         capture={capture}
-        slot={slot}
-        index={index}
+        slot={indexedSlot.slot}
+        index={indexedSlot.index}
         count={snapshot.slots.length}
         focusedId={focusedId}
         focusPos={focusPos}
@@ -515,6 +568,11 @@ function LayerFrames({
         quality={quality}
         interactive={interactive}
         loadTexture={loadTextures}
+        loadPriority={
+          focusedId === capture.id
+            ? -1
+            : (priorityById.get(capture.id) ?? Number.MAX_SAFE_INTEGER)
+        }
         playVideo={
           interactive &&
           playVideos &&
@@ -523,7 +581,7 @@ function LayerFrames({
         }
         didDragRef={didDragRef}
         onHover={onHover}
-        onFocus={(id) => onFocus(id)}
+        onFocus={(nextId) => onFocus(nextId)}
       />
     );
   });
@@ -790,12 +848,18 @@ function CameraRig({
       const currentSize = sizeRef.current;
       const nextAspect = currentSize.width / Math.max(1, currentSize.height);
       const restored =
-        cameraStates.current.get(active.key) ??
-        initialCameraState(
-          active.bounds,
-          camera as THREE.PerspectiveCamera,
-          nextAspect,
-        );
+        active.view.kind === "saved"
+          ? initialCameraState(
+              active.bounds,
+              camera as THREE.PerspectiveCamera,
+              nextAspect,
+            )
+          : (cameraStates.current.get(active.key) ??
+            initialCameraState(
+              active.bounds,
+              camera as THREE.PerspectiveCamera,
+              nextAspect,
+            ));
       panX.current = restored.panX;
       panY.current = restored.panY;
       zoomTo.current = restored.zoom;
@@ -803,6 +867,7 @@ function CameraRig({
       viewKeyRef.current = active.key;
       lastCullKey.current = "";
       travelling.current = true;
+      cancelTextureLoads();
       travelStateRef.current(true);
     }
     invalidate();
@@ -823,6 +888,17 @@ function CameraRig({
     let lockUntil = 0;
 
     const cam = () => camera as THREE.PerspectiveCamera;
+
+    const beginTravel = (holdMs = 180) => {
+      userUntil.current = Math.max(
+        userUntil.current,
+        performance.now() + holdMs,
+      );
+      if (travelling.current) return;
+      cancelTextureLoads();
+      travelling.current = true;
+      travelStateRef.current(true);
+    };
 
     const wallPoint = (clientX: number, clientY: number, distance: number) => {
       const rect = el.getBoundingClientRect();
@@ -877,7 +953,7 @@ function CameraRig({
       clientY: number,
       deltaY: number,
     ) => {
-      userUntil.current = performance.now() + 160;
+      beginTravel(180);
       const before = Math.max(0.001, zoom.current);
       const now = performance.now();
       if (
@@ -981,14 +1057,16 @@ function CameraRig({
       lastX = event.clientX;
       lastY = event.clientY;
       moved += Math.abs(dx) + Math.abs(dy);
-      if (moved > 6) didDragRef.current = true;
+      if (moved > 6 && !didDragRef.current) {
+        didDragRef.current = true;
+        beginTravel();
+      }
       const dist = zoom.current;
       const rect = el.getBoundingClientRect();
       const fov = THREE.MathUtils.degToRad(cam().fov);
       const worldH = 2 * dist * Math.tan(fov / 2);
       panX.current -= (dx / rect.width) * worldH * (rect.width / rect.height);
       panY.current += (dy / rect.height) * worldH;
-      userUntil.current = performance.now() + 180;
       clampPan();
       sfx.friction(Math.hypot(dx, dy));
       invalidate();
@@ -1019,6 +1097,10 @@ function CameraRig({
       if (pointers.size === 0) {
         dragging.current = false;
         sfx.friction(0);
+        userUntil.current = Math.max(
+          userUntil.current,
+          performance.now() + 120,
+        );
       }
       invalidate();
     };
@@ -1099,7 +1181,8 @@ function CameraRig({
     camera.lookAt(look.current);
 
     const now = performance.now();
-    if (now - lastCull.current > 70 || lastCullKey.current === "") {
+    const cullInterval = travelling.current || dragging.current ? 140 : 70;
+    if (now - lastCull.current > cullInterval || lastCullKey.current === "") {
       lastCull.current = now;
       const v = Math.tan(
         THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov) / 2,
@@ -1111,18 +1194,49 @@ function CameraRig({
         if (distance <= 0.08) continue;
         const halfH = distance * v * 1.16 + 0.2;
         const halfW = halfH * currentAspect;
-        const ids = new Set<number>();
-        for (const slot of snapshot.slots) {
+        const visibleSlots: Slot[] = [];
+        const cullSlots = snapshot.cullSlots;
+        const minX = camera.position.x - halfW - 0.7;
+        const maxX = camera.position.x + halfW + 0.7;
+        for (
+          let index = lowerBoundSlotX(cullSlots, minX);
+          index < cullSlots.length;
+          index += 1
+        ) {
+          const slot = cullSlots[index]!;
           const [x, y] = slot.position;
+          if (x > maxX) break;
           const [w, h] = slot.size;
           if (
             Math.abs(x - camera.position.x) <= halfW + w / 2 &&
             Math.abs(y - camera.position.y) <= halfH + h / 2
           ) {
-            ids.add(slot.id);
+            visibleSlots.push(slot);
           }
         }
-        if (snapshot.key === active.key && focusedSlot) ids.add(focusedSlot.id);
+        if (
+          snapshot.key === active.key &&
+          focusedSlot &&
+          !visibleSlots.some((slot) => slot.id === focusedSlot.id)
+        ) {
+          visibleSlots.push(focusedSlot);
+        }
+        visibleSlots.sort((a, b) => {
+          if (a.id === focusedSlot?.id) return -1;
+          if (b.id === focusedSlot?.id) return 1;
+          return (
+            Math.hypot(
+              a.position[0] - camera.position.x,
+              a.position[1] - camera.position.y,
+            ) -
+              Math.hypot(
+                b.position[0] - camera.position.x,
+                b.position[1] - camera.position.y,
+              ) ||
+            a.id - b.id
+          );
+        });
+        const ids = new Set(visibleSlots.map((slot) => slot.id));
         if (ids.size > 0) windows.set(snapshot.key, ids);
         cullParts.push(`${snapshot.key}:${[...ids].join(",")}`);
       }
@@ -1143,11 +1257,20 @@ function CameraRig({
       gl.domElement.dataset.fieldCameraZ = camera.position.z.toFixed(4);
     }
 
+    const settledForLoading =
+      pos.current.distanceToSquared(desiredPos.current) <= 0.0001 &&
+      look.current.distanceToSquared(desiredLook.current) <= 0.0001 &&
+      Math.abs(zoom.current - zoomTo.current) <= 0.005;
     const moving =
       pos.current.distanceToSquared(desiredPos.current) > 0.000001 ||
       look.current.distanceToSquared(desiredLook.current) > 0.000001 ||
       Math.abs(zoom.current - zoomTo.current) > 0.0001;
-    if (travelling.current && !moving) {
+    if (
+      travelling.current &&
+      settledForLoading &&
+      !dragging.current &&
+      now >= userUntil.current
+    ) {
       travelling.current = false;
       travelStateRef.current(false);
     }

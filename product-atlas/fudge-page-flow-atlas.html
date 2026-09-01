@@ -1,0 +1,1880 @@
+<div id="fudge-flow-atlas">
+  <header class="atlas-header">
+    <div>
+      <p class="atlas-kicker">Fudge unified product</p>
+      <h1>Product Atlas: one experience, every section and transition</h1>
+      <p class="text-muted">Explorer, Chat, saved references, the browser extension, prompt handoff, and hosted MCP are presented as capabilities of one Fudge offer without inventing a new Project or Connections product. Select a page to inspect its sections, transitions, reusable templates, and visual references.</p>
+    </div>
+    <p class="atlas-counts text-small" id="fudge-atlas-counts" aria-live="polite"></p>
+  </header>
+
+  <nav class="viz-controls atlas-tabs" role="tablist" aria-label="Page flow charts">
+    <button class="btn btn-primary" type="button" role="tab" aria-selected="true" data-atlas-page="overview">Site map</button>
+    <button class="btn" type="button" role="tab" aria-selected="false" data-atlas-page="home">Home</button>
+    <button class="btn" type="button" role="tab" aria-selected="false" data-atlas-page="browse">Explorer</button>
+    <button class="btn" type="button" role="tab" aria-selected="false" data-atlas-page="chat">Chat</button>
+    <button class="btn" type="button" role="tab" aria-selected="false" data-atlas-page="install">MCP setup</button>
+    <button class="btn" type="button" role="tab" aria-selected="false" data-atlas-page="pricing">Pricing</button>
+    <button class="btn" type="button" role="tab" aria-selected="false" data-atlas-page="templates">Template catalog</button>
+  </nav>
+
+  <div class="atlas-legend" aria-label="Node legend">
+    <span><i data-kind-swatch="shell" aria-hidden="true"></i>Shared shell</span>
+    <span><i data-kind-swatch="section" aria-hidden="true"></i>Page section</span>
+    <span><i data-kind-swatch="state" aria-hidden="true"></i>Local state</span>
+    <span><i data-kind-swatch="decision" aria-hidden="true"></i>Decision or gate</span>
+    <span><i data-kind-swatch="destination" aria-hidden="true"></i>Other page or connected surface</span>
+    <span class="atlas-template-key">Template: Human-readable name</span>
+    <span><i data-edge-swatch="primary" aria-hidden="true"></i>Structure edge</span>
+    <span><i data-edge-swatch="action" aria-hidden="true"></i>User action</span>
+    <span><i data-edge-swatch="boundary" aria-hidden="true"></i>Gate or boundary</span>
+    <span><i data-edge-swatch="cross" aria-hidden="true"></i>Cross-page edge</span>
+  </div>
+
+  <div class="atlas-evidence-legend" aria-label="Reference evidence legend">
+    <strong>Screenshot evidence</strong>
+    <span class="evidence-badge" data-evidence-kind="direct">Direct precedent</span>
+    <span class="evidence-badge" data-evidence-kind="composition">Composition only</span>
+    <span class="evidence-badge" data-evidence-kind="baseline">Current Fudge baseline</span>
+    <span class="evidence-badge" data-evidence-kind="mixed">Mixed evidence</span>
+    <span class="evidence-badge" data-evidence-kind="native">Fudge-native rule</span>
+    <span class="evidence-badge" data-evidence-kind="gap">Corpus gap</span>
+    <span class="text-small text-muted">A screenshot supports only the visible trait named beside it. Interaction, continuity, accessibility, and responsive behavior remain tests unless explicitly shown.</span>
+  </div>
+
+  <main id="fudge-atlas-stage" aria-live="polite"></main>
+</div>
+
+<style>
+  #fudge-flow-atlas {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    color: var(--foreground);
+  }
+
+  #fudge-flow-atlas * {
+    box-sizing: border-box;
+  }
+
+  #fudge-flow-atlas .atlas-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: end;
+    margin-bottom: 1rem;
+  }
+
+  #fudge-flow-atlas .atlas-header h1,
+  #fudge-flow-atlas .atlas-header p {
+    margin-top: 0;
+  }
+
+  #fudge-flow-atlas .atlas-kicker {
+    color: var(--muted-foreground);
+    margin-bottom: 0.25rem;
+  }
+
+  #fudge-flow-atlas .atlas-counts {
+    text-align: end;
+    max-width: 22rem;
+  }
+
+  #fudge-flow-atlas .atlas-tabs {
+    margin-bottom: 0.75rem;
+  }
+
+  #fudge-flow-atlas .atlas-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: center;
+    padding-block: 0.75rem;
+    border-block: 1px solid var(--border);
+    color: var(--muted-foreground);
+  }
+
+  #fudge-flow-atlas .atlas-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  #fudge-flow-atlas .atlas-evidence-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+    padding-block: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #fudge-flow-atlas .atlas-evidence-legend > .text-muted {
+    flex-basis: 100%;
+  }
+
+  #fudge-flow-atlas [data-evidence-kind="direct"] { --evidence-color: var(--viz-series-2); }
+  #fudge-flow-atlas [data-evidence-kind="composition"] { --evidence-color: var(--viz-series-4); }
+  #fudge-flow-atlas [data-evidence-kind="baseline"] { --evidence-color: var(--viz-series-6); }
+  #fudge-flow-atlas [data-evidence-kind="mixed"] { --evidence-color: var(--viz-series-5); }
+  #fudge-flow-atlas [data-evidence-kind="native"] { --evidence-color: var(--viz-series-3); }
+  #fudge-flow-atlas [data-evidence-kind="gap"] { --evidence-color: var(--destructive); }
+
+  #fudge-flow-atlas .evidence-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 0.16rem 0.38rem;
+    border: 1px solid color-mix(in srgb, var(--evidence-color) 62%, var(--border));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--evidence-color) 13%, transparent);
+    color: var(--foreground);
+    white-space: nowrap;
+  }
+
+  #fudge-flow-atlas [data-kind-swatch] {
+    width: 0.75rem;
+    height: 0.75rem;
+    display: inline-block;
+    border-radius: 0.2rem;
+    background: color-mix(in srgb, var(--node-color) 28%, transparent);
+    border: 1px solid var(--node-color);
+  }
+
+  #fudge-flow-atlas [data-kind-swatch="shell"],
+  #fudge-flow-atlas .flow-node[data-kind="shell"] { --node-color: var(--viz-series-1); }
+  #fudge-flow-atlas [data-kind-swatch="section"],
+  #fudge-flow-atlas .flow-node[data-kind="section"] { --node-color: var(--viz-series-2); }
+  #fudge-flow-atlas [data-kind-swatch="state"],
+  #fudge-flow-atlas .flow-node[data-kind="state"] { --node-color: var(--viz-series-3); }
+  #fudge-flow-atlas [data-kind-swatch="decision"],
+  #fudge-flow-atlas .flow-node[data-kind="decision"] { --node-color: var(--viz-series-5); }
+  #fudge-flow-atlas [data-kind-swatch="destination"],
+  #fudge-flow-atlas .flow-node[data-kind="destination"] { --node-color: var(--viz-series-6); }
+
+  #fudge-flow-atlas [data-edge-swatch] {
+    width: 1rem;
+    height: 0;
+    display: inline-block;
+    border-top: 2px solid var(--edge-color);
+  }
+
+  #fudge-flow-atlas [data-edge-swatch="primary"] { --edge-color: var(--muted-foreground); }
+  #fudge-flow-atlas [data-edge-swatch="action"] { --edge-color: var(--viz-series-2); }
+  #fudge-flow-atlas [data-edge-swatch="boundary"] { --edge-color: var(--viz-series-5); }
+  #fudge-flow-atlas [data-edge-swatch="cross"] { --edge-color: var(--viz-series-6); }
+
+  #fudge-flow-atlas .atlas-template-key,
+  #fudge-flow-atlas .node-template-link {
+    color: var(--foreground);
+    background: color-mix(in srgb, var(--viz-series-4) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--viz-series-4) 55%, var(--border));
+    border-radius: 0.25rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  #fudge-flow-atlas .page-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+    margin-block: 1.25rem 1rem;
+  }
+
+  #fudge-flow-atlas .page-heading h2,
+  #fudge-flow-atlas .page-heading p {
+    margin-top: 0;
+  }
+
+  #fudge-flow-atlas .route-label {
+    color: var(--muted-foreground);
+    text-align: end;
+  }
+
+  #fudge-flow-atlas .atlas-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(15rem, 28%);
+    gap: 2rem;
+    align-items: start;
+  }
+
+  #fudge-flow-atlas .graph-wrap {
+    min-width: 0;
+  }
+
+  #fudge-flow-atlas .graph-canvas {
+    --graph-cols: 4;
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(var(--graph-cols), minmax(0, 1fr));
+    grid-auto-rows: minmax(8.25rem, auto);
+    column-gap: 1.25rem;
+    row-gap: 5.5rem;
+    align-items: stretch;
+    isolation: isolate;
+  }
+
+  #fudge-flow-atlas .flow-node {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    min-width: 0;
+    padding: 0.85rem;
+    border: 1px solid var(--border);
+    border-left: 0.35rem solid var(--node-color);
+    border-radius: 0.45rem;
+    background: color-mix(in srgb, var(--node-color) 11%, var(--background));
+  }
+
+  #fudge-flow-atlas .flow-node.is-edge-source,
+  #fudge-flow-atlas .flow-node.is-edge-target {
+    box-shadow: 0 0 0 2px var(--ring);
+  }
+
+  #fudge-flow-atlas .flow-node h3,
+  #fudge-flow-atlas .flow-node p {
+    margin: 0;
+  }
+
+  #fudge-flow-atlas .node-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+    color: var(--muted-foreground);
+  }
+
+  #fudge-flow-atlas .node-purpose {
+    flex: 1;
+  }
+
+  #fudge-flow-atlas .node-template-link {
+    align-self: flex-start;
+    text-decoration: none;
+  }
+
+  #fudge-flow-atlas .node-evidence {
+    display: grid;
+    gap: 0.45rem;
+    border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+    padding-top: 0.5rem;
+  }
+
+  #fudge-flow-atlas .node-evidence-summary {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  #fudge-flow-atlas .node-evidence-summary p {
+    margin: 0;
+  }
+
+  #fudge-flow-atlas .node-reference-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.6rem;
+  }
+
+  #fudge-flow-atlas .node-reference-links a {
+    overflow-wrap: anywhere;
+  }
+
+  #fudge-flow-atlas .node-edge-ids {
+    color: var(--muted-foreground);
+  }
+
+  #fudge-flow-atlas .node-route-link {
+    margin-top: auto;
+  }
+
+  #fudge-flow-atlas .edge-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: auto;
+    z-index: 0;
+  }
+
+  #fudge-flow-atlas .edge-path {
+    pointer-events: none;
+    transition: stroke-width 120ms ease, opacity 120ms ease;
+  }
+
+  #fudge-flow-atlas .edge-path.is-active {
+    stroke-width: 4;
+  }
+
+  #fudge-flow-atlas .edge-hit {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 18;
+    pointer-events: stroke;
+    cursor: pointer;
+  }
+
+  #fudge-flow-atlas .edge-label {
+    position: absolute;
+    z-index: 1;
+    transform: translate(-50%, -50%);
+    max-width: 11rem;
+    padding: 0.25rem 0.45rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    background: var(--background);
+    color: var(--foreground);
+    text-align: center;
+    font: inherit;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  #fudge-flow-atlas .edge-label.is-active {
+    color: var(--primary-foreground);
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+
+  #fudge-flow-atlas .edge-popover {
+    position: absolute;
+    z-index: 4;
+    display: grid;
+    gap: 0.35rem;
+    width: min(18rem, calc(100% - 1rem));
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    color: var(--popover-foreground);
+    background: var(--popover);
+    box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--foreground) 18%, transparent);
+    pointer-events: none;
+  }
+
+  #fudge-flow-atlas .edge-popover[hidden] {
+    display: none;
+  }
+
+  #fudge-flow-atlas .edge-popover p {
+    margin: 0;
+  }
+
+  #fudge-flow-atlas .edge-label[data-edge-kind="action"] {
+    border-color: color-mix(in srgb, var(--viz-series-2) 60%, var(--border));
+  }
+
+  #fudge-flow-atlas .edge-label[data-edge-kind="boundary"] {
+    border-color: color-mix(in srgb, var(--viz-series-5) 60%, var(--border));
+  }
+
+  #fudge-flow-atlas .edge-label[data-edge-kind="cross"] {
+    border-color: color-mix(in srgb, var(--viz-series-6) 60%, var(--border));
+  }
+
+  #fudge-flow-atlas .reference-rail {
+    min-width: 0;
+    border-left: 1px solid var(--border);
+    padding-left: 1rem;
+  }
+
+  #fudge-flow-atlas .reference-rail h3 {
+    margin-top: 0;
+  }
+
+  #fudge-flow-atlas .edge-key {
+    margin: 0 0 1.5rem;
+    padding-left: 1.5rem;
+  }
+
+  #fudge-flow-atlas .edge-key li + li {
+    margin-top: 0.55rem;
+  }
+
+  #fudge-flow-atlas .edge-key strong {
+    color: var(--foreground);
+  }
+
+  #fudge-flow-atlas .edge-index-control {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: start;
+    white-space: normal;
+  }
+
+  #fudge-flow-atlas .reference-heading {
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  #fudge-flow-atlas .reference-list {
+    display: grid;
+    gap: 0;
+  }
+
+  #fudge-flow-atlas .reference-item {
+    padding-block: 0.8rem;
+    border-top: 1px solid var(--border);
+  }
+
+  #fudge-flow-atlas .reference-item:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  #fudge-flow-atlas .reference-item p {
+    margin-block: 0.3rem 0;
+  }
+
+  #fudge-flow-atlas .reference-item .reference-scope,
+  #fudge-flow-atlas .reference-item .reference-limit {
+    padding-left: 0.65rem;
+    border-left: 2px solid color-mix(in srgb, var(--border) 80%, transparent);
+  }
+
+  #fudge-flow-atlas .reference-item .reference-limit {
+    color: var(--muted-foreground);
+  }
+
+  #fudge-flow-atlas .transition-index {
+    display: none;
+    margin-top: 1rem;
+  }
+
+  #fudge-flow-atlas .transition-index ol {
+    padding-left: 1.25rem;
+  }
+
+  #fudge-flow-atlas .transition-index li + li {
+    margin-top: 0.5rem;
+  }
+
+  #fudge-flow-atlas .template-groups {
+    display: grid;
+    gap: 2rem;
+    margin-top: 1rem;
+  }
+
+  #fudge-flow-atlas .template-group {
+    min-width: 0;
+  }
+
+  #fudge-flow-atlas .template-group .table-responsive {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  #fudge-flow-atlas .template-group table {
+    min-width: 60rem;
+  }
+
+  #fudge-flow-atlas .template-group h3 {
+    margin-bottom: 0.5rem;
+  }
+
+  #fudge-flow-atlas .template-row[data-highlighted="true"] {
+    background: color-mix(in srgb, var(--viz-series-4) 15%, transparent);
+  }
+
+  #fudge-flow-atlas .template-name {
+    font-weight: 500;
+  }
+
+  #fudge-flow-atlas .template-source-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+  }
+
+  @media (max-width: 850px) {
+    #fudge-flow-atlas .atlas-layout {
+      grid-template-columns: 1fr;
+    }
+
+    #fudge-flow-atlas .reference-rail {
+      border-left: 0;
+      border-top: 1px solid var(--border);
+      padding-left: 0;
+      padding-top: 1rem;
+    }
+  }
+
+  @media (max-width: 660px) {
+    #fudge-flow-atlas .atlas-header,
+    #fudge-flow-atlas .page-heading {
+      grid-template-columns: 1fr;
+    }
+
+    #fudge-flow-atlas .atlas-counts,
+    #fudge-flow-atlas .route-label {
+      text-align: start;
+    }
+
+    #fudge-flow-atlas .graph-canvas {
+      grid-template-columns: 1fr;
+      grid-auto-rows: auto;
+      row-gap: 1rem;
+    }
+
+    #fudge-flow-atlas .flow-node {
+      grid-column: 1 !important;
+      grid-row: auto !important;
+    }
+
+    #fudge-flow-atlas .edge-layer,
+    #fudge-flow-atlas .edge-label,
+    #fudge-flow-atlas .edge-popover {
+      display: none;
+    }
+
+    #fudge-flow-atlas .transition-index {
+      display: block;
+    }
+
+    #fudge-flow-atlas .edge-index-heading,
+    #fudge-flow-atlas .edge-index-hint,
+    #fudge-flow-atlas .edge-key {
+      display: none;
+    }
+
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #fudge-flow-atlas * {
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+
+<script>
+(() => {
+  const root = document.getElementById('fudge-flow-atlas');
+  const stage = document.getElementById('fudge-atlas-stage');
+  const counts = document.getElementById('fudge-atlas-counts');
+  if (!root || !stage || !counts) return;
+
+  const pinNames = {
+    63: 'Stripe connected product suite',
+    214: 'Braintrust FAQ',
+    1054: 'Cursor pricing FAQ',
+    1200: 'Landing compact hero proof',
+    2067: 'FLORA free entry',
+    2222: 'Periplus three-step cards',
+    2825: 'Polar sign-in',
+    3236: 'Cosmos plan upgrade',
+    3280: 'Jitter mobile pricing',
+    3281: 'Jitter two-card pricing',
+    3555: 'Tweek FAQ',
+    3642: '100X input-to-result',
+    3931: 'Block Protocol two-plan pricing',
+    4033: 'IFTTT purchase success',
+    4046: 'IFTTT billing detail',
+    4064: 'Curated Supply catalogue cards',
+    4541: 'Osmo FAQ',
+    4647: 'Current Fudge Explorer',
+    4705: 'Mobbin selected-screen inspector',
+    4950: 'Sublime library preview',
+    4954: 'Sublime mixed-source library',
+    4962: 'Sublime empty library',
+    5038: 'Bookmarkify capability panels',
+    5146: 'Brevo plan and checkout',
+    6035: 'Subframe interface proof',
+    6088: 'Kimi active research workspace',
+    6094: 'Cloudflare reconnect recovery',
+    6135: 'Claude contextual handoff',
+    6200: 'Creem quarterly-yearly MCP checkout',
+    6257: 'Google AI Studio attachment',
+    6298: 'Google authentication return',
+    6401: 'Exa MCP client installer',
+    6658: 'Cursor account entitlement',
+    6666: 'Agently FAQ endcap',
+    7201: 'new.email context chip',
+    7225: 'Morph onboarding',
+    7562: 'Firecrawl progress',
+    7564: 'Firecrawl setup instructions',
+    7624: 'Refero search results',
+    7629: 'Polar integration setup',
+    7692: 'FlowGenie connector grammar',
+    7696: 'Alpine document-to-ChatGPT handoff',
+    7786: 'Refero evidence-rich workspace',
+    7911: 'Browserbase action hierarchy',
+    8077: 'Notion header and route cards',
+    8204: 'Selected Site search overlay',
+    8205: 'Selected Site Explore shelves',
+    8214: 'Paradigm endcap and footer',
+    8306: 'Moda composer hero',
+    8512: 'Standards plan choice',
+    8683: 'Savee image-first library',
+    8763: 'Variant visual grid',
+    8776: 'Current Fudge reference detail',
+    8819: 'Neuform mobile detail',
+    8910: 'ChatKit Studio welcome state',
+    8941: 'Claude partial-result boundary',
+    8946: 'Perplexity collapsed workspace',
+    9428: 'Perplexity evidence-rich answer',
+    9457: 'Perplexity chat shell',
+    9683: 'Refero research hero',
+    9684: 'Refero usage boundary',
+    9700: 'Pangram usage detail',
+    9804: 'OpenKnowledge conversation-artifact split',
+    10103: 'Landbook mobile filters',
+    10203: 'Grok OAuth approval',
+    10204: 'Grok authorization success',
+    10217: 'ChatGPT Work welcome state'
+  };
+
+  const pinEvidence = {
+    63: { visible: 'A fully integrated suite is represented as named product nodes, with Connect, Payments, and Terminal emphasized and visibly linked.', limit: 'It supports one-suite connectedness only; Fudge route priority, shared subscription, and object continuity remain product decisions.' },
+    214: { visible: 'Two-column pricing FAQ with divided question rows and one visible plan-fit answer.', limit: 'FAQ structure only; Braintrust questions, terminology, and answers do not transfer.' },
+    1054: { visible: 'Dense grid of pricing FAQ cards with answers already visible.', limit: 'Supports immediate-answer presentation only; the questions are Cursor-specific.' },
+    1200: { visible: 'A short proof statement and four customer logos sit directly beneath the hero copy and primary action.', limit: 'Only the compact placement and hierarchy transfer; no logo, endorsement, count, or customer claim may be reused for Fudge.' },
+    2067: { visible: 'A shallow Try for free row above three larger paid-plan cards.', limit: 'Supports separating Free from paid choices; the plan count, credits, and copy do not transfer.' },
+    2222: { visible: 'Three equal explanation cards with one heading, small icon, and short sentence each.', limit: 'A static card row does not prove a sequential product workflow.' },
+    2825: { visible: 'Compact dark sign-in modal with provider buttons, email entry, and legal links.', limit: 'Supports authentication presentation only; inline return to the interrupted task is not shown.' },
+    3236: { visible: 'Narrow upgrade checkout with cadence choice, subtotal, total, card fields, action, and next-bill date.', limit: 'It does not show a current-plan to resulting-plan review, proration, or credit.' },
+    3280: { visible: 'One complete Pro plan card at a narrow mobile width, with price, action, and feature list intact.', limit: 'One screenshot does not prove responsive reordering, card switching, or comparison behavior.' },
+    3281: { visible: 'Exactly two equal light cards with parallel plan labels, price areas, full-width actions, and aligned feature lists.', limit: 'The plans are Team and Enterprise, one is sales-led, and the per-editor monthly model does not transfer to Pro or Studio.' },
+    3555: { visible: 'Compact single-column transactional FAQ with dividers and consistent disclosure controls.', limit: 'Supports FAQ rhythm only; the questions are Tweek-specific.' },
+    3642: { visible: 'One bordered story panel placing a prompt and result cards beside an explanation and actions.', limit: 'It does not preserve the same website reference through Find, Inspect, and Use.' },
+    3931: { visible: 'Exactly two paid cards with equal widths, parallel prices and actions, shared-access language, audience descriptions, and a progressive higher-plan list.', limit: 'Its Hobby and Pro names, dense allowances, vivid styling, prices, and third-party API details do not transfer to Fudge.' },
+    4033: { visible: 'Purchase-success page that confirms access and billing, followed by one prominent Continue action.', limit: 'The action is generic and does not demonstrate return to a preserved Fudge task.' },
+    4046: { visible: 'Billing page with current plan, price, payment method, billing history, and cancellation access.', limit: 'It does not show a complete upgrade or downgrade review before confirmation.' },
+    4064: { visible: 'Count-bearing category chips lead into large quiet cards with image, source or category, title, and a local open affordance.', limit: 'It is a product catalogue, not a visual-reference workspace, and it does not show search context, selected state, Save, or an inspector.' },
+    4541: { visible: 'FAQ heading, three category choices, divided question rows, and aligned expansion controls.', limit: 'Supports FAQ structure only; decoration and questions do not transfer.' },
+    4647: { visible: 'Current Fudge Explorer with dense mixed-height references, filters, font labels, palette strips, rail, and bottom input.', limit: 'This is a current-product baseline, not an external precedent or proof of proposed interactions.' },
+    4705: { visible: 'A selected screen sits inside a desktop inspector with previous or next navigation, Save, Copy, overflow, source and dimension details, comments, and related screens.', limit: 'It does not prove Ask about this, collection feedback, undo, Explorer-to-Chat transfer, or a real mobile detail sheet.' },
+    4950: { visible: 'Quiet introductory promise surrounded by three concrete example collections and one try-now action.', limit: 'Supports pre-account examples; it is not a complete Explorer results state.' },
+    4954: { visible: 'Social, podcast, audio, website, and video source objects appear in one consistent collection grammar, with capture integrations shown below.', limit: 'It does not prove that one exact object persists through Find, Inspect, and Use or survives a route transition.' },
+    4962: { visible: 'Empty library with Paste link, Write, Upload, a secondary Staff Picks route, and a quiet upgrade action.', limit: 'Supports first-action choices only; saving a useful first result is not shown.' },
+    5038: { visible: 'Two-column capability panels pairing framed interface visuals with labels, headings, and explanatory copy.', limit: 'Supports repeated evidence and caption anatomy, not a sequential Find, Inspect, Use flow.' },
+    5146: { visible: 'Plan selection, Customize, and Checkout progress with selected cards and a named next step.', limit: 'Supports purchase-stage context; the configuration sliders and add-ons are not relevant to Fudge.' },
+    6035: { visible: 'A real application interface shown as product proof above a concise dark marketing section.', limit: 'Supports interface-first evidence; it does not prove the full proposed first-viewport composition.' },
+    6088: { visible: 'A live research workspace shows the request and assistant work on the left, Read Todo and Searching states, a persistent composer with Stop, and an executing computer surface on the right.', limit: 'It proves visible work in progress, not a completed evidence answer, citations, retry, preserved partial failure, or reference continuity.' },
+    6094: { visible: 'A Refresh connection panel explains why access must be saved again, preserves the existing scope choice, and provides Save, Cancel, and a final named refresh action.', limit: 'This is stale-connection recovery rather than a literal error state; its nested actions are more complex than Fudge needs.' },
+    6135: { visible: 'Dismissible product-handoff card immediately above a still-available conversation composer.', limit: 'Supports local handoff placement only; it is not a general error or recovery pattern.' },
+    6200: { visible: 'A real MCP checkout offers a three-month license at a quarterly charge and a yearly license, shows monthly equivalents, keeps the selected period beside payment, and exposes subtotal, tax, total, and the exact pay amount.', limit: 'Fudge should omit the Lifetime option; daisyUI benefits, VAT, team allowances, styling, and return behavior do not transfer.' },
+    6257: { visible: 'Compact attached-file chip with filename, progress or state treatment, and removal control.', limit: 'Supports attachment presentation only; upload failure, retry, and multi-file behavior are not shown.' },
+    6298: { visible: 'Sparse authentication-success page with automatic return guidance and a manual fallback link.', limit: 'It does not identify a Fudge client, carry a starter question, or prove that an external client opened.' },
+    6401: { visible: 'A real MCP installer provides a broad client selector, one-click install, a visible config path, copyable JSON, a copyable raw MCP URL, and deferred tool customization in one panel.', limit: 'It does not show authentication, OAuth, progress, errors, mobile behavior, or Fudge-specific account access.' },
+    6658: { visible: 'Account dashboard combining identity, plan choices, and integration rows with Connect actions.', limit: 'This is an external account surface and does not prove shared Fudge state across products.' },
+    6666: { visible: 'The final collapsed FAQ row leads immediately into a centered closing statement and CTA, followed by a brand-and-links footer.', limit: 'It supports the FAQ-to-endcap sequence only; the claim, bright treatment, FAQ behavior, footer destinations, and one-action choice do not transfer.' },
+    7201: { visible: 'Named Brand Kit context chip, visible Previewing status, and a removable copy of the chip beside the composer.', limit: 'Supports visible context and local status, not cross-route reference preservation by itself.' },
+    7225: { visible: 'Sparse onboarding choice asking where to use the product, with destination cards and visible progress.', limit: 'Supports destination selection; it does not show the subsequent client-specific instructions.' },
+    7562: { visible: 'Finite onboarding sequence with visible progress, distinct step cards, and one anchored Continue action.', limit: 'Supports progress composition only; a three-step Fudge installer and its reversibility are adaptations.' },
+    7564: { visible: 'Step 4 of 6 with code tabs, selectable-looking code blocks, adjacent Copy controls, and Back, Skip, Continue.', limit: 'It proves Copy placement, not Copied, failure, Retry, accessible announcement, or OAuth recovery.' },
+    7624: { visible: 'Search query, Web or iOS selector, Screens or Flows, result count, sort, density, and labeled four-column results.', limit: 'A large promotional paywall fills the lower capture; only the search-and-results region is a useful precedent.' },
+    7629: { visible: 'Framework choices in a left column and numbered integration instructions with package and code controls on the right.', limit: 'Supports selected-option setup structure; the developer-specific tokens and frameworks do not transfer.' },
+    7692: { visible: 'Large workflow canvas with named nodes, explicit inputs and outputs, thin connectors, cursors, and a terminal result.', limit: 'Connector grammar only; it does not preserve one selected reference across the proposed Fudge stages.' },
+    7696: { visible: 'A document stays visible while a floating panel explicitly sends it to ChatGPT with a request to read the document and comments, followed by an answer and tasks.', limit: 'It is a marketing collage, not proof of one uninterrupted route transition, stable Fudge identity, saved state, or return position.' },
+    7786: { visible: 'A real research workspace shows a user brief, observable research activity, two named visual-result blocks, a View on Refero action, remaining usage, and a persistent follow-up composer.', limit: 'Its visible reasoning prose should become short observable activity; Save, Open in Explorer, provenance detail, responsive behavior, and scroll restoration are not shown.' },
+    7911: { visible: 'Short concrete headline, one explanatory sentence, a solid primary action, bordered alternative, and reassurance.', limit: 'Supports action hierarchy only; the announcement and Browserbase claims do not transfer.' },
+    8077: { visible: 'A complete global header sits above three prominent sibling-product route cards; each card combines a route label, outcome headline, product crop, and clear arrow affordance.', limit: 'Notion navigation, route names, authentication, responsive behavior, and transitions do not define Fudge.' },
+    8204: { visible: 'A global search overlay sits over a still-visible visual library, with search, dismiss, Trending, Categories, Tags, Posts, and thumbnail-backed suggestions.', limit: 'It does not prove Fudge query parsing, keyboard behavior, filter application, save state, or submission.' },
+    8205: { visible: 'Explore page with collection cards, category shelves, posts, and collections in one dark discovery shell.', limit: 'It does not show collection creation, rename, move, duplicate handling, undo, or rollback.' },
+    8214: { visible: 'A restrained split closing section pairs a large statement with short copy and a CTA, directly above five labeled footer columns and a separate copyright line.', limit: 'Fudge destinations, secondary Explorer action, responsive collapse, focus order, and legal completeness remain to be designed.' },
+    8306: { visible: 'Composer-led hero with task-type chips, attachment and create controls, and specific example requests.', limit: 'Supports a working-input hero; Moda task labels and generation promises do not transfer.' },
+    8512: { visible: 'One billing selector above three plan cards with a quiet free route beneath the paid choices.', limit: 'Supports shared billing control and separate Free placement; it is not a two-plan or charged-total-first reference.' },
+    8683: { visible: 'Dense dark masonry library with varied image sizes, centered search, compact navigation, and quiet plan controls.', limit: 'Supports visual density; metadata, selected state, keyboard behavior, and accessibility are not shown.' },
+    8763: { visible: 'Two-column visual grid, contextual quick-action chips, outlined empty positions, rail, and bottom composer.', limit: 'Outlined positions support spatial rhythm only; loading, error, endpoint, and reflow behavior are not proven.' },
+    8776: { visible: 'Current Fudge detail page with large selected screenshot, related mosaic, source, Save state, font, and palette.', limit: 'This is a current-product baseline; the complete proposed inspector actions and save lifecycle are not shown.' },
+    8819: { visible: 'Narrow mobile stack of technical detail sections with local Copy, Save, and code evidence.', limit: 'Supports responsive detail stacking; it is not a mobile-to-desktop MCP handoff.' },
+    8910: { visible: 'Builder settings beside a phone-width chat preview with a short greeting, starter rows, and bottom composer.', limit: 'Supports a compact welcome state; it is not a full desktop or mobile Fudge application shell.' },
+    8941: { visible: 'Usage-limit banners and response errors while user attachments, prior messages, and completed result chips remain visible.', limit: 'Supports preserved partial work; retry mechanics, offline recovery, and streamed-state behavior are not shown.' },
+    8946: { visible: 'A full-height application workspace uses a slim icon rail, product modes across the top, a large multiline composer, source or connector entry, controls, and starter tasks.', limit: 'The rail is mostly unlabeled, recents are absent, the dark treatment is not prescribed, and it is not a mobile state.' },
+    9428: { visible: 'Long readable answer with inline source chips, Answer or Links or Images tabs, follow-ups, and persistent composer.', limit: 'It does not show Fudge reference cards, palettes, font specimens, scroll restoration, or jump-to-latest behavior.' },
+    9457: { visible: 'Narrow sidebar with New, sibling product routes, long history, Free plan, upgrade, account, and notification.', limit: 'The main canvas is blank; this capture supports the sidebar only.' },
+    9683: { visible: 'Research-specific hero with dark prompt control, categories, starting queries, quiet connection access, and proof row.', limit: 'Supports research-oriented composition; logos, counts, categories, and dark treatment do not transfer wholesale.' },
+    9684: { visible: 'Daily-limit banner and Upgrade action directly above a still-visible image action and follow-up composer.', limit: 'Supports boundary placement only; monthly reset language and Fudge plan choice are adaptations.' },
+    9700: { visible: 'Plan page with used and remaining values, progress line, reset and rollover explanation, and upgrade action.', limit: 'Supports usage-detail grouping; Fudge action definitions and cross-surface consistency are product rules.' },
+    9804: { visible: 'A conversation and named editor artifact remain side by side, with Drafting and Calling status, URL, tags, Visual or Markdown controls, content, and a persistent chat input.', limit: 'It is an embedded marketing demonstration, not proof of Fudge reference identity, Explorer navigation, saved state, or responsive continuity.' },
+    10103: { visible: 'Tall mobile filter sheet with named facets, count-bearing choices, close control, and sticky Show results action.', limit: 'One still does not prove sheet detents, focus, back behavior, or query preservation.' },
+    10203: { visible: 'Signed-in account, named requesting application, plain-language permission rows, and Deny or Allow actions.', limit: 'Supports consent structure; exact permissions and wording must reflect real Fudge access.' },
+    10204: { visible: 'Simple Device Authorized confirmation that tells the user where to return.', limit: 'It does not name a Fudge client, starter task, deep link, or connection state.' },
+    10217: { visible: 'A direct application welcome state combines a slim rail, two immediate task starters, setup choices, longer task examples, and a persistent bottom composer.', limit: 'It is an onboarding chooser rather than an ordinary returning-user empty chat, and it does not show recents, usage, saved references, or evidence answers.' }
+  };
+
+  const evidenceKindLabels = {
+    direct: 'Direct precedent',
+    composition: 'Composition only',
+    baseline: 'Current Fudge baseline',
+    mixed: 'Mixed evidence',
+    native: 'Fudge-native rule',
+    gap: 'Corpus gap'
+  };
+
+  const nodeEvidence = {
+    'overview:home': { kind: 'mixed', note: 'The input-led hero is directly visible; the complete Home sequence is a Fudge composition.' },
+    'overview:browse': { kind: 'baseline', note: 'Current Fudge Explorer directly supplies the spatial field, search, focused capture, source, typography, palette, save, and prompt-handoff baseline.' },
+    'overview:chat': { kind: 'mixed', note: 'Perplexity supports the shell and answer rhythm; Fudge visual blocks and route continuity are adaptations.' },
+    'overview:pricing': { kind: 'mixed', note: 'A real two-paid-plan pair and a quarterly-versus-yearly MCP checkout are visible; Fudge plan names, prices, and one-subscription promise remain product decisions.' },
+    'overview:install': { kind: 'mixed', note: 'Exa directly shows a client-specific MCP installer and Grok supports consent; account gating and the complete three-step Fudge journey remain native.' },
+    'overview:saved': { kind: 'baseline', note: 'Current Fudge supplies saved captures or pins. The Atlas intentionally does not infer collections, folders, or Projects from that state.' },
+    'overview:first-result': { kind: 'native', note: 'Ending activation with one useful saved result is a Fudge rule; the captures show an empty start and onboarding progress only.' },
+    'overview:purchase': { kind: 'mixed', note: 'A real MCP checkout keeps period, equivalent price, subtotal, and total visible; preserving the originating Fudge object and terminal action remains native.' },
+    'overview:oauth': { kind: 'direct', note: 'The consent and authorized states are both visibly represented, with Fudge-specific access wording still required.' },
+    'overview:account': { kind: 'mixed', note: 'Usage and account grouping are visible; one shared Fudge plan language across surfaces is a product rule.' },
+    'overview:shared-states': { kind: 'gap', note: 'Responsive stacking and preserved partial work are visible; the remaining visual, interaction, accessibility, and motion states require prototypes.' },
+    'overview:client': { kind: 'gap', note: 'A real MCP client selector and authentication return are visible, but no capture shows the external client receiving the preserved Fudge task.' },
+
+    'home:header': { kind: 'composition', note: 'Notion directly supplies a complete header hierarchy and Browserbase supports action contrast; Fudge routes, account states, and mobile drawer remain native.' },
+    'home:hero': { kind: 'direct', note: 'A working composer, task choices, restrained examples, and a real product interface are visibly present across the three captures.' },
+    'home:proof': { kind: 'composition', note: 'Landing supports compact proof placement directly beneath the hero; every Fudge fact and any customer evidence must be independently verified.' },
+    'home:steps': { kind: 'direct', note: 'Equal short explanation cards and small interface evidence panels are visibly represented.' },
+    'home:workflow': { kind: 'gap', note: 'The pins supply connector grammar, input-to-result proximity, and recognizable source-object treatment; none proves one exact reference through all three Fudge stages.' },
+    'home:modes': { kind: 'native', note: 'Showing capabilities only where their customer job arises is the consolidation rule. It is not evidence for three equal product-route cards.' },
+    'home:pricing-preview': { kind: 'mixed', note: 'A clean two-card pair and a real quarterly-versus-yearly MCP checkout are visible; Fudge prices, Pro or Studio names, and shared entitlements remain product decisions.' },
+    'home:free-entry': { kind: 'direct', note: 'A separate free-entry row above dominant paid cards is visibly present.' },
+    'home:faq': { kind: 'direct', note: 'Categorized, divided FAQ rows are visibly present; Fudge supplies its own real visitor questions.' },
+    'home:endcap': { kind: 'composition', note: 'Agently and Paradigm directly show FAQ-to-endcap and split closing-section rhythm; Fudge still needs its own two-route choice and copy.' },
+    'home:footer': { kind: 'direct', note: 'Paradigm directly shows a restrained multi-column product footer; Fudge destinations, legal completeness, and responsive collapse remain its own content and behavior.' },
+    'home:browse-page': { kind: 'baseline', note: 'Current Fudge Explorer supplies the actual spatial discovery destination and should not be replaced by a generic browse grid.' },
+    'home:chat-page': { kind: 'mixed', note: 'The Chat shell and a local usage boundary are visible; preserving the drafted prompt through sign-in is not.' },
+    'home:install-page': { kind: 'mixed', note: 'Progress and a real client-specific MCP installer are visible; keeping the complete Fudge installer through access states remains native.' },
+    'home:pricing-page': { kind: 'mixed', note: 'A two-paid-plan pair and quarterly-versus-yearly charge presentation support the route; the full Fudge pricing proposition is not copied.' },
+    'home:purchase': { kind: 'mixed', note: 'The MCP checkout keeps the selected period and exact charge visible, and a success action is shown elsewhere; return-intent continuity remains a Fudge requirement.' },
+    'home:faq-open': { kind: 'direct', note: 'An expandable FAQ row pattern is directly visible.' },
+
+    'pricing:header': { kind: 'composition', note: 'A complete marketing header and one-primary-action contrast are borrowed; Fudge routes and account states remain native.' },
+    'pricing:hero': { kind: 'mixed', note: 'A billing selector and a real three-month-versus-yearly MCP charge presentation are visible; one consolidated subscription and Fudge copy remain product decisions.' },
+    'pricing:price-state': { kind: 'mixed', note: 'The checkout reference proves charged-total and monthly-equivalent placement. The proposed $117 quarterly / $390 yearly Pro pricing and Studio comparison remain product decisions.' },
+    'pricing:plans': { kind: 'mixed', note: 'One capture shows exactly two paid plans with progressive differences, and another supplies calm equal-card geometry; Fudge plan content and style remain its own.' },
+    'pricing:access-decision': { kind: 'native', note: 'Anonymous, new-buyer, and existing-subscriber branching is a Fudge state matrix, not a screenshot-proven pattern.' },
+    'pricing:free': { kind: 'direct', note: 'Both captures visibly keep a free route separate from the paid comparison.' },
+    'pricing:legacy': { kind: 'gap', note: 'No inspected capture shows private grandfathered-plan reassurance; this remains a Fudge account pattern.' },
+    'pricing:sign-in': { kind: 'mixed', note: 'A compact sign-in modal and staged purchase context are visible; retaining plan and period through authentication is native.' },
+    'pricing:differences': { kind: 'composition', note: 'A two-plan capture visibly states shared access and then what the higher plan adds; the exact three Fudge difference rows remain a content decision.' },
+    'pricing:plan-change': { kind: 'gap', note: 'Checkout truth and a billing page are visible; current plan, resulting plan, proration, effective date, and next renewal are not shown together.' },
+    'pricing:faq': { kind: 'direct', note: 'Three credible FAQ arrangements are visible; only the presentation transfers.' },
+    'pricing:checkout': { kind: 'mixed', note: 'A real MCP checkout directly shows period, monthly equivalent, subtotal, tax, total, and exact pay amount; Fudge plan identity, renewal wording, and return summary are adaptations.' },
+    'pricing:footer': { kind: 'direct', note: 'A restrained multi-column footer is directly visible; Fudge supplies its own destinations, responsive collapse, and legal completeness.' },
+    'pricing:mobile': { kind: 'direct', note: 'One complete plan card is visibly readable at mobile width; interaction between cards still requires testing.' },
+    'pricing:success': { kind: 'direct', note: 'Purchase success and authorization success both show a named completed state and next guidance.' },
+    'pricing:return': { kind: 'composition', note: 'A Continue action and authentication redirect are visible; resuming the exact interrupted Fudge action is not.' },
+    'pricing:chat': { kind: 'native', note: 'Opening Chat with the first Free prompt preserved is a Fudge terminal-action requirement, not shown by either capture.' },
+
+    'browse:nav': { kind: 'baseline', note: 'Current Fudge Explorer supplies the real chrome and focused-capture controls. No generic product rail is proposed.' },
+    'browse:search': { kind: 'baseline', note: 'Current Fudge Explorer supplies catalogue search and saved views; the Atlas keeps that existing interaction rather than inventing a universal dashboard search.' },
+    'browse:assist': { kind: 'direct', note: 'A real search overlay preserves the complete visual-library context while exposing Trending, Categories, Tags, Posts, and thumbnail previews.' },
+    'browse:mobile-filter': { kind: 'direct', note: 'A focused mobile facet sheet with a result-count action is directly visible.' },
+    'browse:results-row': { kind: 'baseline', note: 'Current Fudge Explorer supplies URL-backed spatial search views and camera depth. External references contribute connector and search-overlay composition only.' },
+    'browse:states': { kind: 'gap', note: 'The pins show grid rhythm, partial failure, and a quota boundary; no complete loading, empty, error, and endpoint system is shown.' },
+    'browse:grid': { kind: 'baseline', note: 'Current Fudge Explorer directly supplies the deterministic spatial capture field, near camera window, overscanned mounting, and progressive textures.' },
+    'browse:tile': { kind: 'baseline', note: 'Current Fudge Explorer directly supplies focused capture identity, selection, source, hover-anchored zoom, and return behavior.' },
+    'browse:chat': { kind: 'composition', note: 'Alpine explicitly sends a still-visible document to ChatGPT and OpenKnowledge keeps conversation beside an artifact; neither proves a Fudge route transition or stable saved identity.' },
+    'browse:inspector': { kind: 'mixed', note: 'Current Fudge supplies the object baseline while Mobbin directly supports selected-object hierarchy, local actions, metadata, comments, and related screens.' },
+    'browse:mobile-detail': { kind: 'composition', note: 'The pins support narrow detail stacking and a mobile sheet shape; exact return-to-grid continuity is not shown.' },
+    'browse:actions': { kind: 'mixed', note: 'Current Fudge supplies Save and prompt handoff. Ask Fudge with this reference is an explicit consolidation proposal and must not be described as current behavior.' },
+    'browse:access-gate': { kind: 'native', note: 'Boundary placement and account entitlement are supporting patterns; preserving the selected reference through the gate is a Fudge rule.' },
+    'browse:install': { kind: 'baseline', note: 'Current Explorer already exposes ChatGPT, Claude, Gemini, and Copy prompt handoff from a focused capture. No Connections hub or MCP detour is added.' },
+    'browse:collections': { kind: 'baseline', note: 'Current Fudge supplies saved captures or pins. Collections, folders, and Projects are intentionally left unresolved.' },
+    'browse:save-state': { kind: 'baseline', note: 'Current Fudge supplies saved state; the Atlas adds only local success or failure feedback, not a new collection lifecycle.' },
+
+    'chat:sidebar': { kind: 'direct', note: 'Expanded recent-history navigation and a collapsed application rail are both visibly represented; Fudge still defines the exact sibling routes and plan cue.' },
+    'chat:topbar': { kind: 'composition', note: 'Perplexity supplies compact top actions; the Atlas removes the invented permanent Connections route and keeps only ordinary conversation controls.' },
+    'chat:install': { kind: 'gap', note: 'A real MCP client installer is shown, but no capture carries the current question or reference into installation.' },
+    'chat:welcome': { kind: 'direct', note: 'A direct application welcome state shows immediate starters and a persistent composer; a narrow chat preview supplies the compact arrangement.' },
+    'chat:browse': { kind: 'composition', note: 'A document-to-assistant handoff is visible, but Chat-to-Explorer transfer with unchanged Fudge context and save state is not.' },
+    'chat:starters': { kind: 'direct', note: 'Compact starter rows and task examples are visibly represented; the wording is rewritten for Fudge.' },
+    'chat:composer': { kind: 'mixed', note: 'A direct application composer, a named loading attachment, and visible controls are present; multiline behavior, draft persistence, and failure recovery remain tests.' },
+    'chat:attachment': { kind: 'direct', note: 'A named removable context chip and a file attachment state are directly visible.' },
+    'chat:user-message': { kind: 'mixed', note: 'A real research brief and preservation after a partial failure are visible; edit, retry, URL treatment, and wrapping remain native.' },
+    'chat:activity': { kind: 'direct', note: 'Kimi directly shows Read Todo, Searching, executing work, a persistent composer, and Stop; exact Fudge activity language, timing, and announcements still require design and testing.' },
+    'chat:answer': { kind: 'mixed', note: 'Refero directly shows a brief, observable research, named visual result blocks, and a persistent follow-up composer; current Fudge supplies its own palette, font, and reference details.' },
+    'chat:error': { kind: 'mixed', note: 'Partial work and a local handoff remain visible; exact retry, offline, attachment, and streamed recovery behavior require prototypes.' },
+    'chat:gallery': { kind: 'mixed', note: 'Refero directly supplies named visual result blocks and current Fudge supplies reference identity; Save and Open in Explorer remain the proposed continuity actions.' },
+    'chat:saved': { kind: 'native', note: 'Use only the verified saved-reference identity. A shared collection or Project lifecycle is deliberately not claimed.' },
+    'chat:usage': { kind: 'direct', note: 'The limit beside the composer and the used or remaining account detail are both directly visible.' },
+    'chat:followups': { kind: 'direct', note: 'Persistent follow-up composition and contextual next questions derived from a visible answer are directly shown.' },
+    'chat:plan-gate': { kind: 'mixed', note: 'A local limit and plan-selection surface are visible; preserving the prompt and partial answer through purchase is a Fudge rule.' },
+    'chat:long-nav': { kind: 'gap', note: 'A long research answer, scrollbar, and persistent composer are visible; scroll restoration, jump to latest, and new-content cues are not.' },
+    'chat:mobile': { kind: 'gap', note: 'The captures provide narrow-width references only; drawer, keyboard-safe composer, attachment sheet, and full-width evidence behavior are not shown.' },
+
+    'install:header': { kind: 'composition', note: 'A complete marketing header and primary-action contrast are borrowed; Fudge routes and access states remain native.' },
+    'install:hero': { kind: 'direct', note: 'Exa directly shows a real MCP client selector and setup panel; the Fudge headline, supported subset, account access, and three-step framing remain adaptations.' },
+    'install:progress': { kind: 'direct', note: 'Finite onboarding progress, named stage context, Back, and Continue are visibly represented.' },
+    'install:client': { kind: 'direct', note: 'A real MCP client selector directly updates one instruction panel and exposes one-click and manual paths; preserving selection through account detours remains native.' },
+    'install:manual': { kind: 'direct', note: 'A real MCP installer directly shows a config path, JSON, raw URL, and Copy placement; validation and troubleshooting remain Fudge additions.' },
+    'install:setup': { kind: 'direct', note: 'A real MCP installer and supporting numbered setup patterns visibly provide client selection, configuration, Copy, and terminal action placement.' },
+    'install:copy': { kind: 'gap', note: 'Exa and Firecrawl prove Copy placement only; Copied, Retry, timeout restoration, and accessible announcements are not shown.' },
+    'install:mobile-handoff': { kind: 'gap', note: 'No inspected capture shows a mobile MCP setup that preserves the chosen client, explains a desktop requirement, and hands off safely.' },
+    'install:access': { kind: 'native', note: 'Account and sign-in surfaces support placement, but the loading, signed-out, Free, and subscribed installer matrix is a Fudge invariant.' },
+    'install:signed-out': { kind: 'mixed', note: 'A compact sign-in surface is visible; retaining the selected client and setup step behind it is not.' },
+    'install:free': { kind: 'native', note: 'The captures show account entitlement and plan choice separately; the inline Free-to-Pro-or-Studio installer state is a Fudge rule.' },
+    'install:subscriber': { kind: 'mixed', note: 'Account entitlement and a real MCP setup panel are visible separately; revealing terminal setup in the same Fudge installer remains native.' },
+    'install:error': { kind: 'composition', note: 'Cloudflare directly shows an expired-or-stale connection refresh with preserved scope; denied, wrong-account, and network failures remain unreferenced.' },
+    'install:sign-in': { kind: 'mixed', note: 'Compact sign-in is visible; returning to the exact selected client and setup step is not.' },
+    'install:plans': { kind: 'mixed', note: 'A two-paid-plan pair and real quarterly-versus-yearly charge presentation are visible; exact Fudge totals and installer return behavior are adaptations.' },
+    'install:oauth': { kind: 'direct', note: 'Signed-in account, named app, readable access rows, and explicit Deny or Allow are directly visible.' },
+    'install:recovery': { kind: 'composition', note: 'Cloudflare shows a named reconnect action with preserved scope and Exa supplies a manual MCP path; returning to OAuth with full Fudge state is not shown.' },
+    'install:checkout': { kind: 'mixed', note: 'A real MCP checkout keeps product, period, monthly equivalent, and charge visible; selected client and return-to-Step-2 context are Fudge additions.' },
+    'install:success': { kind: 'direct', note: 'Authorization success and automatic or manual return guidance are directly visible; Fudge still names the selected client.' },
+    'install:starter': { kind: 'gap', note: 'Authentication return is visible, but no capture shows or carries a real Fudge starter question into the client.' },
+    'install:external-client': { kind: 'gap', note: 'A real MCP client selector and authentication return are visible; an external client opening with Fudge and preserved context is not.' },
+    'install:proof': { kind: 'native', note: 'The summary is limited to verified plan, usage, and connected-client facts. It does not claim shared Projects, libraries, or histories.' },
+    'install:footer': { kind: 'direct', note: 'A restrained multi-column product footer is directly visible; Fudge supplies its own destinations, responsive collapse, and legal completeness.' }
+  };
+
+  const templateDefinitions = {
+    'Global Marketing Header': { group: 'Shared shell', purpose: 'One wordmark, primary marketing routes, and one Open Fudge action.' },
+    'Product Footer': { group: 'Shared shell', purpose: 'Product, resource, policy, help, status, and account routes without repeating the header.' },
+    'Proof Strip': { group: 'Acquisition', purpose: 'A shallow row of factual product evidence without unsupported logos or claims.' },
+    'Product Route Endcap': { group: 'Acquisition', purpose: 'A short final choice between exploring references and asking Fudge before the footer.' },
+    'Billing Period Switch': { group: 'Commerce', purpose: 'One Quarterly/Yearly control updating both paid plans together.' },
+    'Two-Plan Pricing Pair': { group: 'Commerce', purpose: 'Equal-structure Pro and Studio cards with charged totals first.' },
+    'Six-Query Free Entry': { group: 'Commerce', purpose: 'A separate Free entry line below the paid pair, never a third paid card.' },
+    'Plan Difference Rows': { group: 'Commerce', purpose: 'A short comparison of capacity, best fit, and genuine entitlement differences.' },
+    'Visitor FAQ Stack': { group: 'Commerce', purpose: 'Four to six real visitor questions in concise expandable rows.' },
+    'Purchase Access Decision': { group: 'Commerce', purpose: 'Signed-out, current subscriber, and plan-change branches without losing the selection.' },
+    'Purchase Context Summary': { group: 'Commerce', purpose: 'Selected plan, period, charged total, renewal cadence, and return destination.' },
+    'Purchase Success Handoff': { group: 'Commerce', purpose: 'Confirmation that resumes the action that caused the purchase.' },
+    'Search Assistance Overlay': { group: 'Explorer', purpose: 'Examples, recent searches, colors, categories, and refinements without replacing the spatial field.' },
+    'Reference Inspector': { group: 'Explorer', purpose: 'Large capture, source, measured details, related evidence, and contextual actions.' },
+    'Mobile Workspace Sheet': { group: 'Explorer', purpose: 'Filter or detail content in a focused sheet without changing the underlying query or capture.' },
+    'Chat Sidebar': { group: 'Conversation', purpose: 'New conversation, Explorer, saved references, recent conversations, plan cue, and account footer.' },
+    'Chat Topbar': { group: 'Conversation', purpose: 'Conversation title, overflow, and mobile drawer action without inventing a Connections destination.' },
+    'Task Starter Set': { group: 'Conversation', purpose: 'Direct Review, Find, Inspect, and Turn into code starters.' },
+    'Multimodal Composer': { group: 'Conversation', purpose: 'Text, URL, screenshot, attachment, send or stop, and quiet usage cue.' },
+    'Attachment Context Chip': { group: 'Conversation', purpose: 'Visible selected reference or file with progress, remove, and retry states.' },
+    'Conversation Message': { group: 'Conversation', purpose: 'Readable user text, URL, attachments, edit, and retry.' },
+    'Activity Status Row': { group: 'Conversation', purpose: 'Observable progress such as opening, checking, and comparing without internal tools.' },
+    'Evidence-Rich Answer': { group: 'Conversation', purpose: 'Readable prose interleaved with references, palettes, fonts, and structured details.' },
+    'Reference Gallery': { group: 'Conversation', purpose: 'Stable evidence cards with Save and Open in Explorer.' },
+    'Grounded Follow-Up Set': { group: 'Conversation', purpose: 'Next questions derived from the current answer and reference set.' },
+    'Usage Boundary Banner': { group: 'System states', purpose: 'Local limit message, next reset, plan choices, and preserved work.' },
+    'Workspace State Panel': { group: 'System states', purpose: 'Loading, empty, endpoint, or recoverable error in the geometry of the affected workspace.' },
+    'Local Recovery Panel': { group: 'System states', purpose: 'Specific failure, preserved context, exact retry, and non-destructive fallback.' },
+    'Install Progress Rail': { group: 'Connection', purpose: 'Choose tool, Connect account, and Ask a real question with reversible progress.' },
+    'Client Selector': { group: 'Connection', purpose: 'Cursor, Claude, Codex, and Other changing one instruction panel in place.' },
+    'Client Setup Panel': { group: 'Connection', purpose: 'Short numbered client steps, endpoint, selectable configuration, and terminal action.' },
+    'Copy Feedback': { group: 'Connection', purpose: 'Value remains visible while copy success or retry is announced locally.' },
+    'Inline Access Gate': { group: 'Connection', purpose: 'Sign-in or Pro/Studio choice inside the installer without replacing its context.' },
+    'OAuth Approval Panel': { group: 'Connection', purpose: 'Signed-in account, named client, plain access explanation, Approve, and Cancel.' },
+    'Connection Success Handoff': { group: 'Connection', purpose: 'Named client, real starter question, and direct return or open-client action.' },
+    'Mobile Continuation Handoff': { group: 'Connection', purpose: 'Honest desktop continuation for client setup that cannot finish on mobile.' },
+    'Universal Start Hero': { group: 'Acquisition', purpose: 'One entry field for a question, search, URL, or screenshot, routed to the relevant existing Fudge surface.' },
+    'Find Understand Use Steps': { group: 'Acquisition', purpose: 'Three customer jobs that describe one Fudge journey rather than three products.' },
+    'Reference Continuity Story': { group: 'Acquisition', purpose: 'One captured website reference remains identifiable through inspection, Chat, saving, prompt handoff, and MCP use.' },
+    'Contextual Capability Map': { group: 'Acquisition', purpose: 'Show Explorer, Chat, and MCP only where their customer job arises.' },
+    'Explorer Chrome': { group: 'Explorer', purpose: 'The real spatial Explorer shell, search, saved captures, account access, and focused-capture controls.' },
+    'Explorer Search Bar': { group: 'Explorer', purpose: 'Search the loaded capture catalogue without replacing the spatial field.' },
+    'Explorer Search View': { group: 'Explorer', purpose: 'A persistent spatial result view with URL-backed depth and browser return.' },
+    'Spatial Capture Field': { group: 'Explorer', purpose: 'Camera-navigable capture layout with stable geometry, progressive textures, and overscanned mounting.' },
+    'Focused Capture Frame': { group: 'Explorer', purpose: 'A selected capture with source identity, hover-anchored zoom, and preserved return position.' },
+    'Contextual Reference Actions': { group: 'Explorer', purpose: 'Save, ask Fudge, or open another AI directly from the focused capture.' },
+    'Saved Reference View': { group: 'Explorer', purpose: 'Existing saved-capture or saved-pin state without inventing a new Project or collection system.' },
+    'Account Access Summary': { group: 'Connection', purpose: 'Only verified plan, usage, and connected-client facts after MCP setup.' }
+  };
+
+  const pages = {
+    overview: {
+      title: 'Unified Fudge experience map',
+      route: 'Current surfaces, consolidated mental model',
+      description: 'Fudge is presented as one product. Explorer is the visual discovery surface, Chat is the direct assistance surface, and MCP is an access method for using the same Fudge capabilities from another AI tool. No new Project or Connections product is introduced.',
+      cols: 4,
+      nodes: [
+        { id: 'home', title: 'Home', kind: 'section', inventory: 'H01 · H02 · H03 · H04 · H05 · H06 · H07 · H08 · H09 · H10 · H11 · H12 · H13 · H14 · H15 · H16 · H17 · H18', purpose: 'Explain one Fudge product and let visitors browse, ask, connect, or compare plans.', row: 1, col: 2, span: 2, refs: [8306, 9683], targetPage: 'home' },
+        { id: 'browse', title: 'Explorer · find and inspect', kind: 'destination', inventory: 'B01 · B02 · B03 · B04 · B05 · B06 · B07 · B08 · B09 · B10 · B11 · B12 · B13 · B14 · B15 · B16 · B17 · B18 · B19', purpose: 'Use the real spatial Explorer to find, focus, inspect, save, and hand off captured website references.', row: 2, col: 1, refs: [4647, 8776], targetPage: 'browse' },
+        { id: 'chat', title: 'Chat · ask and review', kind: 'destination', inventory: 'C01 · C02 · C03 · C04 · C05 · C06 · C07 · C08 · C09 · C10 · C11 · C12 · C13 · C14 · C15 · C16 · C17 · C18', purpose: 'Ask Fudge directly, review a website, compare evidence, and receive implementation-ready answers.', row: 2, col: 2, refs: [9457, 9428], targetPage: 'chat' },
+        { id: 'pricing', title: 'Pricing', kind: 'destination', inventory: 'P01 · P02 · P03 · P04 · P05 · P06 · P07 · P08 · P09 · P10 · P11 · P12 · P13 · P14 · P15 · P16 · P17', purpose: 'Choose Pro or Studio and Quarterly or Yearly while seeing the real charge.', row: 2, col: 3, refs: [6200, 3931], targetPage: 'pricing' },
+        { id: 'install', title: 'MCP · use Fudge in another AI tool', kind: 'destination', inventory: 'I01 · I02 · I03 · I04 · I05 · I06 · I07 · I08 · I09 · I10 · I11 · I12 · I13 · I14 · I15 · I16 · I17', purpose: 'Choose an MCP client, connect the Fudge account, and ask a first real question. This is setup, not a separate product or permanent hub.', row: 2, col: 4, refs: [6401, 10203], targetPage: 'install' },
+        { id: 'saved', title: 'Saved references', kind: 'state', inventory: 'X11', purpose: 'Keep the existing saved-reference identity available where the current product supports it; do not invent a new Project object.', row: 3, col: 1, refs: [8205, 8776], template: 'Saved Reference View' },
+        { id: 'first-result', title: 'First useful result', kind: 'state', inventory: 'X20', purpose: 'A real answer or reference is saved before setup or acquisition asks for another action.', row: 3, col: 2, refs: [4962, 7562] },
+        { id: 'purchase', title: 'Sign-in and checkout', kind: 'decision', inventory: 'X04 · X09 · X13', purpose: 'Preserve the prompt, reference, plan, period, client, and return destination.', row: 3, col: 3, refs: [6200, 5146], template: 'Purchase Context Summary' },
+        { id: 'oauth', title: 'OAuth approval', kind: 'decision', inventory: 'X10', purpose: 'Named client and account, readable access, explicit approval, and a return to Step 3.', row: 3, col: 4, refs: [10203, 10204], template: 'OAuth Approval Panel' },
+        { id: 'account', title: 'Account and current plan', kind: 'state', inventory: 'X05 · X12', purpose: 'Private legacy-plan reassurance, one usage language, billing, and connection status.', row: 4, col: 1, refs: [9700, 6658] },
+        { id: 'shared-states', title: 'Shared visual, interaction, and local states', kind: 'state', inventory: 'G08 · G09 · G10 · G11 · G12 · G13 · X14 · X15 · X16 · X17 · X18 · X19', purpose: 'Grid, type, color, evidence, feedback, accessibility, loading, empty, error, responsive, motion, and trust rules preserve the current object and action.', row: 4, col: 2, span: 2, refs: [8819, 8941], template: 'Workspace State Panel' },
+        { id: 'client', title: 'Cursor, Claude, Codex, or Other', kind: 'destination', inventory: 'X08 · X10', purpose: 'The external client receives the connected account and a visible first Fudge question.', row: 4, col: 4, refs: [6401, 6298] }
+      ],
+      edges: [
+        { from: 'home', to: 'browse', cause: 'Explore real website references · X01', kind: 'cross' },
+        { from: 'home', to: 'chat', cause: 'Start free or submit prompt · X02', kind: 'cross', dx: -35 },
+        { from: 'home', to: 'pricing', cause: 'Pricing or choose plan', kind: 'cross', dx: 30 },
+        { from: 'home', to: 'install', cause: 'Use Fudge in my AI tool · X03', kind: 'cross' },
+        { from: 'browse', to: 'chat', cause: 'Ask about this · X06', kind: 'action' },
+        { from: 'chat', to: 'browse', cause: 'Open reference in Explorer · X07', kind: 'action', dy: 28 },
+        { from: 'browse', to: 'saved', cause: 'Save reference · X11', kind: 'action' },
+        { from: 'chat', to: 'saved', cause: 'Save answer reference · X11', kind: 'action' },
+        { from: 'browse', to: 'client', cause: 'Prompt handoff from selected reference · X08', kind: 'action', dy: 30 },
+        { from: 'chat', to: 'install', cause: 'Set up hosted MCP · X08', kind: 'cross', dy: -32 },
+        { from: 'pricing', to: 'purchase', cause: 'Choose plan and period · X09', kind: 'boundary' },
+        { from: 'chat', to: 'purchase', cause: 'Free boundary · X04 / X13', kind: 'boundary' },
+        { from: 'purchase', to: 'first-result', cause: 'Success resumes prompt or reference', kind: 'action' },
+        { from: 'install', to: 'oauth', cause: 'Subscriber selects Connect · X10', kind: 'boundary' },
+        { from: 'oauth', to: 'client', cause: 'Approve and return · X10', kind: 'action' },
+        { from: 'first-result', to: 'saved', cause: 'Save useful result · X20', kind: 'action' },
+        { from: 'account', to: 'purchase', cause: 'Compare or change current plan · X05', kind: 'boundary' },
+        { from: 'shared-states', to: 'browse', cause: 'Retry with query preserved · X16', kind: 'action', dx: -90, dy: -20 },
+        { from: 'shared-states', to: 'chat', cause: 'Retry with draft or partial answer · X16', kind: 'action', dx: 90, dy: -20 }
+      ],
+      refs: [
+        { id: 8306, used: 'Home → Chat', note: 'A working composer and useful task choices before a route transition.' },
+        { id: 8776, used: 'Explorer → Chat → Saved', note: 'Stable reference identity, source, save state, font, and palette evidence.' },
+        { id: 9457, used: 'Chat shell', note: 'Compact sibling routes, recent work, plan cue, and account.' },
+        { id: 6200, used: 'Pricing → checkout', note: 'Quarterly and yearly charge, monthly equivalent, subtotal, tax, and total stay visible.' },
+        { id: 10203, used: 'Connect → OAuth', note: 'Named client, readable access, Approve, and Cancel.' },
+        { id: 8819, used: 'Responsive continuity', note: 'Desktop detail becomes a structured mobile stack without changing the object.' }
+      ]
+    },
+
+    home: {
+      title: 'Home page flow',
+      route: '/',
+      description: 'The acquisition page explains one job and one Fudge product. It demonstrates the continuous journey from finding a reference to understanding it and using it in Fudge or another AI tool without turning Explorer, Chat, and MCP into three competing offers.',
+      cols: 3,
+      nodes: [
+        { id: 'header', title: 'Marketing header', kind: 'shell', inventory: 'G01 · G02 · G03 · G04 · G05 · G06 · G07', purpose: 'Fudge wordmark, How it works, Explorer, Pricing, and one Open Fudge action. MCP setup stays contextual rather than becoming a top-level product.', row: 1, col: 1, span: 2, refs: [8077, 7911], template: 'Global Marketing Header' },
+        { id: 'hero', title: 'Universal start hero', kind: 'section', inventory: 'H01 · H02 · H03 · H04 · H05 · H06', purpose: 'Lead with the concrete job. Accept a question, search, URL, or screenshot and route that intent to the relevant existing surface.', row: 2, col: 1, span: 2, refs: [8306, 9683, 6035], template: 'Universal Start Hero' },
+        { id: 'proof', title: 'Factual proof strip', kind: 'section', inventory: 'H07', purpose: 'Shallow evidence about real captures and connected use without invented customers or counts.', row: 3, col: 1, span: 2, refs: [1200], template: 'Proof Strip' },
+        { id: 'steps', title: 'Find · Understand · Use', kind: 'section', inventory: 'H08 · H09', purpose: 'Three customer jobs, not three products: find evidence, understand what matters, and use the result while building.', row: 4, col: 1, span: 2, refs: [2222, 5038], template: 'Find Understand Use Steps' },
+        { id: 'workflow', title: 'One reference continuity story', kind: 'section', inventory: 'H10 · H11 · H12', purpose: 'A real Explorer capture remains identifiable when it is inspected, saved, discussed in Chat, copied into another AI, or opened through MCP.', row: 5, col: 1, span: 2, refs: [8776, 7696, 3642], template: 'Reference Continuity Story' },
+        { id: 'modes', title: 'Where each capability appears', kind: 'section', inventory: 'H13 · H14', purpose: 'Explorer is shown when finding and inspecting. Chat is shown when asking or reviewing. MCP appears only when the visitor chooses to work from an external AI tool.', row: 6, col: 1, span: 2, refs: [4647, 9457, 6401], template: 'Contextual Capability Map' },
+        { id: 'pricing-preview', title: 'Pro and Studio preview', kind: 'section', inventory: 'H15', purpose: 'One billing control and two paid cards with charged quarterly or yearly totals first.', row: 7, col: 1, span: 2, refs: [3281, 6200], template: 'Two-Plan Pricing Pair' },
+        { id: 'free-entry', title: 'Six-query Free entry', kind: 'section', inventory: 'H16', purpose: 'A separate Start free line below the paid pair rather than a third plan card.', row: 8, col: 1, span: 2, refs: [2067], template: 'Six-Query Free Entry' },
+        { id: 'faq', title: 'Visitor FAQ', kind: 'section', inventory: 'H17', purpose: 'Four to six real questions about what Fudge checks, returns, installs, and shares across clients.', row: 9, col: 1, span: 2, refs: [4541], template: 'Visitor FAQ Stack' },
+        { id: 'endcap', title: 'Explore references or ask Fudge', kind: 'section', inventory: 'H18', purpose: 'One short final choice between the two immediate user jobs; external-tool setup remains secondary.', row: 10, col: 1, span: 2, refs: [6666, 8214], template: 'Product Route Endcap' },
+        { id: 'footer', title: 'Product footer', kind: 'shell', inventory: 'G14', purpose: 'Product, resources, policy, help or status, and account links.', row: 11, col: 1, span: 2, refs: [8214], template: 'Product Footer' },
+        { id: 'browse-page', title: 'Explorer', kind: 'destination', inventory: 'X01', purpose: 'Open the real spatial Explorer with immediate visual references before account interruption.', row: 2, col: 3, refs: [4647, 8776], targetPage: 'browse' },
+        { id: 'chat-page', title: 'Chat page', kind: 'destination', inventory: 'X02', purpose: 'Preserve the drafted first prompt through any sign-in requirement.', row: 3, col: 3, refs: [9457, 9684], targetPage: 'chat' },
+        { id: 'install-page', title: 'MCP setup', kind: 'destination', inventory: 'X03', purpose: 'Open only after the visitor chooses to use Fudge from an external AI tool; preserve the selected client through account or plan work.', row: 6, col: 3, refs: [7562, 6401], targetPage: 'install' },
+        { id: 'pricing-page', title: 'Pricing page', kind: 'destination', inventory: 'P01 · P02 · P03 · P04 · P05 · P06 · P07 · P08 · P09 · P10 · P11 · P12 · P13 · P14 · P15 · P16 · P17', purpose: 'Full Pro / Studio comparison and purchase path.', row: 7, col: 3, refs: [3931, 6200], targetPage: 'pricing' },
+        { id: 'purchase', title: 'Selected-plan purchase flow', kind: 'decision', inventory: 'X09', purpose: 'Plan, period, total, renewal cadence, and return action stay visible.', row: 8, col: 3, refs: [6200, 4033], template: 'Purchase Context Summary' },
+        { id: 'faq-open', title: 'Expanded answer', kind: 'state', inventory: 'H17', purpose: 'The selected real question opens locally; the remaining page stays in place.', row: 9, col: 3, refs: [4541] }
+      ],
+      edges: [
+        { from: 'header', to: 'hero', cause: 'Page load or logo', kind: 'primary' },
+        { from: 'header', to: 'steps', cause: 'How it works', kind: 'action', dx: -55 },
+        { from: 'header', to: 'browse-page', cause: 'Explorer', kind: 'cross' },
+        { from: 'header', to: 'pricing-page', cause: 'Pricing', kind: 'cross', dx: 85, dy: -45 },
+        { from: 'header', to: 'chat-page', cause: 'Open Fudge', kind: 'cross', dx: 70, dy: 20 },
+        { from: 'hero', to: 'proof', cause: 'Scroll after first task', kind: 'primary' },
+        { from: 'hero', to: 'chat-page', cause: 'Start free or submit prompt', kind: 'cross' },
+        { from: 'hero', to: 'browse-page', cause: 'Search or browse intent', kind: 'cross' },
+        { from: 'proof', to: 'steps', cause: 'Scroll', kind: 'primary' },
+        { from: 'steps', to: 'workflow', cause: 'Scroll', kind: 'primary' },
+        { from: 'workflow', to: 'modes', cause: 'Scroll', kind: 'primary' },
+        { from: 'workflow', to: 'browse-page', cause: 'Open the real example', kind: 'cross', dy: 30 },
+        { from: 'modes', to: 'browse-page', cause: 'Find or inspect a reference', kind: 'cross', dx: 45 },
+        { from: 'modes', to: 'chat-page', cause: 'Ask Fudge', kind: 'cross', dx: 25 },
+        { from: 'modes', to: 'install-page', cause: 'Use Fudge from my AI tool', kind: 'cross' },
+        { from: 'modes', to: 'pricing-preview', cause: 'Scroll', kind: 'primary' },
+        { from: 'pricing-preview', to: 'pricing-page', cause: 'See full pricing', kind: 'cross' },
+        { from: 'pricing-preview', to: 'purchase', cause: 'Choose Pro or Studio', kind: 'boundary' },
+        { from: 'pricing-preview', to: 'free-entry', cause: 'Continue past paid plans', kind: 'primary' },
+        { from: 'free-entry', to: 'chat-page', cause: 'Start with 6 queries', kind: 'cross' },
+        { from: 'free-entry', to: 'faq', cause: 'Scroll', kind: 'primary' },
+        { from: 'faq', to: 'faq-open', cause: 'Select a question', kind: 'action' },
+        { from: 'faq', to: 'endcap', cause: 'Scroll', kind: 'primary' },
+        { from: 'endcap', to: 'browse-page', cause: 'Explore references', kind: 'cross', dy: 34 },
+        { from: 'endcap', to: 'chat-page', cause: 'Open Fudge', kind: 'cross', dy: -34 },
+        { from: 'endcap', to: 'footer', cause: 'Scroll', kind: 'primary' }
+      ],
+      refs: [
+        { id: 8306, used: 'Hero and composer', note: 'Real input, task choices, and visible product state.' },
+        { id: 9683, used: 'Hero evidence', note: 'Research-specific prompt and restrained examples beside a working input.' },
+        { id: 5038, used: 'Step cards', note: 'Each capability receives a small real UI demonstration.' },
+        { id: 7692, used: 'Complete workflow', note: 'Connector grammar only; the source object and story stay Fudge-specific.' },
+        { id: 3642, used: 'Complete workflow', note: 'Input and result remain visibly related.' },
+        { id: 6200, used: 'Pricing preview and checkout', note: 'A real MCP purchase keeps quarterly or yearly charge, monthly equivalent, and total visible.' },
+        { id: 2067, used: 'Free entry', note: 'Free sits outside the paid-card comparison.' },
+        { id: 4647, used: 'Explorer proof', note: 'Current Fudge Explorer establishes the actual spatial discovery surface rather than a generic browse grid.' }
+      ]
+    },
+
+    pricing: {
+      title: 'Pricing and purchase flow',
+      route: '/pricing',
+      description: 'The public offer is simplified to Pro and Studio. Both describe the complete Fudge capability set; the customer chooses by capacity and work scale. Free remains an entry state, not a competing paid product.',
+      cols: 4,
+      nodes: [
+        { id: 'header', title: 'Marketing header', kind: 'shell', inventory: 'G01 · G02 · G03 · G04 · G05 · G06 · G07', purpose: 'Shared marketing routes and one Open Fudge action.', row: 1, col: 1, span: 3, refs: [8077, 7911], template: 'Global Marketing Header' },
+        { id: 'hero', title: 'One product, choose capacity', kind: 'section', inventory: 'P01 · P02 · P03', purpose: 'One Quarterly/Yearly control. Show the amount charged first and the monthly equivalent second.', row: 2, col: 1, span: 3, refs: [6200, 8512], template: 'Billing Period Switch' },
+        { id: 'price-state', title: 'Proposed price state', kind: 'state', inventory: 'P02 · P03', purpose: 'Pro: $117 quarterly ($39/month) or $390 yearly ($32.50/month). Studio: $297 quarterly ($99/month) or $990 yearly ($82.50/month). Both cards update together.', row: 2, col: 4, refs: [6200, 3236] },
+        { id: 'plans', title: 'Pro and Studio · same product', kind: 'section', inventory: 'P04 · P05 · P06 · P07 · P08', purpose: 'State the complete shared capability set once: Explorer, Chat, saved references, extension, site design guides, exports, prompt handoff, and hosted MCP. Cards differ by capacity and best fit.', row: 3, col: 1, span: 3, refs: [3931, 3281], template: 'Two-Plan Pricing Pair' },
+        { id: 'access-decision', title: 'Account and plan decision', kind: 'decision', inventory: 'P12 · P14 · P16', purpose: 'Anonymous, signed-in new buyer, or existing subscriber branches without losing plan and period.', row: 3, col: 4, refs: [5146, 4046], template: 'Purchase Access Decision' },
+        { id: 'free', title: 'Six-query Free entry', kind: 'section', inventory: 'P11', purpose: 'Start with 6 Chat queries each month, with the first prompt preserved through sign-up.', row: 4, col: 1, span: 2, refs: [8512, 2067], template: 'Six-Query Free Entry' },
+        { id: 'legacy', title: 'Private legacy-plan state', kind: 'state', inventory: 'P12', purpose: 'Account names the current retired plan and reassures the customer; public pricing advertises only current plans.', row: 4, col: 3, refs: [], template: 'Purchase Access Decision' },
+        { id: 'sign-in', title: 'Sign in', kind: 'state', inventory: 'P14', purpose: 'Authentication occurs without losing selected plan, period, total, or return destination.', row: 4, col: 4, refs: [2825, 5146] },
+        { id: 'differences', title: 'Only genuine plan differences', kind: 'section', inventory: 'P09 · P10', purpose: 'Compare capacity and best fit. Add another row only when a real entitlement difference can be verified and explained plainly.', row: 5, col: 1, span: 3, refs: [3931], template: 'Plan Difference Rows' },
+        { id: 'plan-change', title: 'Plan-change confirmation', kind: 'decision', inventory: 'P16', purpose: 'Current and resulting plan, effective date, charge or credit, next renewal total, and Back.', row: 5, col: 4, refs: [3236, 4046], template: 'Purchase Context Summary' },
+        { id: 'faq', title: 'Transactional FAQ', kind: 'section', inventory: 'P13', purpose: 'Usage, reset, billing cadence, cancellation, upgrades, and existing subscriptions.', row: 6, col: 1, span: 3, refs: [3555, 214, 1054], template: 'Visitor FAQ Stack' },
+        { id: 'checkout', title: 'Checkout summary', kind: 'decision', inventory: 'P14', purpose: 'Selected plan, period, charged total, renewal cadence, and intended product return remain visible.', row: 6, col: 4, refs: [6200, 5146], template: 'Purchase Context Summary' },
+        { id: 'footer', title: 'Product footer', kind: 'shell', inventory: 'G14', purpose: 'Product and utility routes after the pricing decision.', row: 7, col: 1, span: 2, refs: [8214], template: 'Product Footer' },
+        { id: 'mobile', title: 'Mobile pricing order', kind: 'state', inventory: 'P17', purpose: 'Period control first, one complete card at a time, card-local CTA, and labeled difference rows.', row: 7, col: 3, refs: [3280], template: 'Two-Plan Pricing Pair' },
+        { id: 'success', title: 'Purchase or change confirmed', kind: 'state', inventory: 'P15 · P16', purpose: 'Name the access change and expose receipt or account secondarily.', row: 7, col: 4, refs: [4033, 10204], template: 'Purchase Success Handoff' },
+        { id: 'return', title: 'Resume intended action', kind: 'destination', inventory: 'X09', purpose: 'Open Fudge, finish the selected client install, or resume the preserved prompt or reference.', row: 8, col: 4, refs: [4033, 6298] },
+        { id: 'chat', title: 'Chat with first prompt', kind: 'destination', inventory: 'P11 · X02', purpose: 'The six-query Free route opens the actual composer rather than another marketing screen.', row: 8, col: 1, span: 2, refs: [8910, 9684], targetPage: 'chat' }
+      ],
+      edges: [
+        { from: 'header', to: 'hero', cause: 'Pricing route or header link', kind: 'primary' },
+        { from: 'hero', to: 'price-state', cause: 'Quarterly / Yearly changed', kind: 'action' },
+        { from: 'hero', to: 'plans', cause: 'Period selected', kind: 'primary' },
+        { from: 'price-state', to: 'plans', cause: 'Update both card totals', kind: 'action' },
+        { from: 'plans', to: 'access-decision', cause: 'Choose Pro or Studio', kind: 'boundary' },
+        { from: 'access-decision', to: 'sign-in', cause: 'Anonymous buyer', kind: 'boundary' },
+        { from: 'access-decision', to: 'checkout', cause: 'Signed-in new buyer', kind: 'boundary' },
+        { from: 'access-decision', to: 'plan-change', cause: 'Existing subscriber', kind: 'boundary', dx: 70, dy: 24 },
+        { from: 'sign-in', to: 'checkout', cause: 'Authentication succeeds', kind: 'action', dx: -70, dy: 20 },
+        { from: 'plan-change', to: 'checkout', cause: 'Confirm effective change', kind: 'boundary' },
+        { from: 'plans', to: 'free', cause: 'Continue below paid plans', kind: 'primary' },
+        { from: 'free', to: 'chat', cause: 'Start with 6 queries', kind: 'cross', dx: -85, dy: 16 },
+        { from: 'free', to: 'differences', cause: 'Scroll', kind: 'primary' },
+        { from: 'differences', to: 'faq', cause: 'Scroll', kind: 'primary' },
+        { from: 'faq', to: 'footer', cause: 'Scroll', kind: 'primary' },
+        { from: 'checkout', to: 'success', cause: 'Payment or plan change accepted', kind: 'action' },
+        { from: 'success', to: 'return', cause: 'Continue with preserved intent', kind: 'action' },
+        { from: 'legacy', to: 'access-decision', cause: 'Compare current plans voluntarily', kind: 'boundary' },
+        { from: 'plans', to: 'mobile', cause: 'Narrow viewport', kind: 'action', dx: 90, dy: 28 }
+      ],
+      refs: [
+        { id: 6200, used: 'Billing and checkout truth', note: 'A real MCP checkout shows three-month and yearly charges, monthly equivalents, subtotal, tax, and total.' },
+        { id: 3931, used: 'Plan relationship', note: 'Exactly two paid choices with shared access and a clear higher-plan delta.' },
+        { id: 3281, used: 'Plan-card geometry', note: 'Two quiet equal cards with parallel actions and feature lists.' },
+        { id: 2067, used: 'Free entry', note: 'Free remains separate from the two paid cards.' },
+        { id: 5146, used: 'Purchase stage', note: 'Selected-plan context remains visible as checkout advances.' },
+        { id: 4033, used: 'Success', note: 'Confirmation ends in a concrete next action.' },
+        { id: 3280, used: 'Mobile', note: 'A complete card remains readable in a narrow layout.' },
+        { id: 4541, used: 'FAQ structure', note: 'Compact, scannable question rows; Fudge supplies its own visitor questions.' }
+      ]
+    },
+
+    browse: {
+      title: 'Explorer spatial discovery flow',
+      route: 'explorer.withfudge.com',
+      description: 'This keeps the distinctive Explorer experience. Search creates a spatial view of captured websites; focusing a capture reveals its real details and contextual Save or AI-handoff actions. Explorer is not replaced by a generic dashboard.',
+      cols: 4,
+      nodes: [
+        { id: 'nav', title: 'Explorer chrome', kind: 'shell', inventory: 'B01 · G03 · G04 · G06', purpose: 'Preserve the real Explorer identity, search, saved-capture access, account access, and focused-capture controls. Do not introduce a generic product rail.', row: 1, col: 1, span: 3, refs: [4647, 8776], template: 'Explorer Chrome' },
+        { id: 'search', title: 'Explorer search', kind: 'section', inventory: 'B02', purpose: 'Search the loaded capture catalogue by website, style, font, color, layout, or other supported terms.', row: 2, col: 1, span: 2, refs: [4647, 8204], template: 'Explorer Search Bar' },
+        { id: 'assist', title: 'Search assistance overlay', kind: 'state', inventory: 'B03', purpose: 'Examples, recent searches, colors, categories, autocomplete, and refinement without replacing the library.', row: 2, col: 3, refs: [8204], template: 'Search Assistance Overlay' },
+        { id: 'mobile-filter', title: 'Mobile filter sheet', kind: 'state', inventory: 'B03 · B19', purpose: 'Explicit facets and a result-count action in a focused sheet.', row: 2, col: 4, refs: [10103], template: 'Mobile Workspace Sheet' },
+        { id: 'results-row', title: 'Persistent spatial search view', kind: 'section', inventory: 'B04', purpose: 'The submitted query opens a result view deeper on the z-axis. The view stack and active depth remain in the URL hash so browser Back returns to the prior field.', row: 3, col: 1, span: 3, refs: [4647, 7692], template: 'Explorer Search View' },
+        { id: 'states', title: 'Loading · Empty · Error · End', kind: 'state', inventory: 'B15 · B16 · B17 · B18', purpose: 'Preserve the query and final geometry; offer specific retry, alternate wording, or endpoint.', row: 3, col: 4, refs: [8763, 8941, 9684], template: 'Workspace State Panel' },
+        { id: 'grid', title: 'Spatial capture field', kind: 'section', inventory: 'B05', purpose: 'Deterministic mixed-height capture layout with a near camera window, overscanned mounting, final aspect-ratio geometry, progressive textures, and camera navigation between views.', row: 4, col: 1, span: 2, refs: [4647, 8683], template: 'Spatial Capture Field' },
+        { id: 'tile', title: 'Focused capture frame', kind: 'section', inventory: 'B06 · B07', purpose: 'Real screenshot or motion, source identity, selected state, hover-anchored zoom, and preserved return position.', row: 4, col: 3, refs: [4647, 8776], template: 'Focused Capture Frame' },
+        { id: 'chat', title: 'Ask Fudge with this reference', kind: 'destination', inventory: 'B11 · X06', purpose: 'Consolidation proposal: a selected capture can start a Fudge Chat question with its identity and source visibly attached. This is a contextual action, not a new page or mode inside Explorer.', row: 4, col: 4, refs: [7696, 8776], targetPage: 'chat' },
+        { id: 'inspector', title: 'Focused capture details', kind: 'section', inventory: 'B08 · B09 · B10', purpose: 'Large capture, original page, source and dimensions, screenshot palette, measured typography, related captures, and existing focus controls.', row: 5, col: 1, span: 3, refs: [8776, 4705], template: 'Reference Inspector' },
+        { id: 'mobile-detail', title: 'Mobile reference sheet', kind: 'state', inventory: 'B19', purpose: 'Full-width detail with sticky Ask and Save actions and exact return to grid position.', row: 5, col: 4, refs: [8819, 10103], template: 'Mobile Workspace Sheet' },
+        { id: 'actions', title: 'Save · Ask Fudge · Open in another AI', kind: 'section', inventory: 'B11 · B12 · B13', purpose: 'Keep actions on the focused capture. Save is existing; prompt handoff is existing; Ask Fudge is the proposed unifying transition.', row: 6, col: 1, span: 2, refs: [8776, 7696, 7201], template: 'Contextual Reference Actions' },
+        { id: 'access-gate', title: 'Inline access gate', kind: 'decision', inventory: 'X04 · X08', purpose: 'Signed-out or Free visitors see sign-in or Pro/Studio without losing the selected reference.', row: 6, col: 3, refs: [9684, 6658], template: 'Inline Access Gate' },
+        { id: 'install', title: 'Prompt handoff target', kind: 'destination', inventory: 'B13 · X08', purpose: 'Open ChatGPT, Claude, Gemini, or copy the prepared capture prompt. Do not detour through an invented Connections hub.', row: 6, col: 4, refs: [7696] },
+        { id: 'collections', title: 'Saved captures', kind: 'section', inventory: 'B12 · B14', purpose: 'Preserve the existing saved-capture view and save state. Collections, folders, or Projects remain separate decisions unless verified.', row: 7, col: 1, span: 3, refs: [8205, 8776], template: 'Saved Reference View' },
+        { id: 'save-state', title: 'Save feedback', kind: 'state', inventory: 'B12', purpose: 'Confirm saved or removed state locally and recover from failure without changing the focused capture.', row: 7, col: 4, refs: [8776], template: 'Local Recovery Panel' }
+      ],
+      edges: [
+        { from: 'nav', to: 'search', cause: 'Open Explorer or focus search', kind: 'primary' },
+        { from: 'search', to: 'assist', cause: 'Focus or ask for examples', kind: 'action' },
+        { from: 'search', to: 'mobile-filter', cause: 'Filters on a narrow viewport', kind: 'action' },
+        { from: 'search', to: 'results-row', cause: 'Submit query; create spatial view', kind: 'action' },
+        { from: 'assist', to: 'results-row', cause: 'Choose example, color, or category', kind: 'action' },
+        { from: 'mobile-filter', to: 'results-row', cause: 'Show matching results', kind: 'action' },
+        { from: 'results-row', to: 'states', cause: 'Search loading, zero, error, or endpoint', kind: 'boundary' },
+        { from: 'results-row', to: 'grid', cause: 'Results available', kind: 'primary' },
+        { from: 'states', to: 'grid', cause: 'Retry or filters recover results', kind: 'action' },
+        { from: 'states', to: 'search', cause: 'Revise query or remove filters', kind: 'action', dy: 28 },
+        { from: 'grid', to: 'tile', cause: 'Hover or focus a capture', kind: 'action' },
+        { from: 'tile', to: 'inspector', cause: 'Select or open', kind: 'action' },
+        { from: 'inspector', to: 'grid', cause: 'Close or browser Back; restore position', kind: 'action', dx: -45 },
+        { from: 'inspector', to: 'mobile-detail', cause: 'Narrow viewport', kind: 'action' },
+        { from: 'inspector', to: 'actions', cause: 'Reference details available', kind: 'primary' },
+        { from: 'actions', to: 'chat', cause: 'Ask about this', kind: 'cross', dx: 80, dy: -20 },
+        { from: 'actions', to: 'save-state', cause: 'Save reference', kind: 'action' },
+        { from: 'save-state', to: 'collections', cause: 'Choose collection or confirm save', kind: 'action', dy: 50 },
+        { from: 'actions', to: 'install', cause: 'Choose ChatGPT, Claude, Gemini, or Copy prompt', kind: 'action' },
+        { from: 'actions', to: 'access-gate', cause: 'Use in my AI — signed-out or Free', kind: 'boundary' },
+        { from: 'access-gate', to: 'install', cause: 'Sign-in or purchase succeeds; return to capture', kind: 'action' }
+      ],
+      refs: [
+        { id: 7624, used: 'Search and results controls', note: 'Wide persistent search, result count, sort, density, and restrained grid labels.' },
+        { id: 8204, used: 'Search assistance', note: 'The search overlay keeps the full library visible underneath its taxonomy and thumbnail previews.' },
+        { id: 10103, used: 'Mobile filters', note: 'Focused filter sheet with count-bearing result action.' },
+        { id: 8683, used: 'Masonry', note: 'Images dominate in a dense mixed-height library.' },
+        { id: 8763, used: 'Card actions and loading rhythm', note: 'Contextual actions and outlined positions preserve spatial continuity.' },
+        { id: 8776, used: 'Reference identity and inspector', note: 'Large source image, attribution, save state, font, and palette.' },
+        { id: 4705, used: 'Selected inspector', note: 'Large selected object, metadata, local actions, comments, and related references remain in one view.' },
+        { id: 8819, used: 'Mobile detail', note: 'Structured narrow detail with local actions.' }
+      ]
+    },
+
+    chat: {
+      title: 'Chat workspace flow',
+      route: '/chat',
+      description: 'Chat is the direct assistance surface inside the same Fudge offer. It accepts a question, URL, screenshot, or Explorer reference and returns evidence that can be opened back in Explorer or used through MCP.',
+      cols: 4,
+      nodes: [
+        { id: 'sidebar', title: 'Chat sidebar', kind: 'shell', inventory: 'C01 · C02 · C03 · C04 · C05', purpose: 'New conversation, Explorer, saved references, recent conversations, plan cue, usage, upgrade access, and account. These are destinations and work history, not sibling products.', row: 1, col: 1, refs: [9457, 8946], template: 'Chat Sidebar' },
+        { id: 'topbar', title: 'Conversation topbar', kind: 'shell', inventory: 'C06', purpose: 'Conversation title, overflow, and mobile drawer action. Avoid a permanent Connections concept.', row: 1, col: 2, span: 2, refs: [8946], template: 'Chat Topbar' },
+        { id: 'install', title: 'MCP setup', kind: 'destination', inventory: 'C06 · X08', purpose: 'A secondary “Use Fudge in my AI tool” action opens the real client installer. It does not attempt to transfer an entire invented project.', row: 1, col: 4, refs: [6401, 7564], targetPage: 'install' },
+        { id: 'welcome', title: 'Useful empty state', kind: 'section', inventory: 'C07', purpose: 'Short outcome, usable composer, and useful first action inside the initial viewport.', row: 2, col: 1, span: 3, refs: [10217, 8910] },
+        { id: 'browse', title: 'Open selected reference in Explorer', kind: 'destination', inventory: 'C03 · C13 · X07', purpose: 'Open the richer spatial capture view while preserving the reference identity and current conversation.', row: 2, col: 4, refs: [8776, 7696], targetPage: 'browse' },
+        { id: 'starters', title: 'Task starters', kind: 'section', inventory: 'C10', purpose: 'Review this page, Find references, Inspect this screenshot, and Turn this into code.', row: 3, col: 1, refs: [10217, 8910], template: 'Task Starter Set' },
+        { id: 'composer', title: 'Multimodal composer', kind: 'section', inventory: 'C08', purpose: 'Multiline text or URL, send or stop, shortcut, disabled state, draft persistence, and quiet usage cue.', row: 3, col: 2, span: 2, refs: [6257, 10217, 8946], template: 'Multimodal Composer' },
+        { id: 'attachment', title: 'Attachment or reference chip', kind: 'state', inventory: 'C09', purpose: 'Named context, preview, upload progress, remove, retry, and error.', row: 3, col: 4, refs: [7201, 6257], template: 'Attachment Context Chip' },
+        { id: 'user-message', title: 'User message', kind: 'section', inventory: 'C11', purpose: 'Readable URL, text, and attachments with edit or retry.', row: 4, col: 1, span: 3, refs: [7786, 8941], template: 'Conversation Message' },
+        { id: 'activity', title: 'Observable activity', kind: 'state', inventory: 'C14', purpose: 'Opening the page, Checking the screenshot, Comparing references, and Preparing the result.', row: 4, col: 4, refs: [6088, 7786], template: 'Activity Status Row' },
+        { id: 'answer', title: 'Evidence-rich answer', kind: 'section', inventory: 'C12', purpose: 'Readable prose interleaved with reference cards, palettes, fonts, and structured design details.', row: 5, col: 1, span: 3, refs: [7786, 9428, 8776], template: 'Evidence-Rich Answer' },
+        { id: 'error', title: 'Partial result or recoverable error', kind: 'state', inventory: 'C16', purpose: 'Completed blocks, attachments, draft, and composer remain usable; failure names the next action.', row: 5, col: 4, refs: [8941, 6135], template: 'Local Recovery Panel' },
+        { id: 'gallery', title: 'Reference gallery in Chat', kind: 'section', inventory: 'C13', purpose: 'Stable evidence cards with Save and Open in Explorer. Do not reproduce the full Explorer inspector inside the answer.', row: 6, col: 1, span: 2, refs: [7786, 8776], template: 'Reference Gallery' },
+        { id: 'saved', title: 'Saved references', kind: 'destination', inventory: 'C03 · C13 · X11', purpose: 'Use the existing saved-reference identity where account-backed saving is supported; do not introduce a new collection or project model.', row: 6, col: 3, refs: [8205, 8776] },
+        { id: 'usage', title: 'Usage boundary', kind: 'decision', inventory: 'C05 · C16 · X13', purpose: 'Keep the work and composer visible; name the reset and offer Pro or Studio.', row: 6, col: 4, refs: [9684, 9700], template: 'Usage Boundary Banner' },
+        { id: 'followups', title: 'Grounded follow-ups', kind: 'section', inventory: 'C15', purpose: 'Next questions derived from the current answer and selected references.', row: 7, col: 1, span: 2, refs: [7786, 9428], template: 'Grounded Follow-Up Set' },
+        { id: 'plan-gate', title: 'Inline plan choice', kind: 'decision', inventory: 'X04 · X13', purpose: 'Preserve the prompt and partial answer while sign-in or Pro/Studio happens.', row: 7, col: 3, refs: [9684, 8512], template: 'Inline Access Gate' },
+        { id: 'long-nav', title: 'Long conversation controls', kind: 'state', inventory: 'C17', purpose: 'Scroll restoration, jump to latest, new-content cue, sticky composer, and compact context.', row: 8, col: 1, span: 3, refs: [7786, 9428], template: 'Workspace State Panel' },
+        { id: 'mobile', title: 'Mobile Chat arrangement', kind: 'state', inventory: 'C18', purpose: 'Drawer, compressed topbar, attachment sheet, full-width evidence, and keyboard-safe composer.', row: 8, col: 4, refs: [8910], template: 'Mobile Workspace Sheet' }
+      ],
+      edges: [
+        { from: 'sidebar', to: 'welcome', cause: 'New conversation', kind: 'action' },
+        { from: 'sidebar', to: 'answer', cause: 'Open recent conversation', kind: 'action', dx: -90, dy: -10 },
+        { from: 'sidebar', to: 'browse', cause: 'Open Explorer', kind: 'cross' },
+        { from: 'topbar', to: 'install', cause: 'Use Fudge in my AI tool', kind: 'cross' },
+        { from: 'welcome', to: 'starters', cause: 'Choose a starting task', kind: 'primary' },
+        { from: 'welcome', to: 'composer', cause: 'Type directly', kind: 'action' },
+        { from: 'starters', to: 'composer', cause: 'Prefill task intent', kind: 'action' },
+        { from: 'composer', to: 'attachment', cause: 'Attach file or selected reference', kind: 'action' },
+        { from: 'attachment', to: 'composer', cause: 'Ready, remove, or retry', kind: 'action' },
+        { from: 'composer', to: 'user-message', cause: 'Send', kind: 'action' },
+        { from: 'user-message', to: 'activity', cause: 'Request accepted', kind: 'primary' },
+        { from: 'activity', to: 'answer', cause: 'Useful blocks complete', kind: 'action' },
+        { from: 'activity', to: 'error', cause: 'Partial failure or interruption', kind: 'boundary' },
+        { from: 'error', to: 'activity', cause: 'Retry with context preserved', kind: 'action' },
+        { from: 'answer', to: 'gallery', cause: 'Visual references support the answer', kind: 'primary' },
+        { from: 'gallery', to: 'browse', cause: 'Open in Explorer', kind: 'cross', dx: 100, dy: -16 },
+        { from: 'gallery', to: 'saved', cause: 'Save reference', kind: 'action' },
+        { from: 'answer', to: 'followups', cause: 'Answer completes', kind: 'primary', dx: -70, dy: 30 },
+        { from: 'followups', to: 'composer', cause: 'Choose or write next question', kind: 'action', dx: -95, dy: -10 },
+        { from: 'answer', to: 'usage', cause: 'Monthly boundary reached', kind: 'boundary' },
+        { from: 'usage', to: 'plan-gate', cause: 'Choose Pro or Studio', kind: 'boundary' },
+        { from: 'plan-gate', to: 'composer', cause: 'Sign-in or purchase succeeds', kind: 'action', dx: 95, dy: 18 },
+        { from: 'answer', to: 'long-nav', cause: 'Conversation grows', kind: 'primary' },
+        { from: 'topbar', to: 'mobile', cause: 'Narrow viewport', kind: 'action' }
+      ],
+      refs: [
+        { id: 9457, used: 'Sidebar', note: 'Compact New, sibling routes, recent history, plan, and account.' },
+        { id: 8946, used: 'Collapsed shell', note: 'Slim rail, product modes, large composer, controls, and starter tasks in one application view.' },
+        { id: 10217, used: 'Welcome and starters', note: 'Immediate tasks, setup choices, examples, and a persistent composer in a real application state.' },
+        { id: 8910, used: 'Empty state', note: 'Short greeting, direct starter rows, and usable composer.' },
+        { id: 7201, used: 'Visible context', note: 'A removable named chip and observable Previewing state.' },
+        { id: 7786, used: 'Visual research answer', note: 'Named result blocks, visible activity, follow-up composer, and usage cue remain in one workspace.' },
+        { id: 6088, used: 'Observable activity', note: 'Read Todo, Searching, live execution, persistent composer, and Stop are directly visible.' },
+        { id: 9428, used: 'Long prose rhythm', note: 'Readable prose, source chips, result-grounded follow-ups, and persistent composer.' },
+        { id: 8941, used: 'Partial failure', note: 'Completed work and attachments remain visible at a usage boundary.' },
+        { id: 9684, used: 'Usage boundary', note: 'The boundary sits above rather than replacing the composer.' }
+      ]
+    },
+
+    install: {
+      title: 'Hosted MCP setup flow',
+      route: '/mcp',
+      description: 'MCP is presented as one way to use Fudge, not as a separate product. The existing installer remains visible while the selected client survives sign-in, plan choice, checkout, OAuth, success, retry, and manual setup.',
+      cols: 4,
+      nodes: [
+        { id: 'header', title: 'Marketing header', kind: 'shell', inventory: 'G01 · G02 · G03 · G04 · G05 · G06 · G07', purpose: 'Shared routes and one Open Fudge action.', row: 1, col: 1, span: 3, refs: [8077, 7911], template: 'Global Marketing Header' },
+        { id: 'hero', title: 'Use Fudge in your AI tool', kind: 'section', inventory: 'I01', purpose: 'Explain the outcome, then show supported MCP clients compactly. Avoid introducing “Connect” as another product name.', row: 2, col: 1, span: 3, refs: [6401], template: 'Client Selector' },
+        { id: 'progress', title: 'Three-step progress rail', kind: 'section', inventory: 'I02 · I03', purpose: 'Choose tool, Connect account, Ask a real question; current, complete, and upcoming states remain reversible.', row: 3, col: 1, span: 3, refs: [7562, 6401], template: 'Install Progress Rail' },
+        { id: 'client', title: 'Client selector', kind: 'section', inventory: 'I04', purpose: 'Cursor, Claude, Codex, and Other update one instruction panel in place and remain selected.', row: 4, col: 1, span: 2, refs: [6401, 7225, 7629], template: 'Client Selector' },
+        { id: 'manual', title: 'Manual configuration', kind: 'state', inventory: 'I15', purpose: 'Selectable JSON or configuration, Copy, validation, and concise troubleshooting.', row: 4, col: 4, refs: [6401, 7564, 7629], template: 'Client Setup Panel' },
+        { id: 'setup', title: 'Client-specific setup panel', kind: 'section', inventory: 'I05 · I06 · I11', purpose: 'Short numbered steps, exact client labels, endpoint or configuration, Copy, and terminal Connect action.', row: 5, col: 1, span: 2, refs: [6401, 7564, 7629], template: 'Client Setup Panel' },
+        { id: 'copy', title: 'Copy confirmation', kind: 'state', inventory: 'I07', purpose: 'The value stays visible while Copied or Retry is announced locally.', row: 5, col: 3, refs: [6401, 7564], template: 'Copy Feedback' },
+        { id: 'mobile-handoff', title: 'Mobile continuation', kind: 'state', inventory: 'I17', purpose: 'State when desktop is required, preserve the client, and offer only a safely implemented handoff.', row: 5, col: 4, refs: [], template: 'Mobile Continuation Handoff' },
+        { id: 'access', title: 'Account and entitlement decision', kind: 'decision', inventory: 'I08 · I09 · I10 · I11', purpose: 'Signed-out, Free, or subscribed state changes only the inline access area; the installer remains visible.', row: 6, col: 1, span: 3, refs: [6658, 2825], template: 'Inline Access Gate' },
+        { id: 'signed-out', title: 'Signed-out state', kind: 'state', inventory: 'I09', purpose: 'Inline sign-in preserves the selected client and current setup step.', row: 7, col: 1, refs: [2825], template: 'Inline Access Gate' },
+        { id: 'free', title: 'Free account state', kind: 'state', inventory: 'I10', purpose: 'Inline Pro and Studio choice preserves the client and return step.', row: 7, col: 2, refs: [6658, 8512], template: 'Two-Plan Pricing Pair' },
+        { id: 'subscriber', title: 'Subscriber state', kind: 'state', inventory: 'I08 · I11', purpose: 'Reveal endpoint, setup command, manual configuration, and terminal Connect Fudge action in place.', row: 7, col: 3, refs: [6658, 6401], template: 'Client Setup Panel' },
+        { id: 'error', title: 'Connection error', kind: 'state', inventory: 'I14', purpose: 'Name expired, denied, wrong-account, or connection failure; preserve the client and exact retry.', row: 7, col: 4, refs: [6094], template: 'Local Recovery Panel' },
+        { id: 'sign-in', title: 'Sign in and return', kind: 'state', inventory: 'I09', purpose: 'Authenticate, then return to the same selected client and setup step.', row: 8, col: 1, refs: [2825], template: 'Purchase Access Decision' },
+        { id: 'plans', title: 'Inline Pro or Studio choice', kind: 'decision', inventory: 'I10', purpose: 'Two paid choices, Quarterly or Yearly, with the actual charge visible.', row: 8, col: 2, refs: [3931, 6200], template: 'Two-Plan Pricing Pair' },
+        { id: 'oauth', title: 'OAuth approval', kind: 'decision', inventory: 'I12', purpose: 'Signed-in Fudge account, named client, plain access explanation, Approve, and Cancel.', row: 8, col: 3, refs: [10203], template: 'OAuth Approval Panel' },
+        { id: 'recovery', title: 'Retry or manual fallback', kind: 'state', inventory: 'I14 · I15', purpose: 'Exact retry returns to OAuth; manual fallback keeps the selected client and validates configuration.', row: 8, col: 4, refs: [6094, 6401, 7629], template: 'Local Recovery Panel' },
+        { id: 'checkout', title: 'Checkout with client context', kind: 'decision', inventory: 'I10 · X09', purpose: 'Plan, period, charge, renewal, selected client, and return to Step 2 remain visible.', row: 9, col: 2, refs: [6200, 5146], template: 'Purchase Context Summary' },
+        { id: 'success', title: 'Connection confirmed', kind: 'state', inventory: 'I13', purpose: 'Name the connected client, offer automatic or manual return, and show one real starter question.', row: 9, col: 3, refs: [10204, 6298], template: 'Connection Success Handoff' },
+        { id: 'starter', title: 'Ask a real Fudge question', kind: 'section', inventory: 'I13', purpose: 'A concrete reference-search or page-review question completes Step 3.', row: 10, col: 1, span: 2, refs: [6298], template: 'Connection Success Handoff' },
+        { id: 'external-client', title: 'Open selected AI client', kind: 'destination', inventory: 'I13 · X10', purpose: 'Cursor, Claude, Codex, or Other opens with Fudge connected and the starter task available.', row: 10, col: 3, refs: [6401, 6298] },
+        { id: 'proof', title: 'Account and access summary', kind: 'section', inventory: 'I16', purpose: 'Show only verified account facts: current plan, usage, and connected client. Do not claim shared Projects, libraries, or histories that are not implemented.', row: 11, col: 1, span: 3, refs: [6658], template: 'Account Access Summary' },
+        { id: 'footer', title: 'Product footer', kind: 'shell', inventory: 'G14', purpose: 'Explorer, Chat, Pricing, support, and account routes after installation.', row: 12, col: 1, span: 3, refs: [8214], template: 'Product Footer' }
+      ],
+      edges: [
+        { from: 'header', to: 'hero', cause: 'MCP route or “Use Fudge in my AI” CTA', kind: 'primary' },
+        { from: 'hero', to: 'progress', cause: 'Start setup', kind: 'primary' },
+        { from: 'progress', to: 'client', cause: 'Step 1: choose tool', kind: 'primary' },
+        { from: 'client', to: 'setup', cause: 'Client selected', kind: 'action' },
+        { from: 'client', to: 'manual', cause: 'Choose Other or manual setup', kind: 'action' },
+        { from: 'client', to: 'mobile-handoff', cause: 'Desktop-only client on mobile', kind: 'boundary' },
+        { from: 'setup', to: 'copy', cause: 'Copy endpoint or configuration', kind: 'action' },
+        { from: 'setup', to: 'access', cause: 'Connect Fudge', kind: 'boundary' },
+        { from: 'access', to: 'signed-out', cause: 'No account session', kind: 'boundary' },
+        { from: 'access', to: 'free', cause: 'Signed in without subscription', kind: 'boundary' },
+        { from: 'access', to: 'subscriber', cause: 'Active Pro or Studio', kind: 'action' },
+        { from: 'signed-out', to: 'sign-in', cause: 'Sign in', kind: 'boundary' },
+        { from: 'sign-in', to: 'access', cause: 'Return to selected client and step', kind: 'action', dx: -105, dy: -10 },
+        { from: 'free', to: 'plans', cause: 'Choose Pro or Studio', kind: 'boundary' },
+        { from: 'plans', to: 'checkout', cause: 'Confirm plan and period', kind: 'boundary' },
+        { from: 'checkout', to: 'oauth', cause: 'Purchase succeeds; resume Step 2', kind: 'action' },
+        { from: 'subscriber', to: 'oauth', cause: 'Connect Fudge', kind: 'boundary' },
+        { from: 'oauth', to: 'success', cause: 'Approve', kind: 'action' },
+        { from: 'oauth', to: 'setup', cause: 'Cancel', kind: 'action', dx: -95, dy: -16 },
+        { from: 'oauth', to: 'error', cause: 'Expired, denied, wrong account, or failed', kind: 'boundary' },
+        { from: 'error', to: 'recovery', cause: 'Choose retry or manual', kind: 'action' },
+        { from: 'recovery', to: 'oauth', cause: 'Retry approval', kind: 'action' },
+        { from: 'recovery', to: 'manual', cause: 'Use manual configuration', kind: 'action', dy: -30 },
+        { from: 'manual', to: 'success', cause: 'Configuration validates', kind: 'action', dx: 105, dy: -10 },
+        { from: 'success', to: 'starter', cause: 'Step 3', kind: 'primary' },
+        { from: 'starter', to: 'external-client', cause: 'Open client or return automatically', kind: 'cross' },
+        { from: 'starter', to: 'proof', cause: 'Scroll', kind: 'primary' },
+        { from: 'proof', to: 'footer', cause: 'Scroll', kind: 'primary' }
+      ],
+      refs: [
+        { id: 6401, used: 'Client selector and MCP setup', note: 'A real installer switches one panel by client and exposes one-click, JSON, config path, raw URL, and Copy.' },
+        { id: 7562, used: 'Progress', note: 'Short visible onboarding progress with current and complete states.' },
+        { id: 6094, used: 'Reconnect recovery', note: 'A stale connection keeps scope visible and ends with one explicitly named refresh action.' },
+        { id: 7564, used: 'Setup support', note: 'Numbered instructions, visible configuration, copy action, and Back or Continue.' },
+        { id: 7629, used: 'Manual setup', note: 'Integration-specific instructions and selectable configuration.' },
+        { id: 6658, used: 'Entitlement', note: 'Account, plan, and connection status live together.' },
+        { id: 10203, used: 'OAuth', note: 'Named client, signed-in account, readable access, Approve, and Cancel.' },
+        { id: 10204, used: 'Success', note: 'Authorization confirmation and clear return guidance.' },
+        { id: 6298, used: 'Client return', note: 'A concise authorization-success handoff.' },
+        { id: 6200, used: 'Checkout', note: 'Quarterly or yearly selection, monthly equivalent, subtotal, tax, and exact charge remain visible.' }
+      ]
+    }
+  };
+
+  const kindNames = {
+    shell: 'Shared shell',
+    section: 'Page section',
+    state: 'Local state',
+    decision: 'Decision or gate',
+    destination: 'Other page or connected surface'
+  };
+
+  const edgeColors = {
+    primary: 'var(--muted-foreground)',
+    action: 'var(--viz-series-2)',
+    boundary: 'var(--viz-series-5)',
+    cross: 'var(--viz-series-6)'
+  };
+
+  let currentPage = 'overview';
+  let resizeObserver;
+  let highlightedTemplate = '';
+  let activeEdgeIndex = null;
+  let pinnedEdgeIndex = null;
+
+  function pinAnchor(id, label) {
+    const name = label || pinNames[id] || `Pin ${id}`;
+    return `<a href="https://pin.fontofweb.com/${id}" target="_blank" rel="noreferrer">${escapeHtml(name)}</a>`;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function slug(value) {
+    return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  }
+
+  function compactInventory(value) {
+    const ids = String(value || '').match(/(?:G|H|P|B|C|I|X)\d{2}/g) || [];
+    if (!ids.length) return value || '';
+    const groups = new Map();
+    ids.forEach(id => {
+      const prefix = id[0];
+      groups.set(prefix, [...(groups.get(prefix) || []), Number(id.slice(1))]);
+    });
+    const labels = [];
+    groups.forEach((numbers, prefix) => {
+      const sorted = [...new Set(numbers)].sort((a, b) => a - b);
+      let start = sorted[0];
+      let previous = sorted[0];
+      const pushRange = () => {
+        const from = `${prefix}${String(start).padStart(2, '0')}`;
+        const to = `${prefix}${String(previous).padStart(2, '0')}`;
+        labels.push(start === previous ? from : `${from}–${to}`);
+      };
+      sorted.slice(1).forEach(number => {
+        if (number === previous + 1) {
+          previous = number;
+        } else {
+          pushRange();
+          start = number;
+          previous = number;
+        }
+      });
+      pushRange();
+    });
+    return labels.join(' · ');
+  }
+
+  function edgeDisplayCause(value) {
+    return String(value || '').replace(/\s*·\s*(?:X\d{2}(?:\s*\/\s*X\d{2})*)\s*$/, '');
+  }
+
+  function getNodeEvidence(pageKey, node) {
+    return nodeEvidence[`${pageKey}:${node.id}`] || {
+      kind: (node.refs || []).length ? 'mixed' : 'native',
+      note: (node.refs || []).length
+        ? 'The visual boundary for this node has not been classified.'
+        : 'This node is a Fudge product rule or interaction test.'
+    };
+  }
+
+  function renderNodeEvidence(pageKey, node) {
+    const audit = getNodeEvidence(pageKey, node);
+    const refs = node.refs || [];
+    const referenceLead = audit.kind === 'gap' || audit.kind === 'native'
+      ? 'Supporting captures:'
+      : 'Visual references:';
+    const referenceLinks = refs.length
+      ? `<div class="node-reference-links text-small"><span class="text-muted">${referenceLead}</span>${refs.map(id => pinAnchor(id, `${id} · ${pinNames[id] || `Pin ${id}`}`)).join('')}</div>`
+      : `<div class="node-reference-links text-small"><span class="text-muted">No direct visual precedent attached.</span></div>`;
+    return `<div class="node-evidence" data-evidence-kind="${escapeHtml(audit.kind)}">
+      <div class="node-evidence-summary">
+        <span class="evidence-badge text-small" data-evidence-kind="${escapeHtml(audit.kind)}">${escapeHtml(evidenceKindLabels[audit.kind])}</span>
+        <p class="text-small">${escapeHtml(audit.note)}</p>
+      </div>
+      ${referenceLinks}
+    </div>`;
+  }
+
+  function collectPageReferences(page) {
+    const usage = new Map();
+    page.nodes.forEach(node => {
+      (node.refs || []).forEach(id => {
+        if (!usage.has(id)) usage.set(id, []);
+        usage.get(id).push(node.title);
+      });
+    });
+    const applicationNotes = new Map((page.refs || []).map(ref => [ref.id, ref]));
+    return Array.from(usage.entries()).map(([id, nodes]) => ({
+      id,
+      nodes,
+      application: applicationNotes.get(id)
+    }));
+  }
+
+  function renderPage(pageKey) {
+    const page = pages[pageKey];
+    if (!page) return;
+    currentPage = pageKey;
+    highlightedTemplate = '';
+    activeEdgeIndex = null;
+    pinnedEdgeIndex = null;
+    const pageAudits = page.nodes.map(node => getNodeEvidence(pageKey, node));
+    const pageGapCount = pageAudits.filter(audit => audit.kind === 'gap').length;
+    const pageNativeCount = pageAudits.filter(audit => audit.kind === 'native').length;
+
+    root.querySelectorAll('[data-atlas-page]').forEach(button => {
+      const selected = button.dataset.atlasPage === pageKey;
+      button.setAttribute('aria-selected', String(selected));
+      button.classList.toggle('btn-primary', selected);
+    });
+
+    stage.innerHTML = `
+      <section aria-labelledby="page-title-${pageKey}">
+        <div class="page-heading">
+          <div>
+            <h2 id="page-title-${pageKey}">${escapeHtml(page.title)}</h2>
+            <p class="text-muted">${escapeHtml(page.description)}</p>
+          </div>
+          <p class="route-label"><code>${escapeHtml(page.route)}</code><br><span class="text-small">${page.nodes.length} nodes · ${page.edges.length} labeled edges · ${pageGapCount} corpus gaps · ${pageNativeCount} Fudge-native rules</span></p>
+        </div>
+        <div class="atlas-layout">
+          <div class="graph-wrap">
+            <div class="graph-canvas" id="graph-${pageKey}" style="--graph-cols:${page.cols}" role="img" aria-label="${escapeHtml(page.title)} with ${page.nodes.length} nodes and ${page.edges.length} labeled transitions"></div>
+            <div class="transition-index" aria-label="Transition list for narrow screens"></div>
+          </div>
+          <aside class="reference-rail" aria-label="References for ${escapeHtml(page.title)}">
+            <h3 class="edge-index-heading">Edge index</h3>
+            <p class="edge-index-hint text-small text-muted">Hover an edge or select an E label to inspect its cause and endpoints in place.</p>
+            <ol class="edge-key"></ol>
+            <h3 class="reference-heading">Visual reference audit</h3>
+            <p class="text-small text-muted">Every capture attached to this page, scoped to what is visibly present and what the still does not prove.</p>
+            <div class="reference-list"></div>
+          </aside>
+        </div>
+      </section>`;
+
+    const canvas = stage.querySelector('.graph-canvas');
+    const transitionIndex = stage.querySelector('.transition-index');
+    const edgeKey = stage.querySelector('.edge-key');
+    const referenceList = stage.querySelector('.reference-list');
+
+    page.nodes.forEach(node => {
+      const article = document.createElement('article');
+      article.className = 'flow-node';
+      article.dataset.kind = node.kind;
+      article.dataset.evidenceKind = getNodeEvidence(pageKey, node).kind;
+      article.id = `node-${pageKey}-${node.id}`;
+      article.style.gridColumn = `${node.col} / span ${node.span || 1}`;
+      article.style.gridRow = String(node.row);
+      const evidence = renderNodeEvidence(pageKey, node);
+      const template = node.template
+        ? `<a class="node-template-link text-small" href="#template-${slug(node.template)}" data-template-link="${escapeHtml(node.template)}">Template: ${escapeHtml(node.template)}</a>`
+        : '';
+      const outgoing = page.edges
+        .map((edge, index) => edge.from === node.id ? `E${index + 1}` : '')
+        .filter(Boolean);
+      const outgoingLabel = outgoing.length
+        ? `<div class="node-edge-ids text-small">Outgoing edges: ${outgoing.join(' · ')}</div>`
+        : '';
+      const routeLink = node.targetPage
+        ? `<a class="node-route-link text-small" href="#${node.targetPage}" data-open-page="${node.targetPage}">Open ${escapeHtml(pages[node.targetPage].title)}</a>`
+        : '';
+      article.innerHTML = `
+        <div class="node-meta text-small"><span>${escapeHtml(kindNames[node.kind])}</span><span>${escapeHtml(compactInventory(node.inventory))}</span></div>
+        <h3>${escapeHtml(node.title)}</h3>
+        <p class="node-purpose">${escapeHtml(node.purpose)}</p>
+        ${template}
+        ${outgoingLabel}
+        ${evidence}
+        ${routeLink}`;
+      canvas.appendChild(article);
+    });
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('edge-layer');
+    svg.setAttribute('aria-hidden', 'true');
+    canvas.prepend(svg);
+
+    transitionIndex.innerHTML = `
+      <h3>Transitions</h3>
+      <ol>${page.edges.map(edge => {
+        const from = page.nodes.find(node => node.id === edge.from);
+        const to = page.nodes.find(node => node.id === edge.to);
+        return `<li><strong>${escapeHtml(from.title)}</strong> → <strong>${escapeHtml(to.title)}</strong><br><span class="text-muted">Cause: ${escapeHtml(edgeDisplayCause(edge.cause))}</span></li>`;
+      }).join('')}</ol>`;
+
+    edgeKey.innerHTML = page.edges.map((edge, index) => {
+      const from = page.nodes.find(node => node.id === edge.from);
+      const to = page.nodes.find(node => node.id === edge.to);
+      return `<li data-edge-index="${index}"><button class="btn btn-ghost btn-block edge-index-control" type="button" data-edge-control="${index}" aria-pressed="false"><span><strong>E${index + 1} · ${escapeHtml(edgeDisplayCause(edge.cause))}</strong><br><span class="text-small text-muted">${escapeHtml(from.title)} → ${escapeHtml(to.title)}</span></span></button></li>`;
+    }).join('');
+
+    referenceList.innerHTML = collectPageReferences(page).map(ref => {
+      const evidence = pinEvidence[ref.id] || { visible: 'Capture is linked, but its visible scope has not been recorded.', limit: 'Treat as unclassified until visually inspected.' };
+      return `
+      <div class="reference-item">
+        <strong>${pinAnchor(ref.id)}</strong>
+        <p class="reference-scope"><strong>Visible:</strong> ${escapeHtml(evidence.visible)}</p>
+        <p class="reference-limit text-small"><strong>Does not prove:</strong> ${escapeHtml(evidence.limit)}</p>
+        ${ref.application ? `<p class="text-small"><strong>Applied here:</strong> ${escapeHtml(ref.application.note)}</p>` : ''}
+        <p class="text-small text-muted">Used by: ${escapeHtml(ref.nodes.join(', '))}</p>
+      </div>`;
+    }).join('');
+
+    bindLocalLinks();
+    bindEdgeIndex(pageKey);
+    requestAnimationFrame(() => drawEdges(pageKey));
+    if (resizeObserver) resizeObserver.disconnect();
+    resizeObserver = new ResizeObserver(() => drawEdges(pageKey));
+    resizeObserver.observe(canvas);
+  }
+
+  function drawEdges(pageKey) {
+    if (currentPage !== pageKey) return;
+    const page = pages[pageKey];
+    const canvas = document.getElementById(`graph-${pageKey}`);
+    if (!canvas || canvas.clientWidth <= 660) return;
+    const svg = canvas.querySelector('.edge-layer');
+    if (!svg) return;
+    canvas.querySelectorAll('.edge-label, .edge-popover').forEach(element => element.remove());
+    svg.innerHTML = '';
+    const canvasRect = canvas.getBoundingClientRect();
+    svg.setAttribute('viewBox', `0 0 ${canvasRect.width} ${canvasRect.height}`);
+
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    Object.entries(edgeColors).forEach(([kind, color]) => {
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+      marker.setAttribute('id', `arrow-${pageKey}-${kind}`);
+      marker.setAttribute('viewBox', '0 0 10 10');
+      marker.setAttribute('refX', '8');
+      marker.setAttribute('refY', '5');
+      marker.setAttribute('markerWidth', '6');
+      marker.setAttribute('markerHeight', '6');
+      marker.setAttribute('orient', 'auto-start-reverse');
+      const tip = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      tip.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+      tip.setAttribute('fill', color);
+      marker.appendChild(tip);
+      defs.appendChild(marker);
+    });
+    svg.appendChild(defs);
+
+    page.edges.forEach((edge, index) => {
+      const fromEl = document.getElementById(`node-${pageKey}-${edge.from}`);
+      const toEl = document.getElementById(`node-${pageKey}-${edge.to}`);
+      if (!fromEl || !toEl) return;
+      const fromRect = fromEl.getBoundingClientRect();
+      const toRect = toEl.getBoundingClientRect();
+      const f = relativeRect(fromRect, canvasRect);
+      const t = relativeRect(toRect, canvasRect);
+      const geometry = edgeGeometry(f, t, index);
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.classList.add('edge-path');
+      path.setAttribute('d', geometry.path);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', edgeColors[edge.kind] || edgeColors.primary);
+      path.setAttribute('stroke-width', edge.kind === 'primary' ? '1.5' : '2');
+      path.setAttribute('data-edge-kind', edge.kind || 'primary');
+      path.setAttribute('data-edge-index', String(index));
+      path.setAttribute('marker-end', `url(#arrow-${pageKey}-${edge.kind || 'primary'})`);
+      path.setAttribute('vector-effect', 'non-scaling-stroke');
+      svg.appendChild(path);
+
+      const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      hitPath.classList.add('edge-hit');
+      hitPath.setAttribute('d', geometry.path);
+      hitPath.setAttribute('data-edge-index', String(index));
+      hitPath.setAttribute('vector-effect', 'non-scaling-stroke');
+      hitPath.addEventListener('pointerenter', () => showEdgeDetail(pageKey, index));
+      hitPath.addEventListener('pointerleave', () => hideEdgeDetail(pageKey, index));
+      hitPath.addEventListener('click', event => {
+        event.stopPropagation();
+        togglePinnedEdge(pageKey, index);
+      });
+      svg.appendChild(hitPath);
+
+      const label = document.createElement('button');
+      label.className = 'edge-label text-small';
+      label.type = 'button';
+      label.dataset.edgeKind = edge.kind || 'primary';
+      label.dataset.edgeIndex = String(index);
+      label.dataset.popoverX = String(geometry.labelX);
+      label.dataset.popoverY = String(geometry.labelY);
+      label.textContent = edgeDisplayCause(edge.cause);
+      label.setAttribute('aria-label', `E${index + 1}: ${fromEl.querySelector('h3')?.textContent || edge.from} to ${toEl.querySelector('h3')?.textContent || edge.to}. Cause: ${edgeDisplayCause(edge.cause)}`);
+      label.setAttribute('aria-controls', `edge-popover-${pageKey}`);
+      const incomingEdges = page.edges.filter(candidate => candidate.to === edge.to);
+      const incomingIndex = incomingEdges.indexOf(edge);
+      const verticalTarget = t.top > f.bottom + 12;
+      const labelX = verticalTarget ? t.cx : geometry.labelX;
+      const labelY = verticalTarget ? t.top - 20 - (incomingIndex % 2) * 34 : geometry.labelY;
+      label.style.left = `${labelX}px`;
+      label.style.top = `${labelY}px`;
+      label.addEventListener('pointerenter', () => showEdgeDetail(pageKey, index));
+      label.addEventListener('pointerleave', () => hideEdgeDetail(pageKey, index));
+      label.addEventListener('focus', () => showEdgeDetail(pageKey, index));
+      label.addEventListener('blur', () => hideEdgeDetail(pageKey, index));
+      label.addEventListener('click', event => {
+        event.stopPropagation();
+        togglePinnedEdge(pageKey, index);
+      });
+      label.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          clearEdgeDetail(pageKey);
+        }
+      });
+      canvas.appendChild(label);
+    });
+
+    const popover = document.createElement('div');
+    popover.className = 'edge-popover';
+    popover.id = `edge-popover-${pageKey}`;
+    popover.setAttribute('role', 'tooltip');
+    popover.hidden = true;
+    canvas.appendChild(popover);
+
+    if (!canvas.dataset.edgeClearBound) {
+      canvas.dataset.edgeClearBound = 'true';
+      canvas.addEventListener('click', event => {
+        if (!event.target.closest?.('[data-edge-index]')) clearEdgeDetail(pageKey);
+      });
+    }
+
+    if (pinnedEdgeIndex !== null && page.edges[pinnedEdgeIndex]) {
+      showEdgeDetail(pageKey, pinnedEdgeIndex);
+    }
+  }
+
+  function edgeDetailMarkup(pageKey, index) {
+    const page = pages[pageKey];
+    const edge = page?.edges[index];
+    if (!edge) return '';
+    const from = page.nodes.find(node => node.id === edge.from);
+    const to = page.nodes.find(node => node.id === edge.to);
+    const kind = edge.kind === 'cross' ? 'Cross-page transition' : edge.kind === 'boundary' ? 'Gate or boundary' : edge.kind === 'action' ? 'User action' : 'Structure transition';
+    return `<strong>E${index + 1} · ${escapeHtml(edgeDisplayCause(edge.cause))}</strong><p>${escapeHtml(from?.title || edge.from)} → ${escapeHtml(to?.title || edge.to)}</p><p class="text-small">${escapeHtml(kind)}${pinnedEdgeIndex === index ? ' · selected' : ''}</p>`;
+  }
+
+  function showEdgeDetail(pageKey, index) {
+    if (currentPage !== pageKey || pinnedEdgeIndex !== null && pinnedEdgeIndex !== index) return;
+    const canvas = document.getElementById(`graph-${pageKey}`);
+    const page = pages[pageKey];
+    const label = canvas?.querySelector(`.edge-label[data-edge-index="${index}"]`);
+    const popover = canvas?.querySelector('.edge-popover');
+    if (!canvas || !page?.edges[index] || !label || !popover) return;
+    activeEdgeIndex = index;
+    canvas.querySelectorAll('.edge-label').forEach(edgeLabel => edgeLabel.removeAttribute('aria-describedby'));
+    canvas.querySelectorAll('[data-edge-index]').forEach(element => {
+      element.classList.toggle('is-active', Number(element.dataset.edgeIndex) === index);
+    });
+    root.querySelectorAll('[data-edge-control]').forEach(control => {
+      const selected = Number(control.dataset.edgeControl) === index;
+      control.setAttribute('aria-pressed', String(selected && pinnedEdgeIndex === index));
+    });
+    canvas.querySelectorAll('.flow-node').forEach(node => node.classList.remove('is-edge-source', 'is-edge-target'));
+    document.getElementById(`node-${pageKey}-${page.edges[index].from}`)?.classList.add('is-edge-source');
+    document.getElementById(`node-${pageKey}-${page.edges[index].to}`)?.classList.add('is-edge-target');
+    popover.innerHTML = edgeDetailMarkup(pageKey, index);
+    popover.hidden = false;
+    label.setAttribute('aria-describedby', popover.id);
+    const preferredX = Number(label.dataset.popoverX || label.offsetLeft);
+    const preferredY = Number(label.dataset.popoverY || label.offsetTop) + 18;
+    const left = Math.min(Math.max(8, preferredX - popover.offsetWidth / 2), Math.max(8, canvas.clientWidth - popover.offsetWidth - 8));
+    const top = Math.min(Math.max(8, preferredY), Math.max(8, canvas.clientHeight - popover.offsetHeight - 8));
+    popover.style.left = `${left}px`;
+    popover.style.top = `${top}px`;
+  }
+
+  function hideEdgeDetail(pageKey, index) {
+    if (pinnedEdgeIndex !== null || activeEdgeIndex !== index) return;
+    clearEdgeDetail(pageKey, false);
+  }
+
+  function togglePinnedEdge(pageKey, index) {
+    pinnedEdgeIndex = pinnedEdgeIndex === index ? null : index;
+    if (pinnedEdgeIndex === null) clearEdgeDetail(pageKey, false);
+    else showEdgeDetail(pageKey, index);
+  }
+
+  function clearEdgeDetail(pageKey, clearPin = true) {
+    if (clearPin) pinnedEdgeIndex = null;
+    activeEdgeIndex = null;
+    const canvas = document.getElementById(`graph-${pageKey}`);
+    if (!canvas) return;
+    canvas.querySelectorAll('[data-edge-index]').forEach(element => {
+      element.classList.remove('is-active');
+      if (element.matches('.edge-label')) element.removeAttribute('aria-describedby');
+    });
+    root.querySelectorAll('[data-edge-control]').forEach(control => control.setAttribute('aria-pressed', 'false'));
+    canvas.querySelectorAll('.flow-node').forEach(node => node.classList.remove('is-edge-source', 'is-edge-target'));
+    const popover = canvas.querySelector('.edge-popover');
+    if (popover) popover.hidden = true;
+  }
+
+  function bindEdgeIndex(pageKey) {
+    stage.querySelectorAll('[data-edge-control]').forEach(control => {
+      const index = Number(control.dataset.edgeControl);
+      control.addEventListener('pointerenter', () => showEdgeDetail(pageKey, index));
+      control.addEventListener('pointerleave', () => hideEdgeDetail(pageKey, index));
+      control.addEventListener('focus', () => showEdgeDetail(pageKey, index));
+      control.addEventListener('blur', () => hideEdgeDetail(pageKey, index));
+      control.addEventListener('click', () => togglePinnedEdge(pageKey, index));
+      control.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          clearEdgeDetail(pageKey);
+        }
+      });
+    });
+  }
+
+  function relativeRect(rect, parent) {
+    return {
+      left: rect.left - parent.left,
+      right: rect.right - parent.left,
+      top: rect.top - parent.top,
+      bottom: rect.bottom - parent.top,
+      width: rect.width,
+      height: rect.height,
+      cx: rect.left - parent.left + rect.width / 2,
+      cy: rect.top - parent.top + rect.height / 2
+    };
+  }
+
+  function edgeGeometry(from, to, index) {
+    if (to.top > from.bottom + 12) {
+      const sx = from.cx;
+      const sy = from.bottom;
+      const tx = to.cx;
+      const ty = to.top;
+      const mid = sy + (ty - sy) / 2;
+      return {
+        path: `M ${sx} ${sy} C ${sx} ${mid}, ${tx} ${mid}, ${tx} ${ty}`,
+        labelX: (sx + tx) / 2,
+        labelY: mid
+      };
+    }
+    if (to.left > from.right + 12) {
+      const sx = from.right;
+      const sy = from.cy;
+      const tx = to.left;
+      const ty = to.cy;
+      if (Math.abs(ty - sy) < Math.max(from.height, to.height) * 0.6) {
+        const routeY = Math.max(from.bottom, to.bottom) + 30 + (index % 3) * 12;
+        return {
+          path: `M ${sx} ${sy} C ${sx} ${routeY}, ${tx} ${routeY}, ${tx} ${ty}`,
+          labelX: (sx + tx) / 2,
+          labelY: routeY
+        };
+      }
+      const mid = sx + (tx - sx) / 2;
+      return {
+        path: `M ${sx} ${sy} C ${mid} ${sy}, ${mid} ${ty}, ${tx} ${ty}`,
+        labelX: mid,
+        labelY: (sy + ty) / 2
+      };
+    }
+    if (to.right < from.left - 12) {
+      const sx = from.left;
+      const sy = from.cy;
+      const tx = to.right;
+      const ty = to.cy;
+      if (Math.abs(ty - sy) < Math.max(from.height, to.height) * 0.6) {
+        const routeY = Math.max(from.bottom, to.bottom) + 30 + (index % 3) * 12;
+        return {
+          path: `M ${sx} ${sy} C ${sx} ${routeY}, ${tx} ${routeY}, ${tx} ${ty}`,
+          labelX: (sx + tx) / 2,
+          labelY: routeY
+        };
+      }
+      const mid = tx + (sx - tx) / 2;
+      return {
+        path: `M ${sx} ${sy} C ${mid} ${sy}, ${mid} ${ty}, ${tx} ${ty}`,
+        labelX: mid,
+        labelY: (sy + ty) / 2
+      };
+    }
+    const direction = index % 2 === 0 ? 1 : -1;
+    const sx = direction > 0 ? from.right : from.left;
+    const sy = from.cy;
+    const tx = direction > 0 ? to.right : to.left;
+    const ty = to.cy;
+    const routeX = direction > 0 ? Math.max(sx, tx) + 34 : Math.min(sx, tx) - 34;
+    return {
+      path: `M ${sx} ${sy} C ${routeX} ${sy}, ${routeX} ${ty}, ${tx} ${ty}`,
+      labelX: routeX,
+      labelY: (sy + ty) / 2
+    };
+  }
+
+  function renderTemplates(templateName = '') {
+    currentPage = 'templates';
+    highlightedTemplate = templateName;
+    if (resizeObserver) resizeObserver.disconnect();
+    root.querySelectorAll('[data-atlas-page]').forEach(button => {
+      const selected = button.dataset.atlasPage === 'templates';
+      button.setAttribute('aria-selected', String(selected));
+      button.classList.toggle('btn-primary', selected);
+    });
+
+    const usage = {};
+    Object.entries(pages).forEach(([pageKey, page]) => {
+      page.nodes.forEach(node => {
+        if (!node.template) return;
+        usage[node.template] ||= { pages: new Set(), nodes: [], refs: new Set(), kinds: new Set() };
+        usage[node.template].pages.add(page.title);
+        usage[node.template].nodes.push(node.title);
+        (node.refs || []).forEach(id => usage[node.template].refs.add(id));
+        usage[node.template].kinds.add(getNodeEvidence(pageKey, node).kind);
+      });
+    });
+
+    const groups = {};
+    Object.entries(templateDefinitions).forEach(([name, definition]) => {
+      groups[definition.group] ||= [];
+      groups[definition.group].push({ name, ...definition, usage: usage[name] || { pages: new Set(), nodes: [], refs: new Set(), kinds: new Set() } });
+    });
+
+    stage.innerHTML = `
+      <section id="fudge-template-catalog" aria-labelledby="template-catalog-title">
+        <div class="page-heading">
+          <div>
+            <h2 id="template-catalog-title">Reusable template catalog</h2>
+            <p class="text-muted">These names are the shared contracts referenced by the page nodes. Evidence badges are aggregated from those uses; open a page node for the exact screenshot boundary.</p>
+          </div>
+          <p class="route-label"><span class="text-small">${Object.keys(templateDefinitions).length} uniquely named templates</span></p>
+        </div>
+        <div class="template-groups">
+          ${Object.entries(groups).map(([groupName, entries]) => `
+            <section class="template-group" aria-labelledby="group-${slug(groupName)}">
+              <h3 id="group-${slug(groupName)}">${escapeHtml(groupName)}</h3>
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead><tr><th>Unique template name</th><th>Contract</th><th>Used by</th><th>Evidence</th><th>Visual sources</th></tr></thead>
+                  <tbody>
+                    ${entries.map(entry => {
+                      const pageNames = Array.from(entry.usage.pages);
+                      const refIds = Array.from(entry.usage.refs).slice(0, 5);
+                      const evidenceKinds = Array.from(entry.usage.kinds);
+                      return `<tr class="template-row" id="template-${slug(entry.name)}" data-template-name="${escapeHtml(entry.name)}" data-highlighted="${String(entry.name === highlightedTemplate)}">
+                        <td class="template-name">${escapeHtml(entry.name)}</td>
+                        <td>${escapeHtml(entry.purpose)}</td>
+                        <td>${pageNames.length ? escapeHtml(pageNames.join(', ')) : 'Shared contract'}</td>
+                        <td><div class="template-source-links">${evidenceKinds.length ? evidenceKinds.map(kind => `<span class="evidence-badge text-small" data-evidence-kind="${escapeHtml(kind)}">${escapeHtml(evidenceKindLabels[kind])}</span>`).join('') : 'Shared contract'}</div></td>
+                        <td><div class="template-source-links">${refIds.length ? refIds.map(id => pinAnchor(id, `${id}`)).join('') : 'No direct visual precedent'}</div></td>
+                      </tr>`;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </section>`).join('')}
+        </div>
+      </section>`;
+
+    if (highlightedTemplate) {
+      requestAnimationFrame(() => {
+        const row = document.getElementById(`template-${slug(highlightedTemplate)}`);
+        if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+    }
+  }
+
+  function bindLocalLinks() {
+    stage.querySelectorAll('[data-open-page]').forEach(link => {
+      link.addEventListener('click', event => {
+        event.preventDefault();
+        const target = link.dataset.openPage;
+        if (pages[target]) {
+          setViewHash(target);
+          renderPage(target);
+          root.scrollIntoView({ block: 'start' });
+        }
+      });
+    });
+    stage.querySelectorAll('[data-template-link]').forEach(link => {
+      link.addEventListener('click', event => {
+        event.preventDefault();
+        const name = link.dataset.templateLink;
+        setViewHash('templates');
+        renderTemplates(name);
+      });
+    });
+  }
+
+  root.querySelectorAll('[data-atlas-page]').forEach(button => {
+    button.addEventListener('click', () => {
+      const pageKey = button.dataset.atlasPage;
+      setViewHash(pageKey);
+      if (pageKey === 'templates') renderTemplates();
+      else renderPage(pageKey);
+    });
+  });
+
+  function setViewHash(value) {
+    try {
+      history.replaceState(null, '', `#${value}`);
+    } catch {
+      // The inline visualization runs in a sandboxed srcdoc frame with an opaque origin.
+    }
+  }
+
+  const allNodes = Object.values(pages).reduce((sum, page) => sum + page.nodes.length, 0);
+  const allEdges = Object.values(pages).reduce((sum, page) => sum + page.edges.length, 0);
+  const allGapNodes = Object.values(nodeEvidence).filter(audit => audit.kind === 'gap').length;
+  const allNativeNodes = Object.values(nodeEvidence).filter(audit => audit.kind === 'native').length;
+  counts.textContent = `5 page charts + site map · ${allNodes} nodes · ${allEdges} labeled edges · ${Object.keys(templateDefinitions).length} named templates · ${allGapNodes} explicit gaps · ${allNativeNodes} Fudge-native rules`;
+
+  window.__fudgeFlowAtlas = { pages, templateDefinitions, pinNames, pinEvidence, nodeEvidence, evidenceKindLabels };
+
+  const initial = location.hash.replace('#', '');
+  if (initial === 'templates') renderTemplates();
+  else renderPage(pages[initial] ? initial : 'overview');
+})();
+</script>

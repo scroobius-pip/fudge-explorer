@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f2f0e9" />
     <title>Fudge Composition System</title>
-    <script type="module" crossorigin src="/assets/index-BT_AZBBS.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BrL0d7zT.css">
+    <script type="module" crossorigin src="/assets/index-C082j1qn.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CgJTEhJX.css">
   </head>
   <body>
     <main class="demo-shell">
@@ -50,6 +50,74 @@
           ></output>
         </form>
       </fudge-form>
+      <section class="demo-primitives" aria-label="Explorer primitives">
+        <fudge-card>
+          <fudge-card-header>
+            <fudge-card-title>Explorer primitives</fudge-card-title>
+            <fudge-card-description>
+              Semantic variants inherit the same surface and interaction rules.
+            </fudge-card-description>
+          </fudge-card-header>
+          <fudge-card-content>
+            <div class="demo-button-row">
+              <fudge-button variant="primary">Primary</fudge-button>
+              <fudge-button variant="secondary">Secondary</fudge-button>
+              <fudge-button variant="tertiary">Tertiary</fudge-button>
+              <fudge-button variant="ghost">Ghost</fudge-button>
+            </div>
+          </fudge-card-content>
+        </fudge-card>
+
+        <fudge-card>
+          <fudge-card-header>
+            <fudge-card-title>Native states</fudge-card-title>
+            <fudge-card-description>
+              Native controls inherit Explorer spacing and state treatment.
+            </fudge-card-description>
+          </fudge-card-header>
+          <fudge-card-content>
+            <fudge-fieldset legend="Preferences">
+              <fudge-textarea
+                label="Notes"
+                name="notes"
+                placeholder="Add a note"
+                rows="2"
+              ></fudge-textarea>
+              <fudge-checkbox
+                label="Remember this device"
+                name="remember"
+              ></fudge-checkbox>
+              <fudge-switch
+                label="Use compact view"
+                name="compact"
+              ></fudge-switch>
+              <fudge-alert variant="accent">State is derived.</fudge-alert>
+            </fudge-fieldset>
+          </fudge-card-content>
+        </fudge-card>
+
+        <fudge-menu>
+          <fudge-menu-trigger>Open menu</fudge-menu-trigger>
+          <fudge-menu-item>Open capture</fudge-menu-item>
+          <fudge-menu-item>Save capture</fudge-menu-item>
+          <fudge-menu-item>Copy reference</fudge-menu-item>
+        </fudge-menu>
+
+        <div class="demo-button-row">
+          <fudge-popover>
+            <fudge-popover-trigger>
+              <fudge-button variant="secondary">Open popover</fudge-button>
+            </fudge-popover-trigger>
+            <fudge-popover-content>
+              A surface derived from the same Explorer composition rules.
+            </fudge-popover-content>
+          </fudge-popover>
+          <fudge-tooltip>
+            <fudge-button variant="ghost">Hover for help</fudge-button>
+            <fudge-tooltip-content>Contextual help</fudge-tooltip-content>
+          </fudge-tooltip>
+        </div>
+      </section>
     </main>
 
   </body>

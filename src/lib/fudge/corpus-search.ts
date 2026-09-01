@@ -64,24 +64,6 @@ export function searchCatalogSnapshot(
     }),
     8,
   );
-  const facets = ranked(
-    catalog.facets.flatMap((facet) => {
-      if (
-        !normalize(facet.label).includes(normalized) &&
-        !normalize(facet.id).includes(normalized)
-      ) {
-        return [];
-      }
-      const hit: SearchHit = {
-        kind: "facet",
-        id: facet.id,
-        title: facet.label,
-        sub: facet.group,
-      };
-      return [{ hit, score: score(normalized, facet.label, facet.id) }];
-    }),
-    5,
-  );
   const fonts = ranked(
     Object.values(catalog.fontCaptureIndex).flatMap((entry) => {
       if (!normalize(entry.name).includes(normalized)) return [];
@@ -113,7 +95,6 @@ export function searchCatalogSnapshot(
   return [
     { label: "Captures", rows: captures },
     { label: "Terms", rows: terms },
-    { label: "Facets", rows: facets },
     { label: "Fonts", rows: fonts },
     { label: "Domains", rows: domainHits },
   ]

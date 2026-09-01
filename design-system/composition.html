@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2f0e9" />
+    <title>Fudge Composition System</title>
+  </head>
+  <body>
+    <main class="demo-shell">
+      <section class="demo-context">
+        <span>Composition algebra / login</span>
+        <p>
+          Structure and state derive rhythm, motion, sound, and haptics. The
+          component callsite contains no feedback instructions.
+        </p>
+      </section>
+
+      <fudge-form id="login-composition" density="comfortable">
+        <form novalidate>
+          <fudge-heading
+            text="Sign in"
+            description="Continue to your Fudge workspace."
+          ></fudge-heading>
+
+          <fudge-field
+            name="email"
+            label="Email address"
+            type="email"
+            autocomplete="email"
+            required
+          ></fudge-field>
+
+          <fudge-field
+            name="password"
+            label="Password"
+            type="password"
+            autocomplete="current-password"
+            required
+          ></fudge-field>
+
+          <fudge-action label="Continue"></fudge-action>
+
+          <output
+            id="login-status"
+            data-compose-kind="message"
+            aria-live="polite"
+          ></output>
+        </form>
+      </fudge-form>
+      <section class="demo-primitives" aria-label="Explorer primitives">
+        <fudge-card>
+          <fudge-card-header>
+            <fudge-card-title>Explorer primitives</fudge-card-title>
+            <fudge-card-description>
+              Semantic variants inherit the same surface and interaction rules.
+            </fudge-card-description>
+          </fudge-card-header>
+          <fudge-card-content>
+            <div class="demo-button-row">
+              <fudge-button variant="primary">Primary</fudge-button>
+              <fudge-button variant="secondary">Secondary</fudge-button>
+              <fudge-button variant="tertiary">Tertiary</fudge-button>
+              <fudge-button variant="ghost">Ghost</fudge-button>
+            </div>
+          </fudge-card-content>
+        </fudge-card>
+
+        <fudge-card>
+          <fudge-card-header>
+            <fudge-card-title>Native states</fudge-card-title>
+            <fudge-card-description>
+              Native controls inherit Explorer spacing and state treatment.
+            </fudge-card-description>
+          </fudge-card-header>
+          <fudge-card-content>
+            <fudge-fieldset legend="Preferences">
+              <fudge-textarea
+                label="Notes"
+                name="notes"
+                placeholder="Add a note"
+                rows="2"
+              ></fudge-textarea>
+              <fudge-checkbox
+                label="Remember this device"
+                name="remember"
+              ></fudge-checkbox>
+              <fudge-switch
+                label="Use compact view"
+                name="compact"
+              ></fudge-switch>
+              <fudge-alert variant="accent">State is derived.</fudge-alert>
+            </fudge-fieldset>
+          </fudge-card-content>
+        </fudge-card>
+
+        <fudge-menu>
+          <fudge-menu-trigger>Open menu</fudge-menu-trigger>
+          <fudge-menu-item>Open capture</fudge-menu-item>
+          <fudge-menu-item>Save capture</fudge-menu-item>
+          <fudge-menu-item>Copy reference</fudge-menu-item>
+        </fudge-menu>
+
+        <div class="demo-button-row">
+          <fudge-popover>
+            <fudge-popover-trigger>
+              <fudge-button variant="secondary">Open popover</fudge-button>
+            </fudge-popover-trigger>
+            <fudge-popover-content>
+              A surface derived from the same Explorer composition rules.
+            </fudge-popover-content>
+          </fudge-popover>
+          <fudge-tooltip>
+            <fudge-button variant="ghost">Hover for help</fudge-button>
+            <fudge-tooltip-content>Contextual help</fudge-tooltip-content>
+          </fudge-tooltip>
+        </div>
+
+        <fudge-card>
+          <fudge-card-header>
+            <fudge-card-title>Composer</fudge-card-title>
+            <fudge-card-description>
+              Attach, prompt, and send. Structure derives the expanded state.
+            </fudge-card-description>
+          </fudge-card-header>
+          <fudge-card-content>
+            <fudge-composer
+              id="composer-composition"
+              placeholder="Paste a website, drop a screenshot, or describe what you need"
+            ></fudge-composer>
+            <fudge-status id="composer-status">Idle.</fudge-status>
+          </fudge-card-content>
+        </fudge-card>
+
+        <fudge-card>
+          <fudge-card-header>
+            <fudge-card-title>Capture</fudge-card-title>
+            <fudge-card-description>
+              The same card in the field and in detail. Click to inspect.
+            </fudge-card-description>
+          </fudge-card-header>
+          <fudge-card-content>
+            <fudge-capture
+              capture-id="8776"
+              title="Design That’s Crazy Good"
+              domain="crazycreative.design"
+              aspect-ratio="1.7"
+              fonts="Bricolage Grotesque · 96 pt · Regular"
+              palette="#131313,#e7f850,#85fdfe,#72c1fe,#6d6e6f,#a595f8,#fe66c7,#f0b9d9"
+            ></fudge-capture>
+          </fudge-card-content>
+        </fudge-card>
+      </section>
+
+      <fudge-dialog id="capture-dialog">
+        <fudge-capture id="capture-details" layout="details"></fudge-capture>
+      </fudge-dialog>
+    </main>
+
+    <script type="module" src="/src/composition.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2f0e9" />
+    <title>Use Fudge in your AI tool</title>
+  </head>
+  <body>
+    <div data-chrome="header" data-current="mcp"></div>
+    <main class="site-page">
+      <span class="site-kicker">Hosted MCP</span>
+      <h1 class="site-title">Use Fudge in your AI tool.</h1>
+      <p class="site-copy">
+        Hosted MCP is a way to access Fudge from Cursor, Claude, Codex, or
+        another supported client. It is not a separate product.
+      </p>
+      <p class="site-copy">1 · Choose tool → 2 · Connect account → 3 · Ask a real question</p>
+      <div class="mcp-setup">
+        <div class="mcp-clients" role="listbox" aria-label="Client">
+          <fudge-button variant="primary" data-client="Cursor">Cursor</fudge-button>
+          <fudge-button variant="secondary" data-client="Claude">Claude</fudge-button>
+          <fudge-button variant="secondary" data-client="Codex">Codex</fudge-button>
+          <fudge-button variant="secondary" data-client="Other">Other</fudge-button>
+        </div>
+        <fudge-card>
+          <fudge-card-header>
+            <fudge-card-title id="mcp-title">Install Fudge in Cursor</fudge-card-title>
+            <fudge-card-description>
+              Keep this client selected through sign-in or plan choice.
+            </fudge-card-description>
+          </fudge-card-header>
+          <fudge-card-content>
+            <pre class="mcp-code" id="mcp-code">{
+  "mcpServers": {
+    "fudge": { "url": "https://mcp.withfudge.com" }
+  }
+}</pre>
+            <fudge-button variant="secondary" id="mcp-copy">Copy</fudge-button>
+            <fudge-button variant="primary" id="mcp-connect">Connect Fudge</fudge-button>
+            <fudge-status id="mcp-status">Signed in subscribers connect here. Free accounts choose Pro or Studio without losing the client.</fudge-status>
+          </fudge-card-content>
+        </fudge-card>
+      </div>
+      <section id="mcp-success" hidden style="margin-top:2rem">
+        <fudge-alert variant="accent">
+          <strong id="mcp-success-title">Cursor connected.</strong>
+          <p>Find three references for a two-plan pricing page.</p>
+        </fudge-alert>
+        <div style="margin-top:0.75rem">
+          <fudge-button variant="primary" data-chat-link>Ask that in Fudge Chat</fudge-button>
+        </div>
+      </section>
+    </main>
+    <div data-chrome="footer"></div>
+    <script type="module" src="/src/mcp.ts"></script>
+  </body>
+</html>

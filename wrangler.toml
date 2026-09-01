@@ -18,10 +18,12 @@ not_found_handling = "single-page-application"
 binding = "FUDGE_SERVICE"
 service = "fudge-production"
 entrypoint = "FudgeInternal"
+remote = true
 
 [[r2_buckets]]
 binding = "CORPUS_ARTIFACTS"
 bucket_name = "fudge-artifacts-prod"
+remote = true
 
 [triggers]
 crons = ["*/5 * * * *"]

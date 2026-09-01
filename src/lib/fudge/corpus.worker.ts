@@ -1,6 +1,7 @@
 import { loadCatalogFile } from "./api";
-import type { CatalogFile } from "./types";
+import type { CatalogDetailsProjection, CatalogFile } from "./types";
 import { searchCatalogSnapshot } from "./corpus-search";
+import { withSearchSuggestions } from "./search-suggestions";
 
 type WorkerMessage =
   | { type: "load" }
@@ -27,9 +28,12 @@ scope.onmessage = (event) => {
     scope.postMessage({
       type: "search-result",
       id: event.data.id,
-      groups: catalogSnapshot
-        ? searchCatalogSnapshot(catalogSnapshot, event.data.query)
-        : [],
+      groups: withSearchSuggestions(
+        event.data.query,
+        catalogSnapshot
+          ? searchCatalogSnapshot(catalogSnapshot, event.data.query)
+          : [],
+      ),
     });
     return;
   }
@@ -84,7 +88,9 @@ async function load() {
     postCatalog("initial", compactInitialCatalog(catalog.initial));
     initialSent = true;
     const details = await catalog.details;
-    if (details) catalogSnapshot = details;
+    if (details && catalogSnapshot) {
+      catalogSnapshot = { ...catalogSnapshot, ...details };
+    }
     postCatalog("details", details);
   } catch (error) {
     scope.postMessage({
@@ -119,7 +125,7 @@ function pickVisible<T>(
 }
 function postCatalog(
   phase: "initial" | "details",
-  catalog: CatalogFile | null,
+  catalog: CatalogFile | CatalogDetailsProjection | null,
 ) {
   scope.postMessage({ type: phase, catalog });
 }

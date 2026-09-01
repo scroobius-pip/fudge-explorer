@@ -29,6 +29,7 @@ import { haptics } from "@/lib/haptics";
 import { sfx } from "@/lib/sfx";
 
 const PROVIDERS = Object.keys(AI_PROVIDER_LABELS) as AiProvider[];
+const FUDGE_FAVICON_URL = new URL("../favicon.svg", import.meta.url).href;
 const PromptSignInModal = lazy(() =>
   import("@/components/prompt-access-modals").then((module) => ({
     default: module.PromptSignInModal,
@@ -70,7 +71,13 @@ function ProviderIcon({
   className?: string;
 }) {
   if (provider === "fudge") {
-    return <Sparkles className={className} strokeWidth={1.7} />;
+    return (
+      <img
+        src={FUDGE_FAVICON_URL}
+        alt=""
+        className={`${className} capture-ai-provider-logo is-fudge`}
+      />
+    );
   }
   const path =
     provider === "chatgpt"

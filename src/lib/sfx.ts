@@ -481,6 +481,7 @@ class PhysicsSfx {
 
   friction(speed: number) {
     if (this.theme === "off") return;
+    if (speed > 0 && !this.gate("friction", 32)) return;
     const ctx = this.ensure();
     if (!ctx) return;
     if (!this.frictionGain || !this.frictionFilter) this.makeFriction(ctx);

@@ -1,0 +1,928 @@
+<div id="fudge-consolidated-wireframe">
+  <style>
+    #fudge-consolidated-wireframe {
+      --fw-paper: light-dark(#f7f7f4, #171717);
+      --fw-surface: light-dark(#ffffff, #212121);
+      --fw-soft: light-dark(#ededE8, #2b2b2b);
+      --fw-ink: light-dark(#171717, #f4f4f1);
+      --fw-muted: light-dark(#696963, #b5b5ae);
+      --fw-line: light-dark(#3c3c38, #d1d1ca);
+      --fw-faint-line: light-dark(#aaa9a1, #65655f);
+      --fw-action: light-dark(#252525, #f1f1ed);
+      --fw-action-ink: light-dark(#ffffff, #171717);
+      color-scheme: light dark;
+      color: var(--fw-ink);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 400;
+      width: 100%;
+    }
+
+    #fudge-consolidated-wireframe * {
+      box-sizing: border-box;
+    }
+
+    #fudge-consolidated-wireframe button,
+    #fudge-consolidated-wireframe input {
+      font: inherit;
+    }
+
+    #fudge-consolidated-wireframe .fw-controller {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    #fudge-consolidated-wireframe .fw-controller-title {
+      font-weight: 500;
+    }
+
+    #fudge-consolidated-wireframe .fw-page-tabs,
+    #fudge-consolidated-wireframe .fw-inline-actions,
+    #fudge-consolidated-wireframe .fw-period-control {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    #fudge-consolidated-wireframe .fw-tab,
+    #fudge-consolidated-wireframe .fw-link,
+    #fudge-consolidated-wireframe .fw-action,
+    #fudge-consolidated-wireframe .fw-period {
+      min-height: 36px;
+      border: 1px solid var(--fw-line);
+      background: var(--fw-surface);
+      color: var(--fw-ink);
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+
+    #fudge-consolidated-wireframe .fw-tab[data-active="true"],
+    #fudge-consolidated-wireframe .fw-period[data-active="true"],
+    #fudge-consolidated-wireframe .fw-action {
+      background: var(--fw-action);
+      color: var(--fw-action-ink);
+    }
+
+    #fudge-consolidated-wireframe .fw-window {
+      width: 100%;
+      background: var(--fw-paper);
+      border: 2px solid var(--fw-line);
+    }
+
+    #fudge-consolidated-wireframe .fw-browser-bar {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--fw-line);
+      background: var(--fw-soft);
+    }
+
+    #fudge-consolidated-wireframe .fw-dots {
+      letter-spacing: 3px;
+      color: var(--fw-muted);
+    }
+
+    #fudge-consolidated-wireframe .fw-route {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      color: var(--fw-muted);
+    }
+
+    #fudge-consolidated-wireframe .fw-page-name {
+      font-weight: 500;
+    }
+
+    #fudge-consolidated-wireframe .fw-page[hidden] {
+      display: none;
+    }
+
+    #fudge-consolidated-wireframe .fw-site-header {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--fw-line);
+      background: var(--fw-surface);
+    }
+
+    #fudge-consolidated-wireframe .fw-wordmark {
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+
+    #fudge-consolidated-wireframe .fw-nav {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    #fudge-consolidated-wireframe .fw-nav button {
+      border: 0;
+      background: transparent;
+      color: var(--fw-ink);
+      padding: 7px 8px;
+      cursor: pointer;
+    }
+
+    #fudge-consolidated-wireframe .fw-page-body {
+      display: grid;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    #fudge-consolidated-wireframe .fw-box {
+      border: 1px dashed var(--fw-faint-line);
+      background: var(--fw-surface);
+      min-width: 0;
+      padding: 12px;
+    }
+
+    #fudge-consolidated-wireframe .fw-box-strong {
+      border-style: solid;
+      border-width: 2px;
+    }
+
+    #fudge-consolidated-wireframe .fw-section-label,
+    #fudge-consolidated-wireframe .fw-template,
+    #fudge-consolidated-wireframe .fw-state-label {
+      display: inline-block;
+      color: var(--fw-muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    #fudge-consolidated-wireframe .fw-template {
+      border: 1px dotted var(--fw-faint-line);
+      padding: 2px 5px;
+      margin-left: 5px;
+    }
+
+    #fudge-consolidated-wireframe .fw-box h2,
+    #fudge-consolidated-wireframe .fw-box h3,
+    #fudge-consolidated-wireframe .fw-box p {
+      margin: 7px 0 0;
+      font-size: 1rem;
+      line-height: 1.45;
+      font-weight: 400;
+    }
+
+    #fudge-consolidated-wireframe .fw-box h2 {
+      font-size: 1.35rem;
+      font-weight: 500;
+    }
+
+    #fudge-consolidated-wireframe .fw-box h3 {
+      font-weight: 500;
+    }
+
+    #fudge-consolidated-wireframe .fw-muted {
+      color: var(--fw-muted);
+    }
+
+    #fudge-consolidated-wireframe .fw-grid-2,
+    #fudge-consolidated-wireframe .fw-grid-3,
+    #fudge-consolidated-wireframe .fw-grid-4 {
+      display: grid;
+      gap: 8px;
+    }
+
+    #fudge-consolidated-wireframe .fw-grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #fudge-consolidated-wireframe .fw-grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    #fudge-consolidated-wireframe .fw-grid-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    #fudge-consolidated-wireframe .fw-prompt {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 8px;
+      border: 1px solid var(--fw-line);
+      background: var(--fw-paper);
+    }
+
+    #fudge-consolidated-wireframe .fw-prompt input {
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      color: var(--fw-ink);
+      padding: 8px;
+    }
+
+    #fudge-consolidated-wireframe .fw-flow-line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+      gap: 6px;
+      align-items: stretch;
+      margin-top: 10px;
+    }
+
+    #fudge-consolidated-wireframe .fw-flow-step {
+      border: 1px solid var(--fw-line);
+      background: var(--fw-paper);
+      padding: 10px;
+      text-align: center;
+    }
+
+    #fudge-consolidated-wireframe .fw-arrow {
+      align-self: center;
+      color: var(--fw-muted);
+    }
+
+    #fudge-consolidated-wireframe .fw-price {
+      margin-top: 8px;
+      font-size: 1.2rem;
+      font-weight: 500;
+    }
+
+    #fudge-consolidated-wireframe .fw-list {
+      display: grid;
+      gap: 6px;
+      margin: 9px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    #fudge-consolidated-wireframe .fw-list li {
+      border-top: 1px dotted var(--fw-faint-line);
+      padding-top: 6px;
+    }
+
+    #fudge-consolidated-wireframe .fw-faq-row,
+    #fudge-consolidated-wireframe .fw-compare-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 9px 0;
+      border-top: 1px solid var(--fw-faint-line);
+    }
+
+    #fudge-consolidated-wireframe .fw-footer {
+      display: grid;
+      grid-template-columns: 1.3fr repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      padding: 16px 14px;
+      border-top: 1px solid var(--fw-line);
+      background: var(--fw-surface);
+      color: var(--fw-muted);
+    }
+
+    #fudge-consolidated-wireframe .fw-footer strong {
+      color: var(--fw-ink);
+      font-weight: 500;
+    }
+
+    #fudge-consolidated-wireframe .fw-workspace {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      min-height: 640px;
+    }
+
+    #fudge-consolidated-wireframe .fw-rail {
+      display: grid;
+      align-content: start;
+      gap: 7px;
+      padding: 10px;
+      border-right: 1px solid var(--fw-line);
+      background: var(--fw-soft);
+    }
+
+    #fudge-consolidated-wireframe .fw-rail-item {
+      border: 1px dashed var(--fw-faint-line);
+      padding: 8px;
+    }
+
+    #fudge-consolidated-wireframe .fw-rail-item[data-current="true"] {
+      border-style: solid;
+      border-color: var(--fw-line);
+      background: var(--fw-surface);
+    }
+
+    #fudge-consolidated-wireframe .fw-workspace-main {
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      padding: 10px;
+      min-width: 0;
+    }
+
+    #fudge-consolidated-wireframe .fw-topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      border-bottom: 1px solid var(--fw-line);
+      padding: 0 0 8px;
+    }
+
+    #fudge-consolidated-wireframe .fw-results-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(220px, 0.9fr);
+      gap: 8px;
+    }
+
+    #fudge-consolidated-wireframe .fw-explorer-shell {
+      display: grid;
+      min-height: 700px;
+      background: var(--fw-paper);
+    }
+
+    #fudge-consolidated-wireframe .fw-explorer-topbar {
+      display: grid;
+      grid-template-columns: auto minmax(240px, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid var(--fw-line);
+      background: var(--fw-surface);
+    }
+
+    #fudge-consolidated-wireframe .fw-explorer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    #fudge-consolidated-wireframe .fw-spatial-field {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(230px, 0.75fr);
+      gap: 10px;
+      min-height: 620px;
+      padding: 10px;
+      overflow: hidden;
+      background-image:
+        linear-gradient(var(--fw-faint-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--fw-faint-line) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    #fudge-consolidated-wireframe .fw-spatial-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+      transform: perspective(900px) rotateX(2deg) rotateY(-2deg);
+      transform-origin: center;
+    }
+
+    #fudge-consolidated-wireframe .fw-spatial-card {
+      display: grid;
+      align-content: end;
+      min-height: 120px;
+      padding: 8px;
+      border: 1px solid var(--fw-line);
+      background: var(--fw-surface);
+    }
+
+    #fudge-consolidated-wireframe .fw-spatial-card:nth-child(2),
+    #fudge-consolidated-wireframe .fw-spatial-card:nth-child(6) {
+      min-height: 180px;
+    }
+
+    #fudge-consolidated-wireframe .fw-spatial-card[data-focused="true"] {
+      border-width: 3px;
+      min-height: 230px;
+    }
+
+    #fudge-consolidated-wireframe .fw-capture-panel {
+      align-self: start;
+      display: grid;
+      gap: 8px;
+      border: 2px solid var(--fw-line);
+      background: var(--fw-surface);
+      padding: 12px;
+    }
+
+    #fudge-consolidated-wireframe .fw-palette-strip {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      min-height: 34px;
+      border: 1px solid var(--fw-line);
+    }
+
+    #fudge-consolidated-wireframe .fw-palette-strip span {
+      border-right: 1px solid var(--fw-line);
+      background: var(--fw-soft);
+    }
+
+    #fudge-consolidated-wireframe .fw-palette-strip span:last-child {
+      border-right: 0;
+    }
+
+    #fudge-consolidated-wireframe .fw-masonry {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    #fudge-consolidated-wireframe .fw-result {
+      display: grid;
+      align-content: end;
+      min-height: 110px;
+      border: 1px solid var(--fw-faint-line);
+      background: var(--fw-soft);
+      padding: 8px;
+    }
+
+    #fudge-consolidated-wireframe .fw-result:nth-child(2),
+    #fudge-consolidated-wireframe .fw-result:nth-child(5) {
+      min-height: 150px;
+    }
+
+    #fudge-consolidated-wireframe .fw-chat-stream {
+      display: grid;
+      gap: 8px;
+    }
+
+    #fudge-consolidated-wireframe .fw-message-user {
+      width: min(78%, 520px);
+      margin-left: auto;
+    }
+
+    #fudge-consolidated-wireframe .fw-message-assistant {
+      width: min(92%, 680px);
+    }
+
+    #fudge-consolidated-wireframe .fw-activity {
+      border-left: 3px solid var(--fw-line);
+      padding-left: 10px;
+      color: var(--fw-muted);
+    }
+
+    #fudge-consolidated-wireframe .fw-setup-layout {
+      display: grid;
+      grid-template-columns: minmax(150px, 0.65fr) minmax(0, 1.7fr);
+      gap: 8px;
+    }
+
+    #fudge-consolidated-wireframe .fw-code-block {
+      min-height: 90px;
+      padding: 10px;
+      border: 1px solid var(--fw-line);
+      background: var(--fw-soft);
+      color: var(--fw-muted);
+      white-space: pre-wrap;
+    }
+
+    #fudge-consolidated-wireframe .fw-live {
+      min-height: 1.4em;
+      color: var(--fw-muted);
+      margin-top: 8px;
+    }
+
+    @media (max-width: 680px) {
+      #fudge-consolidated-wireframe .fw-browser-bar,
+      #fudge-consolidated-wireframe .fw-site-header,
+      #fudge-consolidated-wireframe .fw-workspace,
+      #fudge-consolidated-wireframe .fw-results-layout,
+      #fudge-consolidated-wireframe .fw-explorer-topbar,
+      #fudge-consolidated-wireframe .fw-spatial-field,
+      #fudge-consolidated-wireframe .fw-setup-layout,
+      #fudge-consolidated-wireframe .fw-grid-2,
+      #fudge-consolidated-wireframe .fw-grid-3,
+      #fudge-consolidated-wireframe .fw-grid-4,
+      #fudge-consolidated-wireframe .fw-footer {
+        grid-template-columns: 1fr;
+      }
+
+      #fudge-consolidated-wireframe .fw-browser-bar {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      #fudge-consolidated-wireframe .fw-page-name {
+        grid-column: 1 / -1;
+      }
+
+      #fudge-consolidated-wireframe .fw-site-header {
+        align-items: start;
+      }
+
+      #fudge-consolidated-wireframe .fw-nav {
+        justify-content: flex-start;
+      }
+
+      #fudge-consolidated-wireframe .fw-flow-line {
+        grid-template-columns: 1fr;
+      }
+
+      #fudge-consolidated-wireframe .fw-arrow {
+        transform: rotate(90deg);
+        justify-self: center;
+      }
+
+      #fudge-consolidated-wireframe .fw-rail {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        border-right: 0;
+        border-bottom: 1px solid var(--fw-line);
+      }
+
+      #fudge-consolidated-wireframe .fw-masonry {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      #fudge-consolidated-wireframe .fw-spatial-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        transform: none;
+      }
+
+      #fudge-consolidated-wireframe .fw-explorer-actions {
+        justify-content: flex-start;
+      }
+
+      #fudge-consolidated-wireframe .fw-prompt {
+        grid-template-columns: 1fr;
+      }
+
+      #fudge-consolidated-wireframe .fw-message-user,
+      #fudge-consolidated-wireframe .fw-message-assistant {
+        width: 100%;
+      }
+    }
+  </style>
+
+  <div class="fw-controller">
+    <div class="fw-controller-title">Fudge unified experience · low-fidelity wireframes</div>
+    <div class="fw-page-tabs" role="tablist" aria-label="Wireframe pages">
+      <button class="fw-tab" type="button" role="tab" data-show="home" data-active="true" aria-selected="true">Home</button>
+      <button class="fw-tab" type="button" role="tab" data-show="explorer" data-active="false" aria-selected="false">Explorer</button>
+      <button class="fw-tab" type="button" role="tab" data-show="chat" data-active="false" aria-selected="false">Chat</button>
+      <button class="fw-tab" type="button" role="tab" data-show="mcp" data-active="false" aria-selected="false">MCP setup</button>
+      <button class="fw-tab" type="button" role="tab" data-show="pricing" data-active="false" aria-selected="false">Pricing</button>
+    </div>
+  </div>
+
+  <div class="fw-window">
+    <div class="fw-browser-bar" aria-hidden="true">
+      <span class="fw-dots">● ● ●</span>
+      <span class="fw-route" data-route-label>withfudge.com/</span>
+      <span class="fw-page-name" data-page-name>Home</span>
+    </div>
+
+    <section class="fw-page" data-screen="home" aria-label="Home page wireframe">
+      <header class="fw-site-header">
+        <div class="fw-wordmark">FUDGE</div>
+        <nav class="fw-nav" aria-label="Marketing navigation">
+          <button type="button" data-page-target="home">How it works</button>
+          <button type="button" data-page-target="explorer">Explorer</button>
+          <button type="button" data-page-target="pricing">Pricing</button>
+        </nav>
+        <button class="fw-action" type="button" data-page-target="chat">Open Fudge</button>
+      </header>
+
+      <div class="fw-page-body">
+        <section class="fw-box fw-box-strong">
+          <span class="fw-section-label">Hero</span><span class="fw-template">Universal Start Hero</span>
+          <h2>Check a website, find references, or ask a design question.</h2>
+          <p class="fw-muted">One Fudge product. Explore real visual references, ask Fudge for help, or use the same capability from your AI tool.</p>
+          <div class="fw-prompt">
+            <input aria-label="Example prompt" value="Paste a website or describe what you need" readonly>
+            <button class="fw-action" type="button" data-page-target="chat">Check this page</button>
+          </div>
+          <div class="fw-inline-actions">
+            <button class="fw-link" type="button" data-page-target="explorer">Explore references</button>
+            <button class="fw-link" type="button" data-page-target="mcp">Use Fudge in my AI tool</button>
+          </div>
+        </section>
+
+        <section class="fw-box">
+          <span class="fw-section-label">Proof</span><span class="fw-template">Proof Strip</span>
+          <p>[CURRENT PRODUCT] Real captured pages · visible sources · saved references · one Fudge account</p>
+        </section>
+
+        <section class="fw-box">
+          <span class="fw-section-label">How it works</span><span class="fw-template">Find Understand Use Steps</span>
+          <div class="fw-grid-3">
+            <div class="fw-box"><h3>1 · Find</h3><p>Search real website and interface references.</p></div>
+            <div class="fw-box"><h3>2 · Understand</h3><p>Open the screenshot, source, typography, color, and related references.</p></div>
+            <div class="fw-box"><h3>3 · Use</h3><p>Ask Fudge about the reference or hand it to another AI tool.</p></div>
+          </div>
+        </section>
+
+        <section class="fw-box">
+          <span class="fw-section-label">Reference continuity</span><span class="fw-template">Reference Continuity Story</span>
+          <div class="fw-flow-line">
+            <div class="fw-flow-step">REFERENCE<br><span class="fw-muted">Title + source + screenshot</span></div>
+            <span class="fw-arrow">→</span>
+            <div class="fw-flow-step">INSPECT<br><span class="fw-muted">Same title + source + screenshot</span></div>
+            <span class="fw-arrow">→</span>
+            <div class="fw-flow-step">USE<br><span class="fw-muted">Same reference attached to the task</span></div>
+          </div>
+        </section>
+
+        <section class="fw-box">
+          <span class="fw-section-label">Where capabilities appear</span><span class="fw-template">Contextual Capability Map</span>
+          <div class="fw-grid-3">
+            <div class="fw-box"><h3>Explore</h3><p>Find, focus, inspect, and save real visual references.</p><button class="fw-link" type="button" data-page-target="explorer">Open Explorer →</button></div>
+            <div class="fw-box"><h3>Ask Fudge</h3><p>Review a website, compare evidence, and receive a clear answer.</p><button class="fw-link" type="button" data-page-target="chat">Open Chat →</button></div>
+            <div class="fw-box"><h3>Use from another AI</h3><p>Hand off one focused reference, or set up hosted MCP for ongoing use.</p><button class="fw-link" type="button" data-page-target="mcp">Set up MCP →</button></div>
+          </div>
+        </section>
+
+        <section class="fw-box">
+          <span class="fw-section-label">Pricing preview</span><span class="fw-template">Two-Plan Pricing Pair</span>
+          <div class="fw-period-control" aria-label="Billing period">
+            <button class="fw-period" type="button" data-period="quarterly" data-active="true">Quarterly</button>
+            <button class="fw-period" type="button" data-period="yearly" data-active="false">Yearly</button>
+          </div>
+          <div class="fw-grid-2">
+            <div class="fw-box">
+              <h3>Pro</h3>
+              <div class="fw-price">Starts at $39/month</div>
+              <p data-period-label="pro">$117 billed every 3 months.</p>
+              <button class="fw-action" type="button" data-page-target="pricing">Choose Pro</button>
+            </div>
+            <div class="fw-box">
+              <h3>Studio</h3>
+              <div class="fw-price">$99/month</div>
+              <p data-period-label="studio">$297 billed every 3 months.</p>
+              <button class="fw-action" type="button" data-page-target="pricing">Choose Studio</button>
+            </div>
+          </div>
+          <div class="fw-box"><strong>Free:</strong> Start with 6 Chat queries each month. No third paid-plan card.</div>
+        </section>
+
+        <section class="fw-box">
+          <span class="fw-section-label">Visitor questions</span><span class="fw-template">Visitor FAQ Stack</span>
+          <div class="fw-faq-row"><span>What does Fudge check?</span><span>＋</span></div>
+          <div class="fw-faq-row"><span>What do I receive?</span><span>＋</span></div>
+          <div class="fw-faq-row"><span>Can I use a screenshot instead of a URL?</span><span>＋</span></div>
+          <div class="fw-faq-row"><span>Does one paid plan include Explorer, Chat, and hosted MCP?</span><span>＋</span></div>
+        </section>
+
+        <section class="fw-box fw-grid-2">
+          <div><span class="fw-section-label">Closing choice</span><span class="fw-template">Product Route Endcap</span><h2>Find the reference, then keep working with it.</h2></div>
+          <div class="fw-inline-actions"><button class="fw-link" type="button" data-page-target="explorer">Explore references</button><button class="fw-action" type="button" data-page-target="chat">Ask Fudge</button></div>
+        </section>
+      </div>
+
+      <footer class="fw-footer">
+        <div><strong>FUDGE</strong><br>Visual reference research and design work.</div>
+        <div><strong>Product</strong><br>Explorer<br>Chat<br>Pricing</div>
+        <div><strong>Resources</strong><br>How it works<br>Examples<br>Help<br>Status</div>
+        <div><strong>Account</strong><br>Sign in<br>Usage<br>Billing<br>Privacy</div>
+      </footer>
+    </section>
+
+    <section class="fw-page" data-screen="pricing" aria-label="Pricing page wireframe" hidden>
+      <header class="fw-site-header">
+        <div class="fw-wordmark">FUDGE</div>
+        <nav class="fw-nav" aria-label="Marketing navigation">
+          <button type="button" data-page-target="home">Home</button>
+          <button type="button" data-page-target="explorer">Explorer</button>
+        </nav>
+        <button class="fw-action" type="button" data-page-target="chat">Open Fudge</button>
+      </header>
+      <div class="fw-page-body">
+        <section class="fw-box fw-box-strong">
+          <span class="fw-section-label">Pricing promise</span><span class="fw-template">Billing Period Switch</span>
+          <h2>One product. Choose the capacity that fits your work.</h2>
+          <p class="fw-muted">Pro and Studio include the complete Fudge capability set. Show the selected charge first and its monthly equivalent second.</p>
+          <div class="fw-period-control" aria-label="Billing period">
+            <button class="fw-period" type="button" data-period="quarterly" data-active="true">Quarterly</button>
+            <button class="fw-period" type="button" data-period="yearly" data-active="false">Yearly</button>
+          </div>
+        </section>
+
+        <section class="fw-grid-2">
+          <div class="fw-box fw-box-strong">
+            <span class="fw-section-label">Paid plan</span><span class="fw-template">Two-Plan Pricing Pair</span>
+            <h2>Pro</h2>
+            <div class="fw-price">Starts at $39/month</div>
+            <p data-period-label="pro">$117 billed every 3 months.</p>
+            <ul class="fw-list"><li>Explorer and saved references</li><li>Fudge Chat</li><li>Prompt handoff and hosted MCP</li><li>Pro capacity for individual work</li></ul>
+            <button class="fw-action" type="button">Choose Pro</button>
+          </div>
+          <div class="fw-box fw-box-strong">
+            <span class="fw-section-label">Paid plan</span><span class="fw-template">Two-Plan Pricing Pair</span>
+            <h2>Studio</h2>
+            <div class="fw-price">$99/month</div>
+            <p data-period-label="studio">$297 billed every 3 months.</p>
+            <ul class="fw-list"><li>The same complete Fudge capability set</li><li>Higher Studio capacity</li><li>Best for higher-volume work</li><li>Add other differences only when verified</li></ul>
+            <button class="fw-action" type="button">Choose Studio</button>
+          </div>
+        </section>
+
+        <section class="fw-box">
+          <span class="fw-section-label">Free entry</span><span class="fw-template">Six-Query Free Entry</span>
+          <div class="fw-grid-2"><p><strong>Free:</strong> 6 Chat queries each month.</p><button class="fw-link" type="button" data-page-target="chat">Start with a real question</button></div>
+        </section>
+
+        <section class="fw-box">
+          <span class="fw-section-label">Short comparison</span><span class="fw-template">Plan Difference Rows</span>
+          <div class="fw-compare-row"><span>Monthly capacity</span><span>Pro amount · Studio amount</span></div>
+          <div class="fw-compare-row"><span>Best fit</span><span>Individual work · Higher-volume work</span></div>
+          <div class="fw-compare-row"><span>Genuine entitlement difference</span><span>[ONLY IF VERIFIED]</span></div>
+        </section>
+
+        <section class="fw-box">
+          <span class="fw-section-label">Purchase path</span><span class="fw-template">Purchase Context Summary</span>
+          <div class="fw-flow-line">
+            <div class="fw-flow-step">CHOOSE PLAN<br><span class="fw-muted">Plan + period + charge</span></div><span class="fw-arrow">→</span>
+            <div class="fw-flow-step">SIGN IN / CHECKOUT<br><span class="fw-muted">Selection stays visible</span></div><span class="fw-arrow">→</span>
+            <div class="fw-flow-step">RETURN<br><span class="fw-muted">Resume the original task</span></div>
+          </div>
+        </section>
+
+        <section class="fw-box">
+          <span class="fw-section-label">Transactional FAQ</span><span class="fw-template">Visitor FAQ Stack</span>
+          <div class="fw-faq-row"><span>When does usage reset?</span><span>＋</span></div>
+          <div class="fw-faq-row"><span>What is charged today?</span><span>＋</span></div>
+          <div class="fw-faq-row"><span>Can I change plans later?</span><span>＋</span></div>
+          <div class="fw-faq-row"><span>What happens to an existing subscription?</span><span>＋</span></div>
+        </section>
+      </div>
+      <footer class="fw-footer"><div><strong>FUDGE</strong><br>One product, two paid capacities.</div><div><strong>Product</strong><br>Explorer<br>Chat<br>Pricing</div><div><strong>Billing</strong><br>Usage<br>Invoices<br>Manage plan</div><div><strong>Help</strong><br>FAQ<br>Support<br>Privacy</div></footer>
+    </section>
+
+    <section class="fw-page" data-screen="explorer" aria-label="Explorer spatial discovery wireframe" hidden>
+      <div class="fw-explorer-shell">
+        <header class="fw-explorer-topbar">
+          <div><strong>FUDGE EXPLORER</strong><br><span class="fw-template">Explorer Chrome</span></div>
+          <div class="fw-prompt"><input aria-label="Explorer search" value="Search websites, styles, fonts, colors, or layouts" readonly><button class="fw-action" type="button">Search</button></div>
+          <div class="fw-explorer-actions"><button class="fw-link" type="button">Saved</button><button class="fw-link" type="button" data-page-target="chat">Ask Fudge</button><span>Account ▾</span></div>
+        </header>
+
+        <section class="fw-spatial-field">
+          <div>
+            <div class="fw-box"><span class="fw-section-label">Persistent search view</span><span class="fw-template">Explorer Search View</span><p>“Editorial pricing pages” · matching captures stay arranged in a navigable spatial field · Back restores the same position</p></div>
+            <div class="fw-spatial-grid" aria-label="Spatial field of captured website references">
+              <div class="fw-spatial-card">CAPTURE 01<br><span class="fw-muted">domain · font · palette</span></div>
+              <div class="fw-spatial-card">CAPTURE 02<br><span class="fw-muted">domain · font · palette</span></div>
+              <div class="fw-spatial-card" data-focused="true">FOCUSED CAPTURE 03<br><span class="fw-muted">selected in space</span></div>
+              <div class="fw-spatial-card">CAPTURE 04<br><span class="fw-muted">domain · font · palette</span></div>
+              <div class="fw-spatial-card">CAPTURE 05<br><span class="fw-muted">domain · font · palette</span></div>
+              <div class="fw-spatial-card">CAPTURE 06<br><span class="fw-muted">domain · font · palette</span></div>
+              <div class="fw-spatial-card">CAPTURE 07<br><span class="fw-muted">domain · font · palette</span></div>
+              <div class="fw-spatial-card">CAPTURE 08<br><span class="fw-muted">domain · font · palette</span></div>
+            </div>
+          </div>
+
+          <aside class="fw-capture-panel">
+            <div><span class="fw-section-label">Focused capture</span><span class="fw-template">Focused Capture Frame</span></div>
+            <div class="fw-result">FULL CAPTURE PREVIEW</div>
+            <h3>Editorial pricing reference</h3>
+            <p>example.com · Open source page</p>
+            <div><span class="fw-section-label">Typography</span><p>Family · weights · visible scale</p></div>
+            <div><span class="fw-section-label">Palette</span><div class="fw-palette-strip"><span></span><span></span><span></span><span></span><span></span></div></div>
+            <div><span class="fw-section-label">Related captures</span><p>Previous · next · related from this site</p></div>
+            <div class="fw-inline-actions"><button class="fw-link" type="button">Save</button><button class="fw-action" type="button" data-page-target="chat">Ask Fudge about this</button></div>
+            <div><span class="fw-section-label">Prompt handoff</span><span class="fw-template">Contextual Reference Actions</span><div class="fw-inline-actions"><button class="fw-link" type="button">ChatGPT</button><button class="fw-link" type="button">Claude</button><button class="fw-link" type="button">Gemini</button><button class="fw-link" type="button">Copy prompt</button></div></div>
+            <div class="fw-box"><span class="fw-state-label">Saved</span><p>The focused capture keeps its source and saved state.</p></div>
+          </aside>
+        </section>
+
+        <section class="fw-grid-4 fw-page-body">
+          <div class="fw-box"><span class="fw-state-label">Loading</span><p>Keep spatial position.</p></div>
+          <div class="fw-box"><span class="fw-state-label">Empty</span><p>Revise the query.</p></div>
+          <div class="fw-box"><span class="fw-state-label">Error</span><p>Retry with query preserved.</p></div>
+          <div class="fw-box"><span class="fw-state-label">Return</span><p>Restore the same focused capture.</p></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="fw-page" data-screen="chat" aria-label="Chat workspace wireframe" hidden>
+      <div class="fw-workspace">
+        <aside class="fw-rail" aria-label="Chat navigation">
+          <div class="fw-wordmark">FUDGE</div>
+          <div class="fw-rail-item">＋ New</div>
+          <button class="fw-rail-item" type="button" data-page-target="explorer">Explorer</button>
+          <div class="fw-rail-item">Saved</div>
+          <div class="fw-rail-item" data-current="true">Current conversation</div>
+          <div class="fw-rail-item">Recent conversation</div>
+          <div class="fw-rail-item">Usage · Plan · Account</div>
+          <span class="fw-template">Chat Sidebar</span>
+        </aside>
+        <main class="fw-workspace-main">
+          <div class="fw-topbar"><strong>Homepage pricing review</strong><button class="fw-link" type="button" data-page-target="mcp">Use Fudge in my AI tool</button></div>
+          <section class="fw-box">
+            <span class="fw-section-label">Useful empty state / starters</span><span class="fw-template">Task Starter Set</span>
+            <div class="fw-grid-4"><button class="fw-link" type="button">Review this page</button><button class="fw-link" type="button">Find references</button><button class="fw-link" type="button">Inspect screenshot</button><button class="fw-link" type="button">Turn into code</button></div>
+          </section>
+          <div class="fw-chat-stream">
+            <section class="fw-box fw-message-user"><span class="fw-section-label">User message</span><span class="fw-template">Conversation Message</span><p>Review this pricing page and find stronger two-plan references.</p><p class="fw-muted">ATTACHMENT · pricing-page.png</p></section>
+            <section class="fw-box fw-message-assistant"><span class="fw-state-label">Observable activity</span><span class="fw-template">Activity Status Row</span><div class="fw-activity">Opening the page<br>Checking the screenshot<br>Comparing references<br>Preparing the result</div></section>
+            <section class="fw-box fw-box-strong fw-message-assistant"><span class="fw-section-label">Evidence-rich answer</span><span class="fw-template">Evidence-Rich Answer</span><h3>Use one billing control above two equal paid-plan cards.</h3><p>Readable answer text with source-backed observations.</p><div class="fw-grid-3"><div class="fw-result">REFERENCE CARD A</div><div class="fw-result">REFERENCE CARD B</div><div class="fw-result">REFERENCE CARD C</div></div><div class="fw-inline-actions"><button class="fw-link" type="button">Save answer</button><button class="fw-link" type="button" data-page-target="explorer">Open focused reference in Explorer</button></div></section>
+            <section class="fw-box"><span class="fw-section-label">Grounded follow-ups</span><span class="fw-template">Grounded Follow-Up Set</span><p>Compare only two-plan examples · Rewrite the pricing copy · Show the mobile arrangement</p></section>
+          </div>
+          <section class="fw-box"><span class="fw-state-label">Usage boundary</span><span class="fw-template">Usage Boundary Banner</span><p>Keep the answer and composer visible · show reset · offer Pro or Studio.</p></section>
+          <section class="fw-box fw-box-strong"><span class="fw-section-label">Composer</span><span class="fw-template">Multimodal Composer</span><p class="fw-muted">REFERENCE CHIP · pricing-page.png · remove</p><div class="fw-prompt"><input aria-label="Chat message" value="Ask a follow-up question" readonly><button class="fw-action" type="button">Send</button></div></section>
+        </main>
+      </div>
+    </section>
+
+    <section class="fw-page" data-screen="mcp" aria-label="Hosted MCP setup wireframe" hidden>
+      <header class="fw-site-header">
+        <div class="fw-wordmark">FUDGE</div>
+        <nav class="fw-nav" aria-label="Marketing navigation"><button type="button" data-page-target="home">Home</button><button type="button" data-page-target="explorer">Explorer</button><button type="button" data-page-target="pricing">Pricing</button></nav>
+        <button class="fw-action" type="button" data-page-target="chat">Open Fudge</button>
+      </header>
+      <div class="fw-page-body">
+        <section class="fw-box fw-box-strong"><span class="fw-section-label">MCP setup</span><span class="fw-template">Client Selector</span><h2>Use Fudge in your AI tool.</h2><p class="fw-muted">Hosted MCP is a way to access Fudge from Cursor, Claude, Codex, or another supported client. It is not a separate product.</p><p>Cursor · Claude · Codex · Other</p></section>
+        <section class="fw-box"><span class="fw-section-label">Setup progress</span><span class="fw-template">Install Progress Rail</span><div class="fw-flow-line"><div class="fw-flow-step">1 · CHOOSE TOOL</div><span class="fw-arrow">→</span><div class="fw-flow-step">2 · CONNECT ACCOUNT</div><span class="fw-arrow">→</span><div class="fw-flow-step">3 · ASK A REAL QUESTION</div></div></section>
+        <section class="fw-setup-layout">
+          <div class="fw-box"><span class="fw-section-label">Client selector</span><span class="fw-template">Client Selector</span><ul class="fw-list"><li>● Cursor</li><li>○ Claude</li><li>○ Codex</li><li>○ Other</li></ul></div>
+          <div class="fw-box fw-box-strong"><span class="fw-section-label">Client-specific setup</span><span class="fw-template">Client Setup Panel</span><h3>Install Fudge in Cursor</h3><ol><li>Open Cursor settings.</li><li>Choose MCP.</li><li>Paste the configuration or use one-click install.</li></ol><div class="fw-code-block">{
+  "mcpServers": {
+    "fudge": { "url": "[FUDGE MCP URL]" }
+  }
+}</div><div class="fw-inline-actions"><button class="fw-link" type="button">Copy</button><button class="fw-action" type="button">Connect Fudge</button></div></div>
+        </section>
+        <section class="fw-grid-3">
+          <div class="fw-box"><span class="fw-state-label">Signed out</span><span class="fw-template">Inline Access Gate</span><p>Sign in without replacing the installer.</p></div>
+          <div class="fw-box"><span class="fw-state-label">Free account</span><span class="fw-template">Inline Plan Choice</span><p>Choose Pro or Studio inline. Keep the selected client and setup step.</p></div>
+          <div class="fw-box"><span class="fw-state-label">Subscriber</span><span class="fw-template">Client Setup Panel</span><p>Reveal endpoint, configuration, and terminal Connect action.</p></div>
+        </section>
+        <section class="fw-grid-3">
+          <div class="fw-box"><span class="fw-state-label">OAuth approval</span><span class="fw-template">OAuth Approval Panel</span><p>Signed-in account · named client · readable access · Cancel / Approve</p></div>
+          <div class="fw-box"><span class="fw-state-label">Recoverable error</span><span class="fw-template">Local Recovery Panel</span><p>Keep client and step · name the problem · exact Retry · manual setup</p></div>
+          <div class="fw-box"><span class="fw-state-label">Connection confirmed</span><span class="fw-template">Connection Success Handoff</span><p>Cursor connected · Open Cursor · manual return</p></div>
+        </section>
+        <section class="fw-box"><span class="fw-section-label">First useful task</span><span class="fw-template">Connection Success Handoff</span><h3>“Find three references for a two-plan pricing page.”</h3><button class="fw-action" type="button">Open in Cursor</button></section>
+        <section class="fw-box"><span class="fw-section-label">Account and access</span><span class="fw-template">Account Access Summary</span><p>Current plan · usage · connected client. Do not imply a separate MCP library, history, or project.</p></section>
+      </div>
+      <footer class="fw-footer"><div><strong>FUDGE</strong><br>Use Fudge where you build.</div><div><strong>Product</strong><br>Explorer<br>Chat<br>Pricing</div><div><strong>AI tools</strong><br>Cursor<br>Claude<br>Codex<br>Other</div><div><strong>Help</strong><br>Setup<br>Troubleshooting<br>Status</div></footer>
+    </section>
+  </div>
+
+  <div class="fw-live" aria-live="polite" data-live>Showing Home page wireframe.</div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('fudge-consolidated-wireframe');
+      if (!root) return;
+
+      const pageMeta = {
+        home: { name: 'Home', route: 'withfudge.com/' },
+        pricing: { name: 'Pricing', route: 'withfudge.com/pricing' },
+        explorer: { name: 'Explorer', route: 'explorer.withfudge.com' },
+        chat: { name: 'Chat', route: 'design.withfudge.com/' },
+        mcp: { name: 'MCP setup', route: 'design.withfudge.com/mcp' }
+      };
+
+      const showPage = (page) => {
+        if (!pageMeta[page]) return;
+        root.querySelectorAll('[data-screen]').forEach((screen) => {
+          screen.hidden = screen.dataset.screen !== page;
+        });
+        root.querySelectorAll('[data-show]').forEach((tab) => {
+          const active = tab.dataset.show === page;
+          tab.dataset.active = String(active);
+          tab.setAttribute('aria-selected', String(active));
+        });
+        const route = root.querySelector('[data-route-label]');
+        const name = root.querySelector('[data-page-name]');
+        const live = root.querySelector('[data-live]');
+        if (route) route.textContent = pageMeta[page].route;
+        if (name) name.textContent = pageMeta[page].name;
+        if (live) live.textContent = `Showing ${pageMeta[page].name} page wireframe.`;
+      };
+
+      root.querySelectorAll('[data-show]').forEach((tab) => {
+        tab.addEventListener('click', () => showPage(tab.dataset.show));
+      });
+
+      root.querySelectorAll('[data-page-target]').forEach((control) => {
+        control.addEventListener('click', () => showPage(control.dataset.pageTarget));
+      });
+
+      root.querySelectorAll('[data-period]').forEach((control) => {
+        control.addEventListener('click', () => {
+          const period = control.dataset.period;
+          root.querySelectorAll('[data-period]').forEach((peer) => {
+            peer.dataset.active = String(peer.dataset.period === period);
+          });
+          root.querySelectorAll('[data-period-label="pro"]').forEach((label) => {
+            label.textContent = period === 'quarterly'
+              ? '$117 billed every 3 months.'
+              : '$390 billed yearly · $32.50/month equivalent.';
+          });
+          root.querySelectorAll('[data-period-label="studio"]').forEach((label) => {
+            label.textContent = period === 'quarterly'
+              ? '$297 billed every 3 months.'
+              : '$990 billed yearly · $82.50/month equivalent.';
+          });
+          const live = root.querySelector('[data-live]');
+          if (live) live.textContent = `${period === 'quarterly' ? 'Quarterly' : 'Yearly'} billing selected.`;
+        });
+      });
+    })();
+  </script>
+</div>

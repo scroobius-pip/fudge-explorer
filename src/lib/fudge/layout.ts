@@ -43,7 +43,7 @@ function columnCount(n: number) {
   if (n <= 100) return 13;
   if (n <= 180) return 17;
   if (n <= 320) return 21;
-  return 25;
+  return Math.min(128, Math.max(25, Math.ceil(Math.sqrt(n * 1.25))));
 }
 
 function masonryCells(

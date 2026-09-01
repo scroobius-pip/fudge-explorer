@@ -26,7 +26,7 @@ import {
   type PromptAccess,
 } from "@/lib/fudge/prompt-access";
 
-const FULL_PRICING_URL = "https://design.withfudge.com/pricing";
+const FULL_PRICING_URL = "https://design.withfudge.com/";
 const GOOGLE_POLL_INTERVAL_MS = 1_000;
 const GOOGLE_CLOSE_GRACE_MS = 8_000;
 const EXPLORER_AUTH_COMPLETE_MESSAGE = "fudge:explorer-auth-complete";
@@ -70,12 +70,14 @@ function FudgeLogo() {
 function PromptModal({
   children,
   description,
+  descriptionAction,
   onClose,
   size = "compact",
   title,
 }: {
   children: ReactNode;
   description: string;
+  descriptionAction?: ReactNode;
   onClose: () => void;
   size?: "compact" | "pricing";
   title: string;
@@ -158,6 +160,11 @@ function PromptModal({
           <FudgeLogo />
           <h2 id={titleId}>{title}</h2>
           <p id={descriptionId}>{description}</p>
+          {descriptionAction ? (
+            <div className="prompt-modal-description-action">
+              {descriptionAction}
+            </div>
+          ) : null}
         </div>
         {children}
       </div>
@@ -516,7 +523,7 @@ export function ExplorerPricingModal({
     } catch {
       setCheckoutBusy(null);
       setError(
-        "Checkout is unavailable right now. Try again or open the full pricing page.",
+        "Checkout is unavailable right now. Try again or see More details.",
       );
     }
   };
@@ -525,6 +532,17 @@ export function ExplorerPricingModal({
     <PromptModal
       title="Take the research all the way to implementation"
       description="Pro and Studio include the same Fudge tools. Choose by monthly capacity."
+      descriptionAction={
+        <a
+          className="prompt-pricing-details"
+          href={FULL_PRICING_URL}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>More details</span>
+          <ExternalLink className="size-3.5" strokeWidth={1.6} />
+        </a>
+      }
       onClose={onClose}
       size="pricing"
     >
@@ -705,8 +723,8 @@ export function ExplorerPricingModal({
         </>
       ) : (
         <div className="prompt-pricing-unavailable" role="status">
-          Pricing could not be loaded here. Open the full pricing page for
-          current plan details.
+          Pricing could not be loaded here. Check More details for current plan
+          details.
         </div>
       )}
 
@@ -729,16 +747,6 @@ export function ExplorerPricingModal({
           {error}
         </p>
       ) : null}
-
-      <a
-        className="prompt-pricing-details"
-        href={FULL_PRICING_URL}
-        target="_blank"
-        rel="noreferrer"
-      >
-        <span>Open the full pricing page</span>
-        <ExternalLink className="size-3.5" strokeWidth={1.6} />
-      </a>
     </PromptModal>
   );
 }

@@ -1,6 +1,7 @@
 import { normalizeObservedFontFamily, observedFontFamilyKey } from "./fonts";
 import type {
   CatalogFile,
+  CatalogDetailsProjection,
   ColorRole,
   Facet,
   FontUse,
@@ -103,7 +104,7 @@ const FACET_GROUPS: Record<string, string> = {
 
 export type CatalogLoad = {
   initial: CatalogFile;
-  details: Promise<CatalogFile | null>;
+  details: Promise<CatalogDetailsProjection | null>;
 };
 
 export type SemanticSearchResult = {
@@ -255,7 +256,9 @@ export async function loadCatalogFile(): Promise<CatalogLoad> {
     100,
     "Downloading search index",
   )
-    .then((bundle) => catalogFromBundles(bootstrap, bundle))
+    .then((bundle) =>
+      projectCatalogDetails(catalogFromBundles(bootstrap, bundle)),
+    )
     .catch(() => null);
   return { initial, details };
 }
@@ -347,6 +350,19 @@ export function catalogFromBundles(
     pageVideo: pageVideoRows(data.video_observations ?? []),
     embeddingNeighbors: {},
     fontSimilarity: {},
+  };
+}
+
+function projectCatalogDetails(catalog: CatalogFile): CatalogDetailsProjection {
+  return {
+    assignments: catalog.assignments,
+    termCaptureIds: catalog.termCaptureIds,
+    palettes: catalog.palettes,
+    colorRoles: catalog.colorRoles,
+    fonts: catalog.fonts,
+    typeRoles: catalog.typeRoles,
+    fontCaptureIndex: catalog.fontCaptureIndex,
+    searchTextByCapture: catalog.searchTextByCapture,
   };
 }
 
