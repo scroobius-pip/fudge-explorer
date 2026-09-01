@@ -9,7 +9,6 @@ import {
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
-  Check,
   ChevronRight,
   ExternalLink,
   LoaderCircle,
@@ -411,63 +410,36 @@ export function PromptSignInModal({
   );
 }
 
-type PlanFeatureValue = boolean | string;
-
-const PLAN_FEATURE_ROWS: Array<{
+const PLAN_COMPARISON_ROWS: Array<{
   label: string;
-  values: Record<FudgePlanId, PlanFeatureValue>;
+  values: Record<FudgePlanId, string>;
 }> = [
   {
-    label: "Usage limits",
+    label: "Monthly queries",
     values: {
       pro: "3,000 queries / month",
       studio: "15,000 queries / month",
     },
   },
   {
-    label: "Copy prompts for ChatGPT / Claude",
-    values: { pro: true, studio: true },
-  },
-  {
-    label: "Website review",
-    values: { pro: true, studio: true },
-  },
-  {
-    label: "Competitor search & inspect",
-    values: { pro: true, studio: true },
-  },
-  {
-    label: "Font alternatives (free & paid)",
-    values: { pro: true, studio: true },
-  },
-  {
-    label: "Color palettes & accessibility",
-    values: { pro: true, studio: true },
-  },
-  {
-    label: "Chrome extension",
-    values: { pro: true, studio: true },
-  },
-  {
-    label: "Bookmarks",
-    values: { pro: true, studio: true },
-  },
-  {
-    label: "Site design guide",
+    label: "Best for",
     values: {
-      pro: "Generate from your site",
-      studio: "Generate from your site",
+      pro: "Independent builders and focused product work",
+      studio: "Teams and studios working across products or clients",
     },
   },
-  {
-    label: "Fudge chat agent",
-    values: { pro: true, studio: true },
-  },
-  {
-    label: "In Cursor / Claude / Codex / any MCP client",
-    values: { pro: true, studio: true },
-  },
 ];
+
+const PAID_PLAN_ACCESS = [
+  "Hosted MCP for Codex, Claude Code, Cursor, and other compatible AI tools",
+  "Fudge Chat and Fudge Explorer",
+  "Chrome extension, bookmarks, and saved references",
+  "Whole-website reviews with specific recommendations",
+  "Website reference search and comparison",
+  "Website font identification and similar-font suggestions",
+  "Color palette extraction and contrast checks",
+  "Website design guides and DESIGN.md, Tailwind, CSS variables, design tokens, and JSON exports",
+] as const;
 
 function PlanFeature({
   label,
@@ -476,28 +448,15 @@ function PlanFeature({
 }: {
   label: string;
   plan: FudgePlanId;
-  value: PlanFeatureValue;
+  value: string;
 }) {
   const highlighted = plan === "studio";
-  if (typeof value === "string") {
-    return (
-      <span
-        className={`prompt-pricing-feature-copy${highlighted ? " is-highlighted" : ""}`}
-      >
-        {value}
-      </span>
-    );
-  }
   return (
     <span
-      className={`prompt-pricing-feature-mark${value ? " is-included" : ""}${highlighted ? " is-highlighted" : ""}`}
-      aria-label={`${label} ${value ? "included" : "not included"}`}
+      className={`prompt-pricing-feature-copy${highlighted ? " is-highlighted" : ""}`}
+      aria-label={`${label} for ${plan}`}
     >
-      {value ? (
-        <Check className="size-3.5" strokeWidth={1.8} aria-hidden="true" />
-      ) : (
-        <X className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
-      )}
+      {value}
     </span>
   );
 }
@@ -564,8 +523,8 @@ export function ExplorerPricingModal({
 
   return (
     <PromptModal
-      title="Choose a Fudge plan"
-      description="Start free with 6 Fudge Chat queries each month. Pro and Studio include every Fudge tool and a 3-day free trial."
+      title="Take the research all the way to implementation"
+      description="Pro and Studio include the same Fudge tools. Choose by monthly capacity."
       onClose={onClose}
       size="pricing"
     >
@@ -608,7 +567,7 @@ export function ExplorerPricingModal({
         <>
           <div className="prompt-pricing-table-wrap">
             <table className="prompt-pricing-table">
-              <caption>Fudge plan and feature comparison</caption>
+              <caption>Fudge plan comparison</caption>
               <thead>
                 <tr>
                   <th scope="col" className="prompt-pricing-table-lead">
@@ -665,9 +624,9 @@ export function ExplorerPricingModal({
               </thead>
               <tbody>
                 <tr className="prompt-pricing-table-section">
-                  <th colSpan={plans.length + 1}>What’s included</th>
+                  <th colSpan={plans.length + 1}>Plan differences</th>
                 </tr>
-                {PLAN_FEATURE_ROWS.map((row) => (
+                {PLAN_COMPARISON_ROWS.map((row) => (
                   <tr key={row.label}>
                     <th scope="row">{row.label}</th>
                     {plans.map((plan) => (
@@ -704,7 +663,7 @@ export function ExplorerPricingModal({
                   <p>{plan.note}</p>
                 </div>
                 <dl>
-                  {PLAN_FEATURE_ROWS.map((row) => (
+                  {PLAN_COMPARISON_ROWS.map((row) => (
                     <div key={row.label}>
                       <dt>{row.label}</dt>
                       <dd>
@@ -750,6 +709,20 @@ export function ExplorerPricingModal({
           current plan details.
         </div>
       )}
+
+      <section
+        className="prompt-pricing-shared-access"
+        aria-labelledby="prompt-pricing-shared-access-title"
+      >
+        <h3 id="prompt-pricing-shared-access-title">
+          Included with Pro and Studio
+        </h3>
+        <ul>
+          {PAID_PLAN_ACCESS.map((feature) => (
+            <li key={feature}>{feature}</li>
+          ))}
+        </ul>
+      </section>
 
       {error ? (
         <p className="prompt-modal-error" role="alert">

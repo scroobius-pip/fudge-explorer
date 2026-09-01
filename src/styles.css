@@ -1220,6 +1220,32 @@ textarea {
   line-height: 1.45;
 }
 
+.prompt-pricing-shared-access {
+  padding: 0.9rem 0.15rem 0;
+}
+
+.prompt-pricing-shared-access h3 {
+  color: color-mix(in oklab, var(--color-fg) 58%, var(--color-surface));
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.prompt-pricing-shared-access ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 1rem;
+  margin-top: 0.65rem;
+}
+
+.prompt-pricing-shared-access li {
+  color: color-mix(in oklab, var(--color-fg) 76%, var(--color-surface));
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
 .prompt-pricing-details {
   display: flex;
   width: max-content;
@@ -1305,6 +1331,10 @@ textarea {
   .prompt-pricing-mobile-checkout {
     width: 100%;
     margin-top: 0;
+  }
+
+  .prompt-pricing-shared-access ul {
+    grid-template-columns: 1fr;
   }
 }
 
