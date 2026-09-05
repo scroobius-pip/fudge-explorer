@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { readPreparedImage, savePreparedImage } from "./prepared-image-cache.ts";
 
 const MAX = 2;
 const waiting: Array<{
@@ -121,38 +122,55 @@ async function decode(
 ): Promise<THREE.Texture> {
   await acquireSlot(priority, signal);
   try {
-    const response = await fetch(src, { signal });
-    if (!response.ok) throw new Error(`image ${response.status}`);
-    const blob = await response.blob();
-    if (signal.aborted) {
-      throw new DOMException("Texture load cancelled", "AbortError");
-    }
-
-    let source: HTMLImageElement | ImageBitmap;
+    let source: HTMLImageElement | ImageBitmap | undefined;
     if (typeof createImageBitmap === "function") {
-      const original = await createImageBitmap(blob, {
-        imageOrientation: "flipY",
-      });
+      const prepared = await readPreparedImage(src, maxEdge);
       if (signal.aborted) {
-        original.close();
         throw new DOMException("Texture load cancelled", "AbortError");
       }
-      const edge = Math.max(original.width, original.height);
-      source = original;
-      if (edge > maxEdge) {
-        const scale = maxEdge / edge;
+      if (prepared) {
         try {
-          source = await createImageBitmap(original, {
-            resizeWidth: Math.max(1, Math.round(original.width * scale)),
-            resizeHeight: Math.max(1, Math.round(original.height * scale)),
-            resizeQuality: "high",
-          });
-        } finally {
-          original.close();
+          // The saved pixels already have the WebGL orientation.
+          source = await createImageBitmap(prepared, { imageOrientation: "none" });
+        } catch {
+          // A damaged entry can be replaced from the original screenshot.
         }
       }
-    } else {
-      source = await loadImage(blob, signal);
+    }
+    if (!source) {
+      const response = await fetch(src, { signal });
+      if (!response.ok) throw new Error(`image ${response.status}`);
+      const blob = await response.blob();
+      if (signal.aborted) {
+        throw new DOMException("Texture load cancelled", "AbortError");
+      }
+
+      if (typeof createImageBitmap === "function") {
+        const original = await createImageBitmap(blob, {
+          imageOrientation: "flipY",
+        });
+        if (signal.aborted) {
+          original.close();
+          throw new DOMException("Texture load cancelled", "AbortError");
+        }
+        const edge = Math.max(original.width, original.height);
+        source = original;
+        if (edge > maxEdge) {
+          const scale = maxEdge / edge;
+          try {
+            source = await createImageBitmap(original, {
+              resizeWidth: Math.max(1, Math.round(original.width * scale)),
+              resizeHeight: Math.max(1, Math.round(original.height * scale)),
+              resizeQuality: "high",
+            });
+          } finally {
+            original.close();
+          }
+        }
+        if (!signal.aborted) await savePreparedImage(src, maxEdge, source);
+      } else {
+        source = await loadImage(blob, signal);
+      }
     }
     if (signal.aborted) {
       if (

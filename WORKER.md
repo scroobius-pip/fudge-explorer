@@ -83,6 +83,14 @@ Capture images and motion clips are proxied through `/v1/media/:captureId` and
 origin. Measured effects, exact term support values, and schema columns remain
 available from bounded live endpoints.
 
+The texture loader also keeps prepared, resized screenshots in browser Cache
+Storage so a page refresh does not repeat full-size decoding and resizing.
+Entries are lossless PNGs keyed by capture URL and requested texture size,
+already flipped for WebGL. This cache expires entries after 24 hours and retains
+at most 300 entries of up to 512 KiB each. Storage failures, unsupported browser
+APIs, missing entries, and unreadable images fall back to the original loading
+path. Original image responses continue to use the normal HTTP cache.
+
 The deployed Explorer is:
 
 ```text
