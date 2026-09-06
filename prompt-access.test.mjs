@@ -10,6 +10,7 @@ const {
   aiProviderUrl,
   classifyPromptAccess,
   createFudgeCheckout,
+  fudgeCheckoutLabel,
   fudgeLoginUrl,
   performPromptUse,
   readFudgePlans,
@@ -225,16 +226,20 @@ const PLAN_FIXTURES = [
   {
     id: "pro",
     name: "Pro",
+    monthlyPrice: "$49/mo",
     quarterlyPrice: "$117/qtr",
     yearlyPrice: "$390/yr",
+    trialDays: { monthly: 0, quarterly: 3, yearly: 3 },
     note: "Full access for individual projects.",
     configured: true,
   },
   {
     id: "studio",
     name: "Studio",
+    monthlyPrice: "$119/mo",
     quarterlyPrice: "$297/qtr",
     yearlyPrice: "$990/yr",
+    trialDays: { monthly: 0, quarterly: 3, yearly: 3 },
     note: "Full access for teams and client work.",
     configured: true,
   },
@@ -258,6 +263,17 @@ test("all Fudge plans load from the deployed plan catalog", async () => {
 });
 
 test("missing, malformed, and failed Fudge pricing returns no plans", async () => {
+  for (const fields of [
+    { monthlyPrice: undefined },
+    { trialDays: undefined },
+    { trialDays: { quarterly: 3, yearly: 3 } },
+    { trialDays: { monthly: "0", quarterly: 3, yearly: 3 } },
+    { trialDays: { monthly: -1, quarterly: 3, yearly: 3 } },
+  ]) {
+    assert.equal(await readFudgePlans(async () => Response.json({
+      plans: PLAN_FIXTURES.map((plan) => ({ ...plan, ...fields })),
+    })), null);
+  }
   assert.equal(
     await readFudgePlans(async () =>
       Response.json({ plans: PLAN_FIXTURES.slice(0, 1) }),
@@ -361,7 +377,7 @@ test("clipboard rejection prevents confirmation and provider opening", async () 
 });
 
 for (const plan of ["pro", "studio"]) {
-  for (const period of ["quarterly", "yearly"]) {
+  for (const period of ["monthly", "quarterly", "yearly"]) {
     test(`${period} ${plan} checkout sends the exact billing request`, async () => {
       const calls = [];
       const destination = await createFudgeCheckout(
@@ -384,6 +400,15 @@ for (const plan of ["pro", "studio"]) {
     });
   }
 }
+
+test("checkout labels use the catalog trial rules for both plans", () => {
+  for (const plan of PLAN_FIXTURES) {
+    assert.equal(fudgeCheckoutLabel(plan, "monthly"), `Choose ${plan.name}`);
+    assert.equal(fudgeCheckoutLabel(plan, "quarterly"), "Start 3-day free trial");
+    assert.equal(fudgeCheckoutLabel(plan, "yearly"), "Start 3-day free trial");
+    assert.equal(fudgeCheckoutLabel({ ...plan, configured: false }, "monthly"), "Unavailable");
+  }
+});
 
 test("provider destinations prefill the copied prompt", () => {
   const prompt = "Review this capture:\nhttps://pin.fontofweb.com/10087";

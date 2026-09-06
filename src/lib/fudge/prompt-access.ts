@@ -34,15 +34,17 @@ const FUDGE_LOGIN_URL = "https://api.withfudge.com/auth/google";
 const FUDGE_LOGIN_RETURN_URL =
   "https://explorer.withfudge.com/?fudge-auth=complete";
 
-export type ExplorerBillingPeriod = "quarterly" | "yearly";
+export type ExplorerBillingPeriod = "monthly" | "quarterly" | "yearly";
 
 export type FudgePlanId = "pro" | "studio";
 
 export type FudgePlanDetails = {
   id: FudgePlanId;
   name: string;
+  monthlyPrice: string;
   quarterlyPrice: string;
   yearlyPrice: string;
+  trialDays: Record<ExplorerBillingPeriod, number>;
   note: string;
   configured: boolean;
 };
@@ -183,11 +185,19 @@ export async function readFudgePlans(
       const plan = payload.plans.find(
         (candidate) => isRecord(candidate) && candidate.id === id,
       );
+      const trialDays = isRecord(plan) && isRecord(plan.trialDays) ? plan.trialDays : null;
       if (
         !isRecord(plan) ||
         typeof plan.name !== "string" ||
+        typeof plan.monthlyPrice !== "string" ||
         typeof plan.quarterlyPrice !== "string" ||
         typeof plan.yearlyPrice !== "string" ||
+        !trialDays ||
+        !["monthly", "quarterly", "yearly"].every((period) =>
+          typeof trialDays[period] === "number" &&
+          Number.isInteger(trialDays[period]) &&
+          trialDays[period] >= 0
+        ) ||
         typeof plan.note !== "string" ||
         typeof plan.configured !== "boolean"
       ) {
@@ -196,8 +206,10 @@ export async function readFudgePlans(
       plans.push({
         id,
         name: plan.name,
+        monthlyPrice: plan.monthlyPrice,
         quarterlyPrice: plan.quarterlyPrice,
         yearlyPrice: plan.yearlyPrice,
+        trialDays: trialDays as FudgePlanDetails["trialDays"],
         note: plan.note,
         configured: plan.configured,
       });
@@ -206,6 +218,15 @@ export async function readFudgePlans(
   } catch {
     return null;
   }
+}
+
+export function fudgeCheckoutLabel(
+  plan: FudgePlanDetails,
+  period: ExplorerBillingPeriod,
+) {
+  if (!plan.configured) return "Unavailable";
+  const days = plan.trialDays[period];
+  return days > 0 ? `Start ${days}-day free trial` : `Choose ${plan.name}`;
 }
 
 export async function createFudgeCheckout(

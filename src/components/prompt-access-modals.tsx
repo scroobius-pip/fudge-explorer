@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  fudgeCheckoutLabel,
   fudgeLoginUrl,
   readFudgePlans,
   readPromptAccess,
@@ -26,7 +27,7 @@ import {
   type PromptAccess,
 } from "@/lib/fudge/prompt-access";
 
-const FULL_PRICING_URL = "https://design.withfudge.com/";
+const FULL_PRICING_URL = "https://design.withfudge.com/pricing";
 const GOOGLE_POLL_INTERVAL_MS = 1_000;
 const GOOGLE_CLOSE_GRACE_MS = 8_000;
 const EXPLORER_AUTH_COMPLETE_MESSAGE = "fudge:explorer-auth-complete";
@@ -469,15 +470,21 @@ function PlanFeature({
 }
 
 function PlanPrice({
+  monthlyPrice,
   quarterlyPrice,
   period,
   yearlyPrice,
 }: {
+  monthlyPrice: string;
   quarterlyPrice: string;
   period: ExplorerBillingPeriod;
   yearlyPrice: string;
 }) {
-  const selected = period === "quarterly" ? quarterlyPrice : yearlyPrice;
+  const selected = {
+    monthly: monthlyPrice,
+    quarterly: quarterlyPrice,
+    yearly: yearlyPrice,
+  }[period];
   return (
     <span className="prompt-pricing-price">
       <b>{selected.split("/")[0]}</b>
@@ -554,12 +561,22 @@ export function ExplorerPricingModal({
         <button
           type="button"
           role="radio"
+          aria-checked={period === "monthly"}
+          className={period === "monthly" ? "is-selected" : ""}
+          onClick={() => setPeriod("monthly")}
+        >
+          Monthly
+        </button>
+        <button
+          type="button"
+          role="radio"
           aria-checked={period === "quarterly"}
           data-autofocus
           className={period === "quarterly" ? "is-selected" : ""}
           onClick={() => setPeriod("quarterly")}
         >
           Quarterly
+          <span>Save 20%</span>
         </button>
         <button
           type="button"
@@ -569,7 +586,7 @@ export function ExplorerPricingModal({
           onClick={() => setPeriod("yearly")}
         >
           Yearly
-          <span>Save 17%</span>
+          <span>Save 34%</span>
         </button>
       </div>
 
@@ -600,12 +617,16 @@ export function ExplorerPricingModal({
                         <div>
                           <strong>{plan.name}</strong>
                           <PlanPrice
+                            monthlyPrice={plan.monthlyPrice}
                             quarterlyPrice={plan.quarterlyPrice}
                             period={period}
                             yearlyPrice={plan.yearlyPrice}
                           />
                         </div>
-                        <p>{plan.note}</p>
+                        <p>
+                          {plan.note}
+                          {period === "monthly" ? " Charged today. Renews monthly. No free trial." : ""}
+                        </p>
                         <button
                           type="button"
                           disabled={checkoutBusy !== null || !plan.configured}
@@ -615,9 +636,7 @@ export function ExplorerPricingModal({
                             <LoaderCircle className="size-4 prompt-modal-spinner" />
                           ) : null}
                           <span>
-                            {plan.configured
-                              ? "Start 3-day free trial"
-                              : "Unavailable"}
+                            {fudgeCheckoutLabel(plan, period)}
                           </span>
                           {plan.id === "studio" &&
                           checkoutBusy !== plan.id &&
@@ -673,12 +692,16 @@ export function ExplorerPricingModal({
                   <div>
                     <strong>{plan.name}</strong>
                     <PlanPrice
+                      monthlyPrice={plan.monthlyPrice}
                       quarterlyPrice={plan.quarterlyPrice}
                       period={period}
                       yearlyPrice={plan.yearlyPrice}
                     />
                   </div>
-                  <p>{plan.note}</p>
+                  <p>
+                    {plan.note}
+                    {period === "monthly" ? " Charged today. Renews monthly. No free trial." : ""}
+                  </p>
                 </div>
                 <dl>
                   {PLAN_COMPARISON_ROWS.map((row) => (
@@ -704,7 +727,7 @@ export function ExplorerPricingModal({
                     <LoaderCircle className="size-4 prompt-modal-spinner" />
                   ) : null}
                   <span>
-                    {plan.configured ? "Start 3-day free trial" : "Unavailable"}
+                    {fudgeCheckoutLabel(plan, period)}
                   </span>
                   {plan.id === "studio" &&
                   checkoutBusy !== plan.id &&

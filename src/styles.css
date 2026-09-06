@@ -957,7 +957,7 @@ textarea {
 .prompt-pricing-period {
   display: grid;
   width: max-content;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0;
   margin: 1rem 0 0.65rem auto;
   border-radius: 999px;
@@ -1373,6 +1373,7 @@ textarea {
 
   .prompt-pricing-period button {
     padding: 0 0.55rem;
+    flex-wrap: wrap;
   }
 }
 
