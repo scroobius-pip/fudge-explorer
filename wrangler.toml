@@ -5,6 +5,10 @@ workers_dev = true
 preview_urls = false
 
 [[routes]]
+pattern = "explorer.fudge.design"
+custom_domain = true
+
+[[routes]]
 pattern = "explorer.withfudge.com"
 custom_domain = true
 

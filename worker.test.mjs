@@ -1534,3 +1534,29 @@ function bytes(length) {
     ),
   };
 }
+
+test('forwards bounded candidate scopes and preserves generation conflicts', async () => {
+  const scope={generation:7,captureIds:Array.from({length:600},(_,i)=>i+1)};
+  let forwarded;
+  const env={SEMANTIC_TEXT_RATE_LIMITER:{limit:async()=>({success:true})},FUDGE_SERVICE:{fetch:async request=>{forwarded=await request.json();return Response.json({error:'corpus_generation_changed'},{status:409})}}};
+  const response=await worker.fetch(new Request('https://proxy.test/v1/semantic-search/text',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({query:'pricing page',scope})}),env);
+  assert.deepEqual(forwarded,{query:'pricing page',scope});
+  assert.equal(response.status,409);assert.deepEqual(await response.json(),{error:'corpus_generation_changed'});
+});
+test('rejects malformed scopes before contacting the service', async () => {
+  let calls=0;const env={SEMANTIC_TEXT_RATE_LIMITER:{limit:async()=>({success:true})},FUDGE_SERVICE:{fetch:async()=>{calls++;}}};
+  for(const scope of [{generation:7,captureIds:[1,1]},{generation:0,captureIds:[1]},{generation:7,captureIds:[-1]}]){
+    const response=await worker.fetch(new Request('https://proxy.test/v1/semantic-search/text',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({query:'pricing page',scope})}),env);
+    assert.equal(response.status,400);
+  }assert.equal(calls,0);
+});
+test('forwards scoped image bytes together with the candidate set',async()=>{
+  const bytes=new Uint8Array([137,80,78,71,13,10,26,10]);const scope={generation:7,captureIds:[999]};
+  const form=new FormData();form.set('image',new Blob([bytes],{type:'image/png'}),'query.png');form.set('scope',JSON.stringify(scope));
+  let called=false;const env={SEMANTIC_IMAGE_RATE_LIMITER:{limit:async()=>({success:true})},FUDGE_SERVICE:{fetch:async request=>{
+    called=true;const sent=await request.formData();assert.deepEqual(JSON.parse(sent.get('scope')),scope);assert.deepEqual(new Uint8Array(await sent.get('image').arrayBuffer()),bytes);
+    return Response.json({observedGeneration:7,truncated:false,result:{headers:['capture_id','distance','title','origin','path','match_type'],rows:[[999,0.1,'Example','https://example.com','/','semantic_image']]}});
+  }}};
+  const response=await worker.fetch(new Request('https://proxy.test/v1/semantic-search/image',{method:'POST',body:form}),env);
+  assert.equal(response.status,200);assert.equal(called,true);assert.equal((await response.json()).results[0].captureId,999);
+});

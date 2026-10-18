@@ -20,6 +20,7 @@ import {
   captureSimilarityQuery,
 } from "./similarity-queries.js";
 
+import { readSemanticImage, validateSemanticScope } from "./semantic-request.js";
 const QUERY_CONTRACT_VERSION = "mnestic-query-v1";
 const QUERY_PATH = "/v1/query";
 const FONT_SIMILARITY_PATH = "/v1/similar-fonts";
@@ -43,7 +44,7 @@ const MAX_REQUEST_BYTES = 96 * 1024;
 const MAX_SCRIPT_BYTES = 32 * 1024;
 const MAX_ROWS = 2_000;
 const MAX_BYTES = 2 * 1024 * 1024;
-const MAX_SEMANTIC_TEXT_BYTES = 2 * 1024;
+const MAX_SEMANTIC_TEXT_BYTES = 256 * 1024;
 const MAX_SEMANTIC_IMAGE_BYTES = 4 * 1024 * 1024;
 const SEMANTIC_RESULT_LIMIT = 100;
 const encoder = new TextEncoder();
@@ -361,17 +362,18 @@ async function semanticTextSearch(request, env) {
   if (body.error) {
     return json({ error: body.error }, 413, {}, request, env);
   }
-  let query;
+  let query, scope;
   try {
     const value = JSON.parse(new TextDecoder().decode(body.bytes));
     if (
       !isRecord(value) ||
-      Object.keys(value).length !== 1 ||
+      Object.keys(value).some(key => !["query", "scope"].includes(key)) ||
       typeof value.query !== "string"
     ) {
       throw new Error("invalid");
     }
     query = value.query.trim();
+    scope = validateSemanticScope(value.scope);
   } catch {
     return json({ error: "invalid_search_request" }, 400, {}, request, env);
   }
@@ -390,7 +392,7 @@ async function semanticTextSearch(request, env) {
           accept: "application/json",
           "content-type": "application/json",
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, ...(scope === undefined ? {} : {scope}) }),
       }),
     );
     return semanticSearchResponse(upstream, "semantic_text", request, env);
@@ -408,31 +410,21 @@ async function semanticTextSearch(request, env) {
 async function semanticImageSearch(request, env) {
   const limited = await limitSemanticSearch(request, env, "image");
   if (limited) return limited;
-  const mediaType = request.headers
-    .get("content-type")
-    ?.split(";", 1)[0]
-    ?.trim()
-    .toLowerCase();
-  if (mediaType !== "image/jpeg" && mediaType !== "image/png") {
-    return json({ error: "unsupported_media_type" }, 415, {}, request, env);
-  }
-  const body = await readBoundedBody(request, MAX_SEMANTIC_IMAGE_BYTES);
-  if (body.error) {
-    return json({ error: body.error }, 413, {}, request, env);
-  }
-  if (!validSemanticImage(body.bytes, mediaType)) {
-    return json({ error: "invalid_search_image" }, 400, {}, request, env);
-  }
   try {
+    const {bytes, mediaType, scope} = await readSemanticImage(request);
+    if (!validSemanticImage(bytes, mediaType)) return json({error:'invalid_search_image'},400,{},request,env);
+    const form = scope === undefined ? null : new FormData();
+    if (form) { form.set('image',new Blob([bytes],{type:mediaType}),'query'); form.set('scope',JSON.stringify(scope)); }
     const upstream = await env.FUDGE_SERVICE.fetch(
       new Request(INTERNAL_SEMANTIC_IMAGE_URL, {
         method: "POST",
-        headers: { accept: "application/json", "content-type": mediaType },
-        body: body.bytes,
+        headers: { accept: "application/json", ...(form ? {} : {"content-type": mediaType}) },
+        body: form ?? bytes,
       }),
     );
     return semanticSearchResponse(upstream, "semantic_image", request, env);
-  } catch {
+  } catch (error) {
+    if (error?.status) return json({error:error.code},error.status,{},request,env);
     return json(
       { error: "semantic_search_unavailable" },
       503,
@@ -520,11 +512,11 @@ async function semanticSearchResponse(upstream, expectedType, request, env) {
     );
   }
   if (!upstream.ok) {
-    const status = [400, 413, 415, 429, 503, 504].includes(upstream.status)
+    const status = [400, 409, 413, 415, 429, 503, 504].includes(upstream.status)
       ? upstream.status
       : 502;
     const error =
-      status === 400
+      status === 409 ? "corpus_generation_changed" : status === 400
         ? "invalid_search_request"
         : status === 413
           ? "request_too_large"
