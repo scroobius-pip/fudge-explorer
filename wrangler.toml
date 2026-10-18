@@ -8,6 +8,10 @@ preview_urls = false
 pattern = "explorer.withfudge.com"
 custom_domain = true
 
+[[routes]]
+pattern = "explorer.fudge.design"
+custom_domain = true
+
 [assets]
 directory = "./public"
 binding = "ASSETS"
