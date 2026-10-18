@@ -33,8 +33,11 @@ const CAPTURED_FONT_SIMILARITY_PATH = "/v1/similar-captured-fonts";
 const FAMILY_FONT_USAGE_PATH = "/v1/family-font-usage";
 const SEMANTIC_TEXT_PATH = "/v1/semantic-search/text";
 const SEMANTIC_IMAGE_PATH = "/v1/semantic-search/image";
+const EXPLORER_SEARCH_PATH = "/v1/search";
+const CAPTURE_DESCRIPTOR_PATH = "/v1/capture";
 
 const INTERNAL_QUERY_URL = "https://fudge.internal/v1/internal/corpus/query";
+const INTERNAL_SEARCH_URL = "https://fudge.internal/v1/internal/corpus/search";
 const INTERNAL_SEMANTIC_TEXT_URL =
   "https://fudge.internal/v1/internal/corpus/semantic-search/text";
 const INTERNAL_SEMANTIC_IMAGE_URL =
@@ -90,6 +93,8 @@ export default {
       FAMILY_FONT_USAGE_PATH,
       SEMANTIC_TEXT_PATH,
       SEMANTIC_IMAGE_PATH,
+      EXPLORER_SEARCH_PATH,
+      CAPTURE_DESCRIPTOR_PATH,
     ].includes(url.pathname);
 
     if (url.pathname === "/health") {
@@ -100,6 +105,7 @@ export default {
     }
     if (request.method === "OPTIONS") return preflight(request, env);
     const postOnly =
+      url.pathname === EXPLORER_SEARCH_PATH ||
       url.pathname === SEMANTIC_TEXT_PATH ||
       url.pathname === SEMANTIC_IMAGE_PATH;
     const allowedMethods =
@@ -131,6 +137,12 @@ export default {
         request,
         env,
       );
+    }
+    if (url.pathname === EXPLORER_SEARCH_PATH) {
+      return explorerSearch(request, env);
+    }
+    if (url.pathname === CAPTURE_DESCRIPTOR_PATH) {
+      return captureDescriptor(url, request, env);
     }
     if (url.pathname === SEMANTIC_TEXT_PATH) {
       return semanticTextSearch(request, env);
@@ -348,6 +360,88 @@ async function captureMedia(request, captureId, video, url) {
   });
 }
 
+function validCaptureDescriptor(item) {
+  return isRecord(item) && Number.isSafeInteger(item.captureId) && item.captureId > 0
+    && (item.distance === null || Number.isFinite(item.distance))
+    && typeof item.title === "string" && item.title.length <= 8192
+    && typeof item.origin === "string" && /^https?:\/\//.test(item.origin) && item.origin.length <= 1024
+    && typeof item.path === "string" && item.path.length <= 8192
+    && [item.imageWidth, item.imageHeight].every(n => n === null || Number.isSafeInteger(n) && n >= 0);
+}
+
+// This boundary transports bounded intent. Qualification and ranking are owned by
+// the native Mnestic query; neither capture membership nor query source is accepted.
+async function explorerSearch(request, env) {
+  const limited = await limitSemanticSearch(request, env, "text");
+  if (limited) return limited;
+  if (request.headers.get("content-type")?.split(";", 1)[0]?.trim() !== "application/json") {
+    return json({ error: "unsupported_media_type" }, 415, {}, request, env);
+  }
+  const bounded = await readBoundedBody(request, 32 * 1024);
+  if (bounded.error) return json({ error: bounded.error }, 413, {}, request, env);
+  let intent;
+  try {
+    intent = JSON.parse(new TextDecoder().decode(bounded.bytes));
+    if (!isRecord(intent) || intent.version !== 1 || intent.pageSize !== 100
+      || !isRecord(intent.filter) || !isRecord(intent.ranking)
+      || Object.keys(intent).some(key => !["version", "filter", "ranking", "pageSize", "cursor", "generation"].includes(key))) throw Error();
+  } catch { return json({ error: "invalid_search_request" }, 400, {}, request, env); }
+  try {
+    const upstream = await env.FUDGE_SERVICE.fetch(new Request(INTERNAL_SEARCH_URL, {
+      method: "POST", headers: { accept: "application/json", "content-type": "application/json" },
+      body: JSON.stringify(intent), signal: request.signal,
+    }));
+    const body = await upstream.json();
+    if (!upstream.ok) {
+      const status = [400, 404, 409, 413, 429, 503, 504].includes(upstream.status) ? upstream.status : 502;
+      const allowed = new Set(["invalid_search_request", "invalid_search_cursor", "unknown_search_filter", "search_seed_unavailable",
+        "corpus_generation_changed", "request_too_large", "corpus_timeout", "corpus_search_timeout", "corpus_unavailable", "corpus_search_truncated"]);
+      return json({ error: allowed.has(body.code) ? body.code : "corpus_search_failed" }, status, {}, request, env);
+    }
+    if (!isRecord(body) || body.version !== 1 || !Number.isSafeInteger(body.observedGeneration) || body.observedGeneration < 1
+      || !Number.isSafeInteger(body.total) || body.total < 0
+      || !Number.isSafeInteger(body.unrankedTotal) || body.unrankedTotal < 0 || body.unrankedTotal > body.total
+      || body.truncated !== undefined && body.truncated !== false
+      || !Array.isArray(body.items) || body.items.length > 100 || body.items.length > body.total
+      || !body.items.every(validCaptureDescriptor)
+      || new Set(body.items.map(item => item.captureId)).size !== body.items.length
+      || !(body.nextCursor === null || typeof body.nextCursor === "string" && /^[A-Za-z0-9_-]{1,2048}$/.test(body.nextCursor))) {
+      return json({ error: "invalid_search_response" }, 502, {}, request, env);
+    }
+    if (!intent.cursor && body.total > body.items.length && body.nextCursor === null) {
+      return json({error:"invalid_search_response"},502,{},request,env);
+    }
+    const items = body.items.map(({captureId, distance, title, origin, path, imageWidth, imageHeight}) =>
+      ({captureId, distance, title, origin, path, imageWidth, imageHeight}));
+    return json({version:1, observedGeneration:body.observedGeneration, total:body.total,
+      unrankedTotal:body.unrankedTotal, items, nextCursor:body.nextCursor}, 200, {}, request, env);
+  } catch { return json({error:"corpus_search_unavailable"}, 503, {}, request, env); }
+}
+
+async function captureDescriptor(url, request, env) {
+  const captureId = positiveQueryInteger(url.searchParams.get("captureId"));
+  const generation = positiveQueryInteger(url.searchParams.get("generation"));
+  if (hasUnknownParameters(url, ["captureId", "generation"]) || !captureId || !generation) {
+    return json({error:"invalid_capture_request"}, 400, {}, request, env);
+  }
+  try {
+    const response = await queryCorpus(env, {
+      script: `?[capture_id, title, origin, path, image_width, image_height] :=
+  *capture{id: capture_id, page_id, title, screenshot_width_px: image_width, screenshot_height_px: image_height},
+  capture_id == $capture_id, *page{id: page_id, domain_id, path}, *domain{id: domain_id, origin}
+:limit 1`,
+      parameters: {capture_id:captureId}, expectedGeneration:generation, maxRows:1, maxBytes:32*1024,
+    });
+    if (response.truncated || response.observedGeneration !== generation
+      || response.result.headers.join(",") !== "capture_id,title,origin,path,image_width,image_height") throw Error("Invalid descriptor");
+    const row = response.result.rows[0];
+    if (!row) return json({error:"capture_not_found"},404,{},request,env);
+    const capture = {captureId:row[0], distance:null, title:row[1], origin:row[2], path:row[3], imageWidth:row[4], imageHeight:row[5]};
+    if (capture.captureId !== captureId || !validCaptureDescriptor(capture)) throw Error("Invalid descriptor");
+    return json({observedGeneration:response.observedGeneration,capture},200,{},request,env);
+  } catch(error) { return evidenceError(error, request, env); }
+}
+
 async function semanticTextSearch(request, env) {
   const limited = await limitSemanticSearch(request, env, "text");
   if (limited) return limited;
@@ -484,10 +578,32 @@ async function readBoundedBody(request, maximum) {
   if (Number.isFinite(declaredLength) && declaredLength > maximum) {
     return { error: "request_too_large" };
   }
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  return bytes.byteLength > 0 && bytes.byteLength <= maximum
-    ? { bytes }
-    : { error: "request_too_large" };
+  if (!request.body) return { error: "request_too_large" };
+  const reader = request.body.getReader();
+  const chunks = [];
+  let length = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > maximum) {
+        await reader.cancel();
+        return { error: "request_too_large" };
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (!length) return { error: "request_too_large" };
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return { bytes };
 }
 
 function validSemanticImage(bytes, mediaType) {
