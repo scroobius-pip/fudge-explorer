@@ -34,6 +34,7 @@ const FAMILY_FONT_USAGE_PATH = "/v1/family-font-usage";
 const SEMANTIC_TEXT_PATH = "/v1/semantic-search/text";
 const SEMANTIC_IMAGE_PATH = "/v1/semantic-search/image";
 const EXPLORER_SEARCH_PATH = "/v1/search";
+const EXPLORER_SUGGESTIONS_PATH = "/v1/suggestions";
 const CAPTURE_DESCRIPTOR_PATH = "/v1/capture";
 
 const INTERNAL_QUERY_URL = "https://fudge.internal/v1/internal/corpus/query";
@@ -94,6 +95,7 @@ export default {
       SEMANTIC_TEXT_PATH,
       SEMANTIC_IMAGE_PATH,
       EXPLORER_SEARCH_PATH,
+      EXPLORER_SUGGESTIONS_PATH,
       CAPTURE_DESCRIPTOR_PATH,
     ].includes(url.pathname);
 
@@ -106,6 +108,7 @@ export default {
     if (request.method === "OPTIONS") return preflight(request, env);
     const postOnly =
       url.pathname === EXPLORER_SEARCH_PATH ||
+      url.pathname === EXPLORER_SUGGESTIONS_PATH ||
       url.pathname === SEMANTIC_TEXT_PATH ||
       url.pathname === SEMANTIC_IMAGE_PATH;
     const allowedMethods =
@@ -137,6 +140,9 @@ export default {
         request,
         env,
       );
+    }
+    if (url.pathname === EXPLORER_SUGGESTIONS_PATH) {
+      return explorerSuggestions(request, env);
     }
     if (url.pathname === EXPLORER_SEARCH_PATH) {
       return explorerSearch(request, env);
@@ -395,7 +401,7 @@ async function explorerSearch(request, env) {
     if (!upstream.ok) {
       const status = [400, 404, 409, 413, 429, 503, 504].includes(upstream.status) ? upstream.status : 502;
       const allowed = new Set(["invalid_search_request", "invalid_search_cursor", "unknown_search_filter", "search_seed_unavailable",
-        "corpus_generation_changed", "request_too_large", "corpus_timeout", "corpus_search_timeout", "corpus_unavailable", "corpus_search_truncated"]);
+        "corpus_generation_changed", "request_too_large", "corpus_timeout", "corpus_search_timeout", "corpus_unavailable", "corpus_search_truncated", "inactive_semantic_generation", "corpus_retrieval_unavailable"]);
       return json({ error: allowed.has(body.code) ? body.code : "corpus_search_failed" }, status, {}, request, env);
     }
     if (!isRecord(body) || body.version !== 1 || !Number.isSafeInteger(body.observedGeneration) || body.observedGeneration < 1
@@ -416,6 +422,46 @@ async function explorerSearch(request, env) {
     return json({version:1, observedGeneration:body.observedGeneration, total:body.total,
       unrankedTotal:body.unrankedTotal, items, nextCursor:body.nextCursor}, 200, {}, request, env);
   } catch { return json({error:"corpus_search_unavailable"}, 503, {}, request, env); }
+}
+
+// Suggestions carry typed scope intent, never a browser-produced capture set.
+async function explorerSuggestions(request, env) {
+  const limited = await limitSemanticSearch(request, env, "text");
+  if (limited) return limited;
+  if (request.headers.get("content-type")?.split(";", 1)[0]?.trim() !== "application/json") return json({error:"unsupported_media_type"},415,{},request,env);
+  const bounded=await readBoundedBody(request,32*1024);
+  if(bounded.error)return json({error:bounded.error},413,{},request,env);
+  let intent;
+  try {
+    intent=JSON.parse(new TextDecoder().decode(bounded.bytes));
+    if(!isRecord(intent)||intent.version!==1||!isRecord(intent.filter)||typeof intent.query!=="string"||intent.query.length>512
+      || Object.keys(intent).some(k=>!["version","filter","query","generation"].includes(k)))throw Error();
+  } catch {return json({error:"invalid_suggestions_request"},400,{},request,env);}
+  try {
+    const upstream=await env.FUDGE_SERVICE.fetch(new Request("https://fudge.internal/v1/internal/corpus/suggestions",{
+      method:"POST",headers:{accept:"application/json","content-type":"application/json"},body:JSON.stringify(intent),signal:request.signal}));
+    const body=await upstream.json();
+    if(!upstream.ok) {
+      const status=[400,404,409,413,429,503,504].includes(upstream.status)?upstream.status:502;
+      const allowed=new Set(["invalid_suggestions_request","invalid_search_request","unknown_search_filter","corpus_generation_changed","request_too_large","corpus_timeout","corpus_search_timeout","corpus_unavailable","corpus_search_truncated"]);
+      return json({error:allowed.has(body.code)?body.code:"corpus_suggestions_failed"},status,{},request,env);
+    }
+    const positive=n=>Number.isSafeInteger(n)&&n>0;
+    const text=(s,n)=>typeof s==='string'&&s.length<=n;
+    if(!isRecord(body)||body.version!==1||!positive(body.observedGeneration)
+      || !Array.isArray(body.captures)||body.captures.length>8||!body.captures.every(v=>isRecord(v)&&positive(v.captureId)&&text(v.title,8192)&&text(v.origin,1024)&&/^https?:\/\//.test(v.origin)&&text(v.path,8192))
+      || !Array.isArray(body.terms)||body.terms.length>8||!body.terms.every(v=>isRecord(v)&&text(v.id,192)&&text(v.facetId,192)&&text(v.label,512)&&positive(v.count))
+      || !Array.isArray(body.fonts)||body.fonts.length>6||!body.fonts.every(v=>isRecord(v)&&text(v.family,192)&&v.family.length>0&&positive(v.count))
+      || !Array.isArray(body.domains)||body.domains.length>5||!body.domains.every(v=>isRecord(v)&&text(v.origin,1024)&&/^https?:\/\//.test(v.origin)&&positive(v.count))
+      || new Set(body.captures.map(v=>v.captureId)).size!==body.captures.length
+      || new Set(body.terms.map(v=>v.id)).size!==body.terms.length
+      || new Set(body.fonts.map(v=>v.family)).size!==body.fonts.length
+      || new Set(body.domains.map(v=>v.origin)).size!==body.domains.length) return json({error:"invalid_suggestions_response"},502,{},request,env);
+    return json({version:1,observedGeneration:body.observedGeneration,
+      captures:body.captures.map(({captureId,title,origin,path})=>({captureId,title,origin,path})),
+      terms:body.terms.map(({id,facetId,label,count})=>({id,facetId,label,count})),
+      fonts:body.fonts.map(({family,count})=>({family,count})),domains:body.domains.map(({origin,count})=>({origin,count}))},200,{},request,env);
+  }catch{return json({error:"corpus_suggestions_unavailable"},503,{},request,env);}
 }
 
 async function captureDescriptor(url, request, env) {

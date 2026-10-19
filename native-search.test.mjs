@@ -97,3 +97,17 @@ test("focus descriptor never substitutes a different capture or ignores generati
   assert.equal(conflict.status,409);
   assert.equal((await worker.fetch(new Request("https://proxy.test/v1/capture?captureId=4731"),env(async()=>{throw Error();}))).status,400);
 });
+
+test('scoped suggestions transport complete native scope and reject malformed groups',async()=>{
+ const intent={version:1,filter:{all:[{kind:'motion'},{kind:'domain',origin:'https://inside.test'}]},query:'pricing',generation:77};
+ const request=body=>new Request('https://proxy.test/v1/suggestions',{method:'POST',headers:{'content-type':'application/json',cookie:'private',authorization:'Bearer private'},body:JSON.stringify(body)});
+ const result={version:1,observedGeneration:77,captures:[{captureId:150,title:'Pricing',origin:'https://inside.test',path:'/pricing'}],terms:[{id:'page.pricing',facetId:'page_role',label:'Pricing',count:12}],fonts:[],domains:[]};
+ let forwarded;
+ const response=await worker.fetch(request(intent),env(async r=>{forwarded={url:r.url,headers:[...r.headers.keys()],body:await r.json()};return Response.json(result);}));
+ assert.equal(response.status,200);assert.deepEqual(await response.json(),result);assert.equal(forwarded.url,'https://fudge.internal/v1/internal/corpus/suggestions');assert.deepEqual(forwarded.body,intent);assert.deepEqual(forwarded.headers.sort(),['accept','content-type']);
+ let calls=0;assert.equal((await worker.fetch(request({...intent,captureIds:[1]}),env(async()=>{calls++;return Response.json({});}))).status,400);assert.equal(calls,0);
+ for(const [status,code]of[[400,'unknown_search_filter'],[409,'corpus_generation_changed'],[504,'corpus_search_timeout']]){const r=await worker.fetch(request(intent),env(async()=>Response.json({code},{status})));assert.equal(r.status,status);assert.deepEqual(await r.json(),{error:code});}
+ assert.equal((await worker.fetch(request(intent),env(async()=>Response.json({...result,fonts:Array.from({length:7},(_,i)=>({family:'f'+i,count:1}))})))).status,502);
+ assert.equal((await worker.fetch(new Request('https://proxy.test/v1/suggestions'),env(async()=>Response.json({})))).status,405);
+});
+test('preserves the retrieval-specific fallback error',async()=>{const r=await worker.fetch(request(),env(async()=>Response.json({code:'corpus_retrieval_unavailable'},{status:503})));assert.equal(r.status,503);assert.deepEqual(await r.json(),{error:'corpus_retrieval_unavailable'});});
