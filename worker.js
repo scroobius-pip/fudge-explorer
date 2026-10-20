@@ -1525,7 +1525,11 @@ async function readCorpusArtifact(env, phase, generation, request) {
     headers.set("x-uncompressed-content-length", uncompressedBytes);
   }
   applyCors(headers, request);
-  if (request.headers.get("if-none-match") === object.httpEtag) {
+  const inmHeader = request.headers.get("if-none-match");
+  const stripEtag = (value) => String(value ?? "").trim().replace(/^W\//i, "").replace(/"/g, "");
+  const inmMatches = inmHeader !== null
+    && inmHeader.split(",").some((candidate) => stripEtag(candidate) === stripEtag(object.httpEtag));
+  if (inmMatches) {
     return new Response(null, { status: 304, headers });
   }
   return new Response(object.body, { status: 200, headers });
