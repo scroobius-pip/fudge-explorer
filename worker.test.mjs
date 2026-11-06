@@ -1351,6 +1351,8 @@ test("serves bounded capture effects from the current corpus", async () => {
       [
         ["radius", 0, [8_000, 12, "dom_computed_style"]],
         ["completeness", "radius_observation", ["complete", 1, 1, 0, null]],
+        ["gradient", 0, [null, "radial", 16, null, null, null, null, 1]],
+        ["gradient_stop", [0, 0], [255, 0, 0, 1_000_000, 0]],
       ],
     );
   });
@@ -1367,6 +1369,11 @@ test("serves bounded capture effects from the current corpus", async () => {
   assert.equal(forwarded.expectedGeneration, undefined);
   assert.equal(body.evidence.radius[0].values[0], 8_000);
   assert.equal(body.evidence.completeness[0].identity, "radius_observation");
+  // The gradient row carries the kind at values[1]; its stops join on identity[0].
+  assert.equal(body.evidence.gradient[0].identity, 0);
+  assert.equal(body.evidence.gradient[0].values[1], "radial");
+  assert.equal(body.evidence.gradient_stop[0].identity[0], 0);
+  assert.match(forwarded.script, /\*capture_gradient\{/);
   assert.match(forwarded.script, /capture_text_style/);
   assert.match(forwarded.script, /capture_historical_font_attribution/);
   assert.match(forwarded.script, /historical_capture_color_observation/);

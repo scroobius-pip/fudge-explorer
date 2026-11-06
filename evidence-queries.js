@@ -56,6 +56,16 @@ evidence[kind, identity, values] :=
     reason_code]
 
 evidence[kind, identity, values] :=
+  *capture_gradient{
+    capture_id: $capture_id, gradient_id: identity, structure_observation_index,
+    kind: gradient_kind, angle_millidegrees, x_q, y_q, width_q, height_q,
+    occurrence_count
+  },
+  kind = 'gradient',
+  values = [angle_millidegrees, gradient_kind, structure_observation_index,
+    x_q, y_q, width_q, height_q, occurrence_count]
+
+evidence[kind, identity, values] :=
   *capture_gradient_stop{
     capture_id: $capture_id, gradient_id, stop_index, r, g, b, alpha_ppm,
     position_ppm
