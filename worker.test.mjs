@@ -368,7 +368,7 @@ test("serves generation-keyed compressed corpus artifacts without live queries",
   const bootstrapBytes = await compress(bootstrap);
   const detailsBytes = await compress(details);
   const manifest = {
-    contractVersion: "fudge-explorer-artifact-v3",
+    contractVersion: "fudge-explorer-artifact-v4",
     generation: 77,
     builtAt: new Date().toISOString(),
     bootstrap: {
