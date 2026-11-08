@@ -1123,7 +1123,14 @@ async function execute(runQuery, name) {
       response.observedGeneration,
     );
     rows.push(...response.result.rows);
-    if (!response.truncated && response.result.rows.length < spec.maxRows) {
+    // The corpus can answer a keyset page with fewer rows than its limit while
+    // more rows follow, so a short page never ends a paged projection; only an
+    // empty page does. An unpaged projection is complete when it fits.
+    const pageRows = response.result.rows.length;
+    if (
+      !response.truncated &&
+      (spec.cursor.length ? pageRows === 0 : pageRows < spec.maxRows)
+    ) {
       return { observedGeneration, rows };
     }
     const last = response.result.rows.at(-1);

@@ -138,14 +138,14 @@ test("materializes the live projections into the Explorer bundle contract", asyn
   ];
 
   const calls = [];
-  const bundle = await buildExplorerBundle(async (input) => {
+  const bundle = await buildExplorerBundle(firstPageOnly(async (input) => {
     const name = Object.entries(EXPLORER_QUERIES).find(
       ([, spec]) => spec.script === input.script,
     )?.[0];
     assert.ok(name);
     calls.push({ name, expectedGeneration: input.expectedGeneration });
     return response(EXPLORER_QUERIES[name].headers, rows[name]);
-  });
+  }));
 
   assert.equal(calls[0].name, "captures");
   assert.equal(calls[0].expectedGeneration, undefined);
@@ -220,7 +220,7 @@ test("materializes the live projections into the Explorer bundle contract", asyn
 
 test("accepts projections observed at different corpus generations", async () => {
   let calls = 0;
-  const bundle = await buildExplorerBundle(async (input) => {
+  const bundle = await buildExplorerBundle(firstPageOnly(async (input) => {
     calls += 1;
     if (calls === 1) return response(EXPLORER_QUERIES.captures.headers, []);
     return {
@@ -232,7 +232,7 @@ test("accepts projections observed at different corpus generations", async () =>
       ),
       observedGeneration: 78,
     };
-  });
+  }));
   assert.equal(bundle.data.observed_generation, 77);
 });
 
@@ -271,6 +271,26 @@ test("continues keyset pagination when a page exactly fills the script limit", a
   assert.equal(bundle.data.captures.length, 2_000);
 });
 
+test("keeps paging after a short page until a page comes back empty", async () => {
+  const font = (captureId) => [captureId, 0, "Cash Sans", "Cash Sans", 400, 400, 1_000_000, 1];
+  const pages = [[font(1), font(2)], [font(3)], []];
+  const cursors = [];
+  const bundle = await buildExplorerBundle(async (input) => {
+    const name = Object.entries(EXPLORER_QUERIES).find(
+      ([, spec]) => spec.script === input.script,
+    )?.[0];
+    assert.ok(name);
+    if (name === "fontObservations") {
+      cursors.push(input.parameters.after_capture_id);
+      return response(EXPLORER_QUERIES.fontObservations.headers, pages[cursors.length - 1]);
+    }
+    return response(EXPLORER_QUERIES[name].headers, []);
+  });
+
+  assert.deepEqual(cursors, [-1, 2, 3]);
+  assert.deepEqual(bundle.data.font_obs.map((row) => row[0]), [1, 2, 3]);
+});
+
 test("splits bootstrap and deferred projections without changing the full bundle", async () => {
   assert.deepEqual(EXPLORER_DEFERRED_QUERY_NAMES, ["assignments"]);
   assert.deepEqual(
@@ -283,14 +303,14 @@ test("splits bootstrap and deferred projections without changing the full bundle
     Object.keys(EXPLORER_QUERIES).sort(),
   );
   const bootstrapCalls = [];
-  const bootstrap = await buildExplorerBootstrap(async (input) => {
+  const bootstrap = await buildExplorerBootstrap(firstPageOnly(async (input) => {
     const name = input.script.includes("count(capture_id)")
       ? "captureCount"
       : queryName(input.script) || "capturesPage";
     bootstrapCalls.push({ name, expectedGeneration: input.expectedGeneration });
     if (name === "captureCount") return response(["count(capture_id)"], [[0]]);
     return response(EXPLORER_QUERIES[name].headers, []);
-  });
+  }));
   assert.equal(bootstrapCalls[0].name, "captureCount");
   assert.deepEqual(
     bootstrapCalls
@@ -310,12 +330,12 @@ test("splits bootstrap and deferred projections without changing the full bundle
   assert.deepEqual(bootstrap.legacyColors, {});
 
   const detailCalls = [];
-  const details = await buildExplorerDetails(async (input) => {
+  const details = await buildExplorerDetails(firstPageOnly(async (input) => {
     const name = queryName(input.script);
     detailCalls.push({ name, expectedGeneration: input.expectedGeneration });
     const rows = name === "assignments" ? [[42, "page.home", 0.95]] : [];
     return response(EXPLORER_QUERIES[name].headers, rows);
-  }, 77);
+  }), 77);
   assert.deepEqual(
     detailCalls.map((call) => call.name).sort(),
     [...EXPLORER_DEFERRED_QUERY_NAMES].sort(),
@@ -330,7 +350,7 @@ test("splits bootstrap and deferred projections without changing the full bundle
 test("loads unfenced capture pages concurrently for bootstrap", async () => {
   const calls = [];
   const progress = [];
-  const bootstrap = await buildExplorerBootstrap(
+  const bootstrap = await buildExplorerBootstrap(firstPageOnly(
     async (input) => {
       if (input.script.includes("count(capture_id)")) {
         calls.push({ name: "count", input });
@@ -351,7 +371,7 @@ test("loads unfenced capture pages concurrently for bootstrap", async () => {
             ])
           : [[2_001, "https://example.com", "/", "Capture", 2_001]];
       return response(EXPLORER_QUERIES.captures.headers, rows);
-    },
+    }),
     (event) => progress.push(event),
   );
   const pageCalls = calls.filter((call) => call.name === "page");
@@ -377,6 +397,19 @@ function queryName(script) {
   return Object.entries(EXPLORER_QUERIES).find(
     ([, spec]) => spec.script === script,
   )?.[0];
+}
+
+/** A fake corpus answers each paged projection's first page; later pages are empty. */
+function firstPageOnly(runQuery) {
+  return async (input) => {
+    const spec = Object.values(EXPLORER_QUERIES).find(
+      (candidate) => candidate.script === input.script,
+    );
+    const laterPage = spec?.cursor?.some(
+      ([column, initial]) => input.parameters?.[`after_${column}`] !== initial,
+    );
+    return laterPage ? response(spec.headers, []) : runQuery(input);
+  };
 }
 
 function response(headers, rows) {
