@@ -1534,3 +1534,10 @@ function bytes(length) {
     ),
   };
 }
+
+test("capture evidence carries each observation's identity-resolved family and reviewed display name", async () => {
+  const { CAPTURE_EVIDENCE_QUERY } = await import("./evidence-queries.js");
+  assert.match(CAPTURE_EVIDENCE_QUERY, /kind = 'font_identity',\s+values = \[declared_family, canonical_family_id, family_name\]/);
+  assert.match(CAPTURE_EVIDENCE_QUERY, /\*primary_font_face_resolution\{\s+content_sha256, logical_face_id, state: 'confirmed'/);
+  assert.match(CAPTURE_EVIDENCE_QUERY, /kind = 'font_display_name',\s+values = \[raw_family, display_family\]/);
+});

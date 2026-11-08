@@ -90,6 +90,44 @@ evidence[kind, identity, values] :=
   kind = 'legacy_color',
   values = [rgb_integer]
 
+canonical_font_family[family_id, canonical_family_id] :=
+  *primary_font_family_alias{family_id, canonical_family_id}
+canonical_font_family[family_id, family_id] :=
+  *primary_family{id: family_id},
+  not *primary_font_family_alias{family_id}
+
+# The family a captured font observation's own file resolves to through the
+# font identity index, so a reader can show "Suisse Intl" for a declared
+# "Suisse Intl-99e21c928808656c" without interpreting the name.
+evidence[kind, identity, values] :=
+  *primary_pin_font_observation{
+    capture_id: $capture_id, observation_index: identity, declared_family
+  },
+  *primary_pin_font_observation_source{
+    capture_id: $capture_id, observation_index: identity, acquisition_index
+  },
+  *primary_font_source_acquisition{
+    capture_id: $capture_id, acquisition_index, content_sha256,
+    outcome: 'acquired'
+  },
+  *primary_font_face_resolution{
+    content_sha256, logical_face_id, state: 'confirmed'
+  },
+  *primary_font_logical_face{logical_face_id, family_id},
+  canonical_font_family[family_id, canonical_family_id],
+  *primary_family{id: canonical_family_id, name: family_name},
+  kind = 'font_identity',
+  values = [declared_family, canonical_family_id, family_name]
+
+# A reviewed display name for a declared family that carries a bundler hash.
+evidence[kind, identity, values] :=
+  *primary_pin_font_observation_display_name{
+    capture_id: $capture_id, observation_index: identity, display_family,
+    raw_family
+  },
+  kind = 'font_display_name',
+  values = [raw_family, display_family]
+
 ?[kind, identity, values] := evidence[kind, identity, values]
 
 :order kind, identity
