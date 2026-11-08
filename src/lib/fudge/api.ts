@@ -21,6 +21,7 @@ type ExplorerData = {
   observed_generation: number;
   captures: Row[];
   families: Row[];
+  identity_families?: Row[];
   designers?: Row[];
   vendors?: Row[];
   terms: Record<string, [string, string, string]>;
@@ -289,11 +290,13 @@ export function catalogFromBundles(
   const colorRoles = colorRoleRows(data.color_roles);
   const fonts = fontRows(data.font_obs);
   const historicalFonts = historicalFontRows(data.hist_fonts ?? []);
-  const fontCatalogIds = familyCatalogIds(data.families);
+  const familyRows = withIdentityFamilies(data.families, data.identity_families ?? []);
+  const fontCatalogIds = familyCatalogIds(familyRows.rows, familyRows.preferred);
   const fontMetadata = fontMetadataRows(
-    data.families,
+    familyRows.rows,
     data.designers ?? [],
     data.vendors ?? [],
+    familyRows.preferred,
   );
   const typeRoles = typeRoleRows(data.type_roles);
   const textStyles = textStyleRows(data.text_styles ?? []);
@@ -881,22 +884,55 @@ function historicalFontRows(rows: Row[]): Record<string, HistoricalFontUse[]> {
   return grouped;
 }
 
-function familyCatalogIds(rows: Row[]): Record<string, number[]> {
+/**
+ * Files on captured pages resolve to a family through the font identity index.
+ * Each observed name is also filed under the family its confirmed files
+ * resolve to, and that family comes first, ahead of rows matched only by name.
+ */
+function withIdentityFamilies(familyRows: Row[], identityRows: Row[]) {
+  const byId = new Map(familyRows.map((row) => [asNumber(row[0]), row]));
+  const preferred = new Map<string, Set<number>>();
+  const rows = [...familyRows];
+  for (const row of identityRows) {
+    const name = normalizeObservedFontFamily(asString(row[0]));
+    const familyId = asNumber(row[1]);
+    const family = byId.get(familyId);
+    if (!name || !family) continue;
+    const key = observedFontFamilyKey(name);
+    const ids = preferred.get(key) ?? new Set<number>();
+    ids.add(familyId);
+    preferred.set(key, ids);
+    rows.push([familyId, name, family[2], family[3]]);
+  }
+  return { rows, preferred };
+}
+
+function identityFirst(preferred: Set<number> | undefined) {
+  return (left: number, right: number) =>
+    Number(preferred?.has(right) ?? false) - Number(preferred?.has(left) ?? false) || left - right;
+}
+
+function familyCatalogIds(
+  rows: Row[],
+  preferred: Map<string, Set<number>> = new Map(),
+): Record<string, number[]> {
   const grouped: Record<string, number[]> = {};
   for (const row of rows) {
     const familyId = asNumber(row[0]);
     const name = normalizeObservedFontFamily(asString(row[1]));
     if (!Number.isSafeInteger(familyId) || !name) continue;
     const key = observedFontFamilyKey(name);
-    (grouped[key] ??= []).push(familyId);
+    const ids = (grouped[key] ??= []);
+    if (!ids.includes(familyId)) ids.push(familyId);
   }
-  for (const ids of Object.values(grouped)) ids.sort((a, b) => a - b);
+  for (const [key, ids] of Object.entries(grouped)) ids.sort(identityFirst(preferred.get(key)));
   return grouped;
 }
 function fontMetadataRows(
   rows: Row[],
   designerRows: Row[],
   foundryRows: Row[],
+  preferred: Map<string, Set<number>> = new Map(),
 ): Record<string, FontMetadata> {
   const credits = (source: Row[]) =>
     new Map<number, FontCredit>(
@@ -930,8 +966,8 @@ function fontMetadataRows(
       entry.foundries.push(foundry);
     }
   }
-  for (const entry of Object.values(grouped)) {
-    entry.familyIds.sort((a, b) => a - b);
+  for (const [key, entry] of Object.entries(grouped)) {
+    entry.familyIds.sort(identityFirst(preferred.get(key)));
     entry.designers.sort((a, b) => a.name.localeCompare(b.name));
     entry.foundries.sort((a, b) => a.name.localeCompare(b.name));
   }

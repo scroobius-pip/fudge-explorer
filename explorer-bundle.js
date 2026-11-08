@@ -52,15 +52,51 @@ export const EXPLORER_QUERIES = {
     [["capture_id", -1]],
   ),
 
+  // A merged duplicate shows the credits of the family it was merged into
+  // when it has none of its own.
   families: query(
     ["family_id", "name", "designer_id", "vendor_id"],
     `
+credit_source[family_id, source] :=
+  *primary_family{id: family_id},
+  *primary_font_family_alias{family_id, canonical_family_id: source}
+credit_source[family_id, source] :=
+  *primary_family{id: family_id},
+  not *primary_font_family_alias{family_id},
+  source = family_id
 ?[family_id, name, designer_id, vendor_id] :=
-  *primary_family{id: family_id, name, designer_id, vendor_id},
-  family_id > $after_family_id
+  *primary_family{id: family_id, name, designer_id: own_designer, vendor_id: own_vendor},
+  family_id > $after_family_id,
+  credit_source[family_id, source],
+  *primary_family{id: source, designer_id: source_designer, vendor_id: source_vendor},
+  designer_id = if(is_null(own_designer), source_designer, own_designer),
+  vendor_id = if(is_null(own_vendor), source_vendor, own_vendor)
 :order family_id
 :limit ${PAGE_LIMIT}`,
     [["family_id", -1]],
+  ),
+
+  // Each observed font name paired with the canonical family its confirmed
+  // files resolve to through the font identity index, and how many files.
+  identityFamilies: query(
+    ["declared_family", "family_id", "count(sha)"],
+    `
+face_family[sha, family] :=
+  *primary_font_face_resolution{content_sha256: sha, state: "confirmed", logical_face_id: lf},
+  *primary_font_logical_face{logical_face_id: lf, family_id: resolved},
+  *primary_font_family_alias{family_id: resolved, canonical_family_id: family}
+face_family[sha, family] :=
+  *primary_font_face_resolution{content_sha256: sha, state: "confirmed", logical_face_id: lf},
+  *primary_font_logical_face{logical_face_id: lf, family_id: family},
+  not *primary_font_family_alias{family_id: family}
+pair[declared_family, family_id, sha] :=
+  *primary_pin_font_observation{capture_id: c, observation_index: o, declared_family},
+  *primary_pin_font_observation_source{capture_id: c, observation_index: o, acquisition_index: a},
+  *primary_font_source_acquisition{capture_id: c, acquisition_index: a, content_sha256: sha},
+  face_family[sha, family_id]
+?[declared_family, family_id, count(sha)] := pair[declared_family, family_id, sha]`,
+    [],
+    20_000,
   ),
 
   designers: query(
@@ -956,6 +992,7 @@ function assembleExplorerBundle(capturesResult, results) {
       ),
       captures,
       families: resultRows(results, "families"),
+      identity_families: resultRows(results, "identityFamilies"),
       designers: resultRows(results, "designers"),
       vendors: resultRows(results, "vendors"),
       releases: resultRows(results, "releases"),
