@@ -393,5 +393,6 @@ test("a family with split designers is read as one row per person in source orde
   assert.deepEqual(families.headers, ["family_id", "name", "designer_id", "vendor_id", "designer_position"]);
   assert.match(families.script, /\*primary_family_designer_credit\{family_id: home, position: designer_position, designer_id\}/);
   assert.match(families.script, /:order family_id, designer_position/);
+  assert.match(families.script, /not \*primary_family_suppression\{family_id\}/);
   assert.deepEqual(families.cursor, [["family_id", -1], ["designer_position", -1]]);
 });

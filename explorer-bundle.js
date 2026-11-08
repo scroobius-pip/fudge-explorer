@@ -54,7 +54,8 @@ export const EXPLORER_QUERIES = {
 
   // A merged duplicate shows the credits of the family it was merged into
   // when it has none of its own. A family whose designers were split from a
-  // combined row has one row per person, in source order.
+  // combined row has one row per person, in source order. A reviewed
+  // placeholder-named family ("False") is left out.
   families: query(
     ["family_id", "name", "designer_id", "vendor_id", "designer_position"],
     `
@@ -83,6 +84,7 @@ family_designer[family_id, designer_id, designer_position] :=
   designer_position = 0
 ?[family_id, name, designer_id, vendor_id, designer_position] :=
   *primary_family{id: family_id, name, vendor_id: own_vendor},
+  not *primary_family_suppression{family_id},
   credit_source[family_id, source],
   *primary_family{id: source, vendor_id: source_vendor},
   vendor_id = if(is_null(own_vendor), source_vendor, own_vendor),
