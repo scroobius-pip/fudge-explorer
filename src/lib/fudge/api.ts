@@ -890,19 +890,24 @@ function historicalFontRows(rows: Row[]): Record<string, HistoricalFontUse[]> {
  * resolve to, and that family comes first, ahead of rows matched only by name.
  */
 function withIdentityFamilies(familyRows: Row[], identityRows: Row[]) {
-  const byId = new Map(familyRows.map((row) => [asNumber(row[0]), row]));
+  // A family with several designers has one row per designer.
+  const byId = new Map<number, Row[]>();
+  for (const row of familyRows) {
+    const id = asNumber(row[0]);
+    byId.set(id, [...(byId.get(id) ?? []), row]);
+  }
   const preferred = new Map<string, Set<number>>();
   const rows = [...familyRows];
   for (const row of identityRows) {
     const name = normalizeObservedFontFamily(asString(row[0]));
     const familyId = asNumber(row[1]);
     const family = byId.get(familyId);
-    if (!name || !family) continue;
+    if (!name || !family?.length) continue;
     const key = observedFontFamilyKey(name);
     const ids = preferred.get(key) ?? new Set<number>();
     ids.add(familyId);
     preferred.set(key, ids);
-    rows.push([familyId, name, family[2], family[3]]);
+    for (const row of family) rows.push([familyId, name, row[2], row[3]]);
   }
   return { rows, preferred };
 }
@@ -968,7 +973,6 @@ function fontMetadataRows(
   }
   for (const [key, entry] of Object.entries(grouped)) {
     entry.familyIds.sort(identityFirst(preferred.get(key)));
-    entry.designers.sort((a, b) => a.name.localeCompare(b.name));
     entry.foundries.sort((a, b) => a.name.localeCompare(b.name));
   }
   return grouped;

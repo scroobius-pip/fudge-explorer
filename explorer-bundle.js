@@ -53,9 +53,10 @@ export const EXPLORER_QUERIES = {
   ),
 
   // A merged duplicate shows the credits of the family it was merged into
-  // when it has none of its own.
+  // when it has none of its own. A family whose designers were split from a
+  // combined row has one row per person, in source order.
   families: query(
-    ["family_id", "name", "designer_id", "vendor_id"],
+    ["family_id", "name", "designer_id", "vendor_id", "designer_position"],
     `
 credit_source[family_id, source] :=
   *primary_family{id: family_id},
@@ -64,16 +65,32 @@ credit_source[family_id, source] :=
   *primary_family{id: family_id},
   not *primary_font_family_alias{family_id},
   source = family_id
-?[family_id, name, designer_id, vendor_id] :=
-  *primary_family{id: family_id, name, designer_id: own_designer, vendor_id: own_vendor},
-  family_id > $after_family_id,
+designer_home[family_id, home] :=
+  *primary_family{id: family_id, designer_id: own},
+  !is_null(own),
+  home = family_id
+designer_home[family_id, home] :=
+  *primary_family{id: family_id, designer_id: own},
+  is_null(own),
+  credit_source[family_id, home]
+family_designer[family_id, designer_id, designer_position] :=
+  designer_home[family_id, home],
+  *primary_family_designer_credit{family_id: home, position: designer_position, designer_id}
+family_designer[family_id, designer_id, designer_position] :=
+  designer_home[family_id, home],
+  not *primary_family_designer_credit{family_id: home},
+  *primary_family{id: home, designer_id},
+  designer_position = 0
+?[family_id, name, designer_id, vendor_id, designer_position] :=
+  *primary_family{id: family_id, name, vendor_id: own_vendor},
   credit_source[family_id, source],
-  *primary_family{id: source, designer_id: source_designer, vendor_id: source_vendor},
-  designer_id = if(is_null(own_designer), source_designer, own_designer),
-  vendor_id = if(is_null(own_vendor), source_vendor, own_vendor)
-:order family_id
+  *primary_family{id: source, vendor_id: source_vendor},
+  vendor_id = if(is_null(own_vendor), source_vendor, own_vendor),
+  family_designer[family_id, designer_id, designer_position],
+  [family_id, designer_position] > [$after_family_id, $after_designer_position]
+:order family_id, designer_position
 :limit ${PAGE_LIMIT}`,
-    [["family_id", -1]],
+    [["family_id", -1], ["designer_position", -1]],
   ),
 
   // Each observed font name paired with the canonical family its confirmed
